@@ -427,7 +427,7 @@ console.log("💰 FINAL AMOUNT:", priceLYD);
 
     if (
       method === "mobicash" ||
-      method === "masrefypay" ||
+      method === "masrefypay" || 
       method === "yousrpay" ||
       method === "saharpay"
     ) {
@@ -791,7 +791,14 @@ onMouseOut={(e)=> e.target.style.opacity="1"}
       {/* 💳 Stripe */}
       <button
         onClick={async () => {
-          setShowPaymentOptions(false);
+          localStorage.setItem("pendingOrder", JSON.stringify({
+  name,
+  phone,
+  totalUSD,
+  priceLYD
+}));
+
+router.push("/confirm");
           await handlePayment(); // نفس الكود الحالي
         }}
         style={optionBtn}
