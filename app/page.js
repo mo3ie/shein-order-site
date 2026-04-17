@@ -2,135 +2,100 @@
 
 import { useRouter } from "next/navigation";
 
-export default function HomePage() {
-
+export default function Home() {
   const router = useRouter();
 
   return (
     <main style={main}>
+      
+      <div style={container}>
+        
+        <img src="/logo.png" style={{height:80, marginBottom:20}} />
 
-      {/* Header */}
-      <header style={header}>
-        <h2>TrendStore</h2>
-
-        <div>
-          <button onClick={()=>router.push("/about")} style={navBtn}>من نحن</button>
-          <button onClick={()=>router.push("/contact")} style={navBtn}>تواصل</button>
-        </div>
-      </header>
-
-      {/* Hero */}
-      <section style={hero}>
-        <h1 style={{fontSize:"32px"}}>
-          اطلب من SHEIN بسهولة 🚀
+        <h1 style={title}>
+          TrendStore
         </h1>
 
-        <p style={{marginTop:10}}>
-          نحن وسيط شراء آمن، نطلب لك المنتجات ونوصّلها لحد بابك
+        <p style={desc}>
+          وسيط شراء من المواقع العالمية مثل SHEIN  
+          نوفر لك طلبك بسهولة مع شحن سريع داخل ليبيا
         </p>
 
-        <button 
-          onClick={()=>router.push("/order")}
-          style={mainBtn}
+        <div style={box}>
+          <h3>كيف يعمل الموقع؟</h3>
+
+          <p>1. أرسل رابط السلة أو صورة الطلب</p>
+          <p>2. نحسب لك السعر النهائي</p>
+          <p>3. تأكيد الطلب</p>
+          <p>4. اختيار طريقة الدفع</p>
+          <p>5. التوصيل حتى بابك 🚚</p>
+        </div>
+
+        <button
+          onClick={() => router.push("/order")}
+          style={btn}
         >
-          ابدأ الطلب الآن
+          🚀 ابدأ الطلب الآن
         </button>
-      </section>
 
-      {/* خدمات */}
-      <section style={section}>
-        <h2>خدماتنا</h2>
+        <p style={note}>
+          نحن وسيط شراء مستقل ولسنا تابعين لأي شركة
+        </p>
 
-        <div style={grid}>
-          <div style={card}>
-            📦 شراء من المواقع العالمية
-          </div>
-
-          <div style={card}>
-            🚚 توصيل داخل ليبيا
-          </div>
-
-          <div style={card}>
-            💰 أفضل سعر وتحويل عملة
-          </div>
-        </div>
-      </section>
-
-      {/* كيف يعمل */}
-      <section style={section}>
-        <h2>كيف يعمل؟</h2>
-
-        <div style={grid}>
-          <div style={card}>1. أرسل صورة السلة</div>
-          <div style={card}>2. نحسب السعر</div>
-          <div style={card}>3. نؤكد الطلب</div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer style={footer}>
-        <p>© 2026 TrendStore - جميع الحقوق محفوظة</p>
-      </footer>
+      </div>
 
     </main>
   );
 }
 
-// 🎨 styles
-const main = { fontFamily:"sans-serif" };
-
-const header = {
-  display:"flex",
-  justifyContent:"space-between",
-  padding:"20px",
-  borderBottom:"1px solid #eee"
+const main = {
+  minHeight: "100vh",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  background: "linear-gradient(135deg,#000,#222)",
+  color: "#fff",
+  fontFamily: "system-ui"
 };
 
-const navBtn = {
-  marginLeft:10,
-  background:"none",
-  border:"none",
-  cursor:"pointer"
+const container = {
+  textAlign: "center",
+  maxWidth: "400px",
+  padding: "20px"
 };
 
-const hero = {
-  textAlign:"center",
-  padding:"60px 20px"
+const title = {
+  fontSize: "32px",
+  fontWeight: "bold",
+  marginBottom: "10px"
 };
 
-const mainBtn = {
-  marginTop:20,
-  padding:"12px 20px",
-  background:"#000",
-  color:"#fff",
-  border:"none",
-  borderRadius:8,
-  cursor:"pointer"
+const desc = {
+  color: "#ccc",
+  marginBottom: "20px"
 };
 
-const section = {
-  padding:"40px 20px",
-  textAlign:"center"
+const box = {
+  background: "#111",
+  padding: "15px",
+  borderRadius: "12px",
+  marginBottom: "20px",
+  border: "1px solid #333"
 };
 
-const grid = {
-  display:"flex",
-  gap:20,
-  justifyContent:"center",
-  flexWrap:"wrap",
-  marginTop:20
+const btn = {
+  width: "100%",
+  padding: "14px",
+  borderRadius: "12px",
+  border: "none",
+  background: "#22c55e",
+  color: "#000",
+  fontWeight: "bold",
+  cursor: "pointer"
 };
 
-const card = {
-  padding:20,
-  border:"1px solid #eee",
-  borderRadius:10,
-  minWidth:150
-};
-
-const footer = {
-  textAlign:"center",
-  padding:20,
-  borderTop:"1px solid #eee",
-  marginTop:40
+const note = {
+  marginTop: "15px",
+  fontSize: "12px",
+  color: "#888"
 };
