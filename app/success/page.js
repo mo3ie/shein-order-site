@@ -18,24 +18,61 @@ function SuccessContent() {
       : null);
 
   useEffect(() => {
-    const checkPayment = async () => {
-      if (!orderId) return;
+  const checkPayment = async () => {
+    if (!orderId) return;
 
-      const { data } = await supabase
-        .from("orders")
-        .select("status")
-        .eq("id", orderId)
-        .single();
+    // 1) نجيب الحالة من قاعدة البيانات
+    const { data } = await supabase
+      .from("orders")
+      .select("status")
+      .eq("id", orderId)
+      .single();
 
-      if (data?.status === "paid") {
-        setStatus("paid");
-      } else {
+    // إذا مدفوع مسبقاً
+    if (data?.status === "paid") {
+      setStatus("paid");
+      return;
+    }
+
+    // 2) إذا ليس مدفوع → نتحقق من DPay
+    if (sessionId) {
+      try {
+        const res = await fetch("/api/verify", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ session_id: sessionId }),
+        });
+
+        const result = await res.json();
+
+        console.log("VERIFY RESULT:", result);
+
+        const paymentStatus = result?.data?.status;
+
+        if (paymentStatus === "paid") {
+          // تحديث الطلب في Supabase
+          await supabase
+            .from("orders")
+            .update({ status: "paid" })
+            .eq("id", orderId);
+
+          setStatus("paid");
+        } else {
+          setStatus("pending");
+        }
+      } catch (err) {
+        console.error("Verify error:", err);
         setStatus("pending");
       }
-    };
+    } else {
+      setStatus("pending");
+    }
+  };
 
-    checkPayment();
-  }, [orderId]);
+  checkPayment();
+}, [orderId, sessionId]);
 
   const sessionId = params.get("session_id");
 

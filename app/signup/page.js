@@ -18,7 +18,6 @@ const [street, setStreet] = useState("");
 const [details, setDetails] = useState("");
 const [avatar, setAvatar] = useState(null);
 
-
 const resetPassword = async () => {
   if (!email) {
     alert("أدخل البريد أولاً");
@@ -26,7 +25,7 @@ const resetPassword = async () => {
   }
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: "http://localhost:3000/reset-password",
+    redirectTo: "http://trend-shein.com/reset-password",
   });
 
   if (error) {
@@ -66,6 +65,8 @@ const [step, setStep] = useState("form"); // form | otp
 const [otp, setOtp] = useState("");
 
   const handleSignup = async () => {
+
+    
   if (!phone) {
     alert("أدخل رقم الهاتف");
     return;
@@ -90,6 +91,8 @@ const linkOldOrders = async (user) => {
 } = await supabase.auth.getUser();
 
 await linkOldOrders(user);
+
+
 
     // ⚠️ عدل حسب الحقل عندك (phone أو email)
     const phone = user.phone || user.user_metadata?.phone;

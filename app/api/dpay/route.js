@@ -11,23 +11,37 @@ export async function POST(req) {
     } = body;
 
     // 🔴 تحقق أساسي
-    if (!method || !amount) {
-      return Response.json(
-        { error: "method و amount مطلوبين" },
-        { status: 400 }
-      );
-    }
+    if (method === "edfali") {
+  if (!customer_mobile || customer_mobile.length < 8) {
+    return Response.json(
+      { error: "رقم الهاتف غير صالح" },
+      { status: 400 }
+    );
+  }
+
+  payload.customer_mobile = customer_mobile;
+}
 
     // 🟢 تجهيز payload
     
+if (!priceLYD || isNaN(priceLYD)) {
+  throw new Error("السعر غير صالح");
+}
+
 
 const payload = {
-  pay_method: method,
-  amount: Math.round(amount),
 
-  // 🔥 إضافة مهمة جدًا
-  return_url: `https://institute-certification-coverage-lady.trycloudflare.com/success?orderId=${order_id}`,
+  currency: "LYD",
+  amount: Math.round(Number(priceLYD)) ,
+ 
+  pay_method: method,
+
+  
 };
+
+console.log("💰 FINAL AMOUNT:", priceLYD);
+console.log("📦 PAYLOAD:", payload);
+
 
 
     // 🟣 ربط الطلب (اختياري)
@@ -37,30 +51,25 @@ const payload = {
 
     // 🟣 edfali
     if (method === "edfali") {
-      if (!customer_mobile) {
-        return Response.json(
-          { error: "رقم الهاتف مطلوب لـ edfali" },
-          { status: 400 }
-        );
-      }
       payload.customer_mobile = customer_mobile;
     }
 
     // 🔵 mobicash + البنوك
-    if (
-      method === "mobicash" ||
-      method === "masrafypay" ||
-      method === "yousrpay" ||
-      method === "saharpay"
-    ) {
-      if (!card_number || card_number.length !== 7) {
-        return Response.json(
-          { error: "رقم البطاقة يجب أن يكون 7 أرقام" },
-          { status: 400 }
-        );
-      }
-      payload.card_number = card_number;
-    }
+   if (
+  method === "mobicash" ||
+  method === "masrafypay" ||
+  method === "yousrpay" ||
+  method === "saharpay"
+) {
+  if (!card_number || !/^\d{7}$/.test(card_number)) {
+    return Response.json(
+      { error: "رقم البطاقة يجب أن يكون 7 أرقام صحيحة" },
+      { status: 400 }
+    );
+  }
+
+  payload.card_number = card_number;
+}
 
     console.log("SEND TO DPAY:", payload);
 
@@ -70,8 +79,11 @@ const payload = {
         ? "https://dpay.ly/api/payment/sessions/open"
         : "https://dpay.ly/api/sandbox/payment/sessions/open";
 
+
+        
     // 🟢 إرسال الطلب
     const response = await fetch(baseUrl, {
+      
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -79,8 +91,12 @@ const payload = {
         Authorization: `Bearer ${process.env.DPAY_TOKEN}`,
       },
       body: JSON.stringify(payload),
-    });
+    })
+    
+    ;
 
+
+    
     const text = await response.text();
 
     let data;
@@ -120,11 +136,13 @@ const payload = {
       session_id: data.session_id,
     });
 
-  } catch (err) {
-    console.error("SERVER ERROR:", err);
-    return Response.json(
-      { error: "خطأ في السيرفر" },
-      { status: 500 }
-    );
-  }
+  } 
+  catch (error) {
+  console.error("❌ DPAY ERROR:", error);
+
+  return new Response(
+    JSON.stringify({ error: error.message }),
+    { status: 500 }
+  );
+}
 }

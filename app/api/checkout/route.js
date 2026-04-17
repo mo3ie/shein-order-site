@@ -26,9 +26,9 @@ export async function POST(req) {
       ],
 
       // ✅ هذا هو المهم
-      success_url: `http://localhost:3000/success?orderId=${body.orderId}`,
+      success_url: `http://trend-shein.com/success?orderId=${body.orderId}`,
 
-      cancel_url: "http://localhost:3000",
+      cancel_url: "http://trend-shein.com",
     });
 
     return Response.json({ url: session.url });
