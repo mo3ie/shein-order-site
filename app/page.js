@@ -6,96 +6,142 @@ export default function Home() {
   const router = useRouter();
 
   return (
-    <main style={main}>
-      
-      <div style={container}>
-        
-        <img src="/logo.png" style={{height:80, marginBottom:20}} />
+    <main style={mainStyle}>
 
-        <h1 style={title}>
-          TrendStore
-        </h1>
-
-        <p style={desc}>
-          وسيط شراء من المواقع العالمية مثل SHEIN  
-          نوفر لك طلبك بسهولة مع شحن سريع داخل ليبيا
-        </p>
-
-        <div style={box}>
-          <h3>كيف يعمل الموقع؟</h3>
-
-          <p>1. أرسل رابط السلة أو صورة الطلب</p>
-          <p>2. نحسب لك السعر النهائي</p>
-          <p>3. تأكيد الطلب</p>
-          <p>4. اختيار طريقة الدفع</p>
-          <p>5. التوصيل حتى بابك 🚚</p>
-        </div>
-
-        <button
-          onClick={() => router.push("/order")}
-          style={btn}
-        >
-          🚀 ابدأ الطلب الآن
+      {/* أزرار أعلى */}
+      <div style={topBar}>
+        <button style={topBtn}>من نحن</button>
+        <button style={topBtn}>تواصل</button>
+        <button onClick={()=>router.push("/login")} style={topBtnBlack}>
+          تسجيل دخول
         </button>
-
-        <p style={note}>
-          نحن وسيط شراء مستقل ولسنا تابعين لأي شركة
-        </p>
-
       </div>
 
+      <div style={cardStyle}>
+
+        {/* اللوقو بالمنتصف */}
+        <div style={{textAlign:"center"}}>
+          <img src="/logo.png" style={{height:90}} />
+        </div>
+
+        <h3 style={{textAlign:"center", marginTop:10}}>
+          منتجاتك و سلتك بضغطة زر تكون عندك
+        </h3>
+
+        <p style={desc}>
+          ضع رابط السلة وسنتكفل بالشراء والتوصيل إليك
+        </p>
+
+        {/* زر الطلب */}
+        <button
+          onClick={()=>router.push("/order")}
+          style={mainBtn}
+        >
+          إرسال طلب جديد
+        </button>
+
+        {/* تتبع */}
+        <div style={{display:"flex", gap:10, marginTop:10}}>
+          <input placeholder="أدخل رقم الطلب" style={input}/>
+          <button style={searchBtn}>بحث</button>
+        </div>
+
+        {/* حساب */}
+        <button
+          onClick={()=>router.push("/signup")}
+          style={secondaryBtn}
+        >
+          إنشاء حساب
+        </button>
+
+      </div>
     </main>
   );
 }
 
-const main = {
+const mainStyle = {
   minHeight: "100vh",
+  backgroundImage: "url('/bg.png')", // نفس خلفية الطلب
+  backgroundSize: "cover",
+  backgroundPosition: "center",
   display: "flex",
-  justifyContent: "center",
   alignItems: "center",
-  background: "linear-gradient(135deg,#000,#222)",
-  color: "#fff",
-  fontFamily: "system-ui"
+  justifyContent: "center",
 };
 
-const container = {
-  textAlign: "center",
-  maxWidth: "400px",
-  padding: "20px"
-};
-
-const title = {
-  fontSize: "32px",
-  fontWeight: "bold",
-  marginBottom: "10px"
+const cardStyle = {
+  width: "400px",
+  background: "#fff",
+  padding: "25px",
+  borderRadius: "16px",
+  boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
 };
 
 const desc = {
-  color: "#ccc",
-  marginBottom: "20px"
+  textAlign: "center",
+  color: "#666",
+  fontSize: "14px",
+  marginBottom: "15px"
 };
 
-const box = {
-  background: "#111",
-  padding: "15px",
-  borderRadius: "12px",
-  marginBottom: "20px",
-  border: "1px solid #333"
-};
-
-const btn = {
+const mainBtn = {
   width: "100%",
   padding: "14px",
-  borderRadius: "12px",
+  background: "#000",
+  color: "#fff",
   border: "none",
-  background: "#22c55e",
-  color: "#000",
-  fontWeight: "bold",
+  borderRadius: "10px",
+  cursor: "pointer",
+  marginTop: "10px"
+};
+
+const secondaryBtn = {
+  width: "100%",
+  padding: "12px",
+  background: "#f3f4f6",
+  border: "none",
+  borderRadius: "10px",
+  marginTop: "10px",
   cursor: "pointer"
 };
 
-const note = {
-  marginTop: "15px",
-  fontSize: "12px",
-  color: "#888"
+const input = {
+  flex: 1,
+  padding: "10px",
+  borderRadius: "8px",
+  border: "1px solid #ddd"
+};
+
+const searchBtn = {
+  padding: "10px",
+  background: "#000",
+  color: "#fff",
+  borderRadius: "8px",
+  border: "none"
+};
+
+const topBar = {
+  position: "absolute",
+  top: "20px",
+  left: "50%",
+  transform: "translateX(-50%)",
+  display: "flex",
+  gap: "10px"
+};
+
+const topBtn = {
+  padding: "6px 12px",
+  background: "#fff",
+  borderRadius: "8px",
+  border: "1px solid #ddd",
+  cursor: "pointer"
+};
+
+const topBtnBlack = {
+  padding: "6px 12px",
+  background: "#000",
+  color: "#fff",
+  borderRadius: "8px",
+  border: "none",
+  cursor: "pointer"
 };
