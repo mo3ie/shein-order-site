@@ -21,7 +21,7 @@ export default function Home() {
 
         {/* اللوقو بالمنتصف */}
         <div style={{textAlign:"center"}}>
-          <img src="/logo.png" style={{height:90}} />
+          <img src="/logo.png" style={{height:90, alignContent:"center"}} />
         </div>
 
         <h3 style={{textAlign:"center", marginTop:10}}>
@@ -29,7 +29,7 @@ export default function Home() {
         </h3>
 
         <p style={desc}>
-          ضع رابط السلة وسنتكفل بالشراء والتوصيل إليك
+         نحن وسيط شراء مستقل ولسنا تابعين لأي شركة
         </p>
 
         {/* زر الطلب */}
