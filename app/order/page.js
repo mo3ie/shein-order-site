@@ -50,12 +50,14 @@ useEffect(()=>{
   };
 
 
-
-const base = price; // من الصورة
-
-const profit = base * 0.3;
-
 const [exchangeRate, setExchangeRate] = useState(1);
+const base = price || 0; // من الصورة
+
+const profit = base * 0.03;
+const totalUSD = base + profit;
+const priceLYD = exchangeRate
+  ? totalUSD * exchangeRate
+  : 0;
 
 useEffect(() => {
   const getRate = async () => {
@@ -78,47 +80,12 @@ if (data) {
   getRate();
 }, []);
 
-const totalUSD = base + profit; // ❌ بدون شحن
 
-const handleOrder = async () => {
-  // 1️⃣ إنشاء الطلب أولاً
-  const res = await fetch("/api/order", {
-    method: "POST",
-    body: JSON.stringify({
-      name,
-      phone,
-      image_url: imageUrl,
-      price,
-      final_total: totalUSD,
-       user_id: user?.id
-    }),
-  });
 
-  const data = await res.json();
 
-  const orderId = data.id; // 👈 هنا يأتي ID
 
- localStorage.setItem("lastOrderId", orderId);
 
-  // 2️⃣ الانتقال للدفع
-  const payRes = await fetch("/api/checkout", {
-    method: "POST",
-    body: JSON.stringify({
-      amount: finalTotal,
-      orderId: orderId,
-    }),
-  });
 
-  const payData = await payRes.json();
-
-  if (payData.url) {
-    window.location.href = payData.url;
-  }
-};
-
-const priceLYD = exchangeRate
-  ? totalUSD * exchangeRate
-  : 0;
 
 
 async function handleImage(file) {
@@ -149,6 +116,7 @@ price = anyNumber ? parseFloat(anyNumber[0].replace(/,/g, "")) : 0;
   setLoading(false); // 👈 هذا السطر كان ناقص أو في المكان الخطأ
 }
 async function handleSubmit() {
+
 
 const { data: { user } } = await supabase.auth.getUser();
 
@@ -214,7 +182,7 @@ if (result.success) {
 
   localStorage.setItem("lastOrderId", result.id);
 
-  window.location.href = `/track?id=${result.id}`;
+ 
 
   setName("");
   setPhone("");
@@ -245,28 +213,7 @@ function calculateFinalPrice(base) {
 
 
 
-  async function sendOrder(){
-
-    const res = await fetch("/api/order",{
-      method:"POST",
-      headers:{
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify({
-        name,
-        phone,
-        cart_link: cartLink,
-        price: "يتم الحساب لاحقاً"
-      })
-    });
-
-    const data = await res.json();
-
-    if(data.success){
-      alert("تم ارسال الطلب بنجاح");
-    }
-  }
-
+  
 
 const handlePayment = async () => {
   try {
@@ -325,9 +272,9 @@ const handlePayment = async () => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        amount: totalUSD,
-        orderId: orderId
-      }),
+  amount: order.totalUSD,
+  orderId: order.id
+}),
     });
 
     const data = await res.json();
@@ -799,7 +746,7 @@ onMouseOut={(e)=> e.target.style.opacity="1"}
 }));
 
 router.push("/confirm");
-          await handlePayment(); // نفس الكود الحالي
+          
         }}
         style={optionBtn}
       >
@@ -833,7 +780,7 @@ router.push("/confirm");
   />
 )}
 
-{["mobicash","masrafypay","yousrpay","saharpay"].includes(selectedMethod) && (
+{["mobicash","masrefypay","yousrpay","saharpay"].includes(selectedMethod) && (
   <input
     placeholder="💳 رقم البطاقة (7 أرقام)"
     value={cardNumber}

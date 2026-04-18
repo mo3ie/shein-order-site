@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 
+
 export default function Home() {
   const router = useRouter();
 
@@ -21,10 +22,10 @@ export default function Home() {
 
         {/* اللوقو بالمنتصف */}
         <div style={{textAlign:"center"}}>
-          <img src="/logo.png" style={{height:90, alignContent:"center"}} />
+          <img src="/logo.png" style={{height:90,}} />
         </div>
 
-        <h3 style={{textAlign:"center", marginTop:10}}>
+        <h3 style={{textAlign:"center", marginTop:10, color:"#111"}}>
           منتجاتك و سلتك بضغطة زر تكون عندك
         </h3>
 
@@ -41,7 +42,7 @@ export default function Home() {
         </button>
 
         {/* تتبع */}
-        <div style={{display:"flex", gap:10, marginTop:10}}>
+        <div style={{display:"flex", gap:10, marginTop:10 , color:"#111"}}>
           <input placeholder="أدخل رقم الطلب" style={input}/>
           <button style={searchBtn}>بحث</button>
         </div>
@@ -49,7 +50,7 @@ export default function Home() {
         {/* حساب */}
         <button
           onClick={()=>router.push("/signup")}
-          style={secondaryBtn}
+          style={{secondaryBtn, color:"#111"} }
         >
           إنشاء حساب
         </button>
