@@ -8,7 +8,20 @@ export async function POST(req) {
 
     console.log("BODY:", body);
 
+    // ✅ تأكد أن orderId موجود
+    let orderId = body.orderId;
+
+    if (!orderId) {
+      orderId = Date.now().toString(); // fallback
+      console.warn("⚠️ orderId was missing, generated:", orderId);
+    }
+
     const session = await stripe.checkout.sessions.create({
+
+      metadata: {
+  order_id: orderId,
+},
+
       payment_method_types: ["card"],
       mode: "payment",
 
@@ -25,10 +38,17 @@ export async function POST(req) {
         },
       ],
 
-      // ✅ هذا هو المهم
-      success_url: `http://trendstore-ly.com/success?orderId=${body.orderId}`,
+     
+      
 
-      cancel_url: "http://trendstore-ly.com",
+      // ✅ success URL مضبوط
+      success_url: `http://trendstore-ly.com/success?orderId=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
+
+      cancel_url: "http://trendstore-ly.com/",
+
+       metadata: {
+        order_id: orderId      }
+      
     });
 
     return Response.json({ url: session.url });

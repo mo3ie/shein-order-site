@@ -16,6 +16,10 @@ export default function ConfirmPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    
+    const id = localStorage.getItem("lastOrderId");
+setOrderId(id);
+
   const data = localStorage.getItem("pendingOrder");
   if (data) {
     const parsed = JSON.parse(data);
@@ -43,6 +47,9 @@ export default function ConfirmPage() {
 
   return "+" + clean;
 };
+
+
+
 
 const formattedPhone = formatPhone(phone);
 console.log("FINAL PHONE:", formattedPhone);
@@ -88,27 +95,34 @@ console.log("FINAL PHONE:", formattedPhone);
 
   // الدفع
   const handlePay = async () => {
-   
-    const res = await fetch("/api/checkout", {
-      
-      method: "POST",
-      body: JSON.stringify({
-  amount: order.totalUSD,
-  orderId: order.id
+  setLoading(true);
+
+  // 🔥 أولاً: أنشئ الطلب في قاعدة البيانات
   
-})
+  const orderData = await resOrder.json();
 
-    });
+  const orderId = orderData.Id; // ✅ هذا هو UUID الحقيقي
 
-    const data = await res.json();
+  // 🔥 ثانياً: أرسل إلى Stripe
+  const res = await fetch("/api/checkout", {
+    method: "POST",
+    body: JSON.stringify({
+      amount: order.totalUSD,
+      orderId: orderId,
+    }),
+  });
 
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      alert("فشل إنشاء رابط الدفع");
-    }
-  };
+  const data = await res.json();
 
+  if (data.url) {
+    window.location.href = data.url;
+  } else {
+    alert("فشل إنشاء رابط الدفع");
+  }
+
+  setLoading(false);
+};
+  
   if (!order) return <div style={{textAlign:"center"}}>جاري التحميل...</div>;
 
   return (

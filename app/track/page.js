@@ -64,9 +64,20 @@ const [preview, setPreview] = useState(null);
 
   const data = JSON.parse(text);
 
-  if (data.success) {
-    setOrder(data.order);
-  }
+ if (data.success && data.order) {
+  setOrder(data.order);
+} else {
+  console.log("❌ الطلب غير موجود");
+
+  setOrder({
+    status: "not_found",
+    name: "-",
+    phone: "-",
+    price: "-",
+    image_url: ""
+  });
+}
+
 };
 
     getOrder();
@@ -102,13 +113,23 @@ const [preview, setPreview] = useState(null);
   doc.save(`invoice-${id}.pdf`);
 };
 
-  if (!order) {
-    return <p style={{ textAlign: "center", marginTop: 50 }}>⏳ جاري تحميل الطلب...</p>;
-  }
+ if (!order) {
+  return <p style={{ textAlign: "center", marginTop: 50 }}>⏳ جاري تحميل الطلب...</p>;
+}
+
+if (order.status === "not_found") {
+  return (
+    <p style={{ textAlign: "center", marginTop: 50 }}>
+      ❌ الطلب غير موجود
+    </p>
+  );
+}
 
 const steps = ["new", "ordered", "shipped", "delivered"];
 
-const currentStep = steps.indexOf(order.status || "new");
+const currentStep = order?.status
+  ? steps.indexOf(order.status)
+  : 0;
 
 console.log("STEP:", currentStep);
 

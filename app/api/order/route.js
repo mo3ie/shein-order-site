@@ -80,19 +80,31 @@ export async function POST(req) {
 
     const { name, phone, cart_link, price, image_url } = body;
 
-    const { data, error } = await supabaseAdmin
+   const { data, error } = await supabaseAdmin
   .from("orders")
   .insert([
     {
       name,
       phone,
       cart_link,
-      price,
-      user_id: user?.id || null,
       image_url,
-    },
+      type: "shein",
+      status: "new",
+      price,
+    }
   ])
-  .select(); // ✅ مهم
+  .select()
+  .single();
+
+if (!data) {
+  return Response.json({
+    success: false,
+    message: "فشل إنشاء الطلب",
+  });
+}
+
+const orderId = data.id;
+  
 
     if (error) {
   console.error("SUPABASE ERROR:", error);
@@ -105,7 +117,7 @@ export async function POST(req) {
 
 return Response.json({
   success: true,
-  id: data[0].id, // ✅ يرجع id الحقيقي
+ id: data.id
 });
 
 

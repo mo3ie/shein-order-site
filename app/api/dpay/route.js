@@ -1,13 +1,15 @@
 export async function POST(req) {
   try {
     const body = await req.json();
-
+    
+const { amount, orderId } = body;
+const priceLYD = amount;
     const {
       method,
-      amount,
+
       customer_mobile,
       card_number,
-      order_id
+      orderid
     } = body;
 
     // 🔴 تحقق أساسي
@@ -33,9 +35,10 @@ const payload = {
 
   currency: "LYD",
   amount: Math.round(Number(priceLYD)) ,
- 
-  pay_method: method,
+  order_id: orderId,
 
+  pay_method: method,
+callback_url: "https://trendstore-ly.com/api/dpay/webhook"
   
 };
 
@@ -83,17 +86,20 @@ console.log("📦 PAYLOAD:", payload);
         
     // 🟢 إرسال الطلب
     const response = await fetch(baseUrl, {
-      
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        Authorization: `Bearer ${process.env.DPAY_TOKEN}`,
-      },
-      body: JSON.stringify(payload),
-    })
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    Authorization: `Bearer ${process.env.DPAY_TOKEN}`,
+  },
+  body: JSON.stringify(payload),
+});
+
+
+
+console.log("DPAY RESPONSE FULL:", data);
     
-    ;
+
 
 
     

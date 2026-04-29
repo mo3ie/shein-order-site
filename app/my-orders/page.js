@@ -14,6 +14,8 @@ export default function MyOrders() {
       const { data: { user } } = await supabase.auth.getUser();
 
 if (!user) {
+
+    router.push("/user-login");
   console.log("No user logged in");
   return;
 }
@@ -140,7 +142,7 @@ if (error) {
 
               <button
                 onClick={() =>
-                  router.push(`/track?orderId=${order.id}`)
+                  router.push(`/track?orderId=${id}`)
                 }
                 style={{
                   flex: 1,
@@ -156,7 +158,7 @@ if (error) {
               </button>
 
               <a
-                href={`/track?orderId=${order.id}`}
+                href={`/track?orderId=${id}`}
                 target="_blank"
                 style={{
                   flex: 1,

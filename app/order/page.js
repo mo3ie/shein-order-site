@@ -8,6 +8,7 @@ export default function orderPage () {
 
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
   const [cartLink, setcartLink] = useState("");
+ const [orderId, setOrderId] = useState(null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
 const router = useRouter();
@@ -34,6 +35,8 @@ const paymentMethods = [
 
 
 useEffect(()=>{
+
+
   supabase.auth.getUser().then(({data})=>{
     setUser(data.user);
   });
@@ -252,6 +255,7 @@ const handlePayment = async () => {
         cart_link: cartLink,
         price,
         image_url: imageUrl
+        
          
       })
     });
@@ -265,6 +269,13 @@ const handlePayment = async () => {
 
     const orderId = orderData.id; // ✅ هنا الصحيح
 
+    await supabase.from("payments").insert({
+  order_id: orderId,
+  method: "stripe",
+  status: "pending",
+  amount: totalUSD
+});
+
     // 3️⃣ إرسال إلى Stripe
     const res = await fetch("/api/checkout", {
       method: "POST",
@@ -272,8 +283,9 @@ const handlePayment = async () => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-  amount: order.totalUSD,
-  orderId: order.id
+  amount: totalUSD,
+
+  orderId: orderId
 }),
     });
 
@@ -348,9 +360,16 @@ const handleDpay = async (method) => {
     }
 
     const orderId = orderData.id;
+setOrderId(orderId);
 
-    // 🔥 مهم جدًا
-    localStorage.setItem("lastOrderId", orderId);
+    await supabase.from("payments").insert({
+  order_id: orderId,
+  method: "dpay",
+  status: "pending",
+  amount: priceLYD
+});
+
+   
 
 if (!priceLYD || isNaN(priceLYD)) {
   throw new Error("السعر غير صالح");
@@ -381,19 +400,29 @@ console.log("💰 FINAL AMOUNT:", priceLYD);
       payload.card_number = cardNumber;
     }
 
-    const res = await fetch("/api/dpay", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload)
-    });
+    const res = await fetch("/api/dpay/moamalat", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    orderId,
+    amount: priceLYD,
+    method: selectedMethod,
+    customer_mobile: phone,
+    card_number: cardNumber
+  })
+});
 
     const data = await res.json();
 console.log("DPAY RESPONSE:", data);
 
    if (data.payment_link) {
   window.location.href = data.payment_link;
+
+ // 🔥 مهم جدًا
+    localStorage.setItem("lastOrderId", orderId);
+
 } else {
   alert("❌ فشل إنشاء رابط الدفع");
 }
@@ -737,17 +766,7 @@ onMouseOut={(e)=> e.target.style.opacity="1"}
 
       {/* 💳 Stripe */}
       <button
-        onClick={async () => {
-          localStorage.setItem("pendingOrder", JSON.stringify({
-  name,
-  phone,
-  totalUSD,
-  priceLYD
-}));
-
-router.push("/confirm");
-          
-        }}
+        onClick={async () => handlePayment()}
         style={optionBtn}
       >
         💳 دفع دولي (Visa / MasterCard)

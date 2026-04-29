@@ -11,54 +11,67 @@ function SuccessContent() {
 
   const [status, setStatus] = useState("loading");
 
-  const orderId =
-    params.get("orderId") ||
-    (typeof window !== "undefined"
-      ? localStorage.getItem("lastOrderId")
-      : null);
+  // ✅ عرّف sessionId قبل useEffect
+  const sessionId = params.get("session_id");
+
+  const orderId = params.get("orderId");
+   
 
   useEffect(() => {
-  const checkPayment = async () => {
-    if (!orderId) return;
+    const checkPayment = async () => {
+      if (!orderId) {
+        setStatus("pending");
+        return;
+      }
 
-    // 1) نجيب الحالة من قاعدة البيانات
-    const { data } = await supabase
-      .from("orders")
-      .select("status")
-      .eq("id", orderId)
-      .single();
-
-    // إذا مدفوع مسبقاً
-    if (data?.status === "paid") {
-      setStatus("paid");
-      return;
-    }
-
-    // 2) إذا ليس مدفوع → نتحقق من DPay
-    if (sessionId) {
       try {
-        const res = await fetch("/api/verify", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ session_id: sessionId }),
-        });
+        // 1) نجيب الحالة من Supabase
+        const { data, error } = await supabase
+          .from("orders")
+          .select("status")
+          .eq("id", orderId)
+          .maybeSingle();
 
-        const result = await res.json();
+       
 
-        console.log("VERIFY RESULT:", result);
+if (!data) {
+  console.log("⚠️ الطلب غير موجود في قاعدة البيانات");
+  setStatus("pending");
+  return;
+}
 
-        const paymentStatus = result?.data?.status;
+        // إذا مدفوع مسبقاً
+        if (data?.status === "paid") {
+          setStatus("pending");
+          return;
+        }
 
-        if (paymentStatus === "paid") {
-          // تحديث الطلب في Supabase
-          await supabase
-            .from("orders")
-            .update({ status: "paid" })
-            .eq("id", orderId);
+        // 2) تحقق من الدفع عبر API
+        if (sessionId) {
+          const res = await fetch("/api/verify-stripe", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ session_id: sessionId }),
+          });
 
-          setStatus("paid");
+          const result = await res.json();
+          console.log("VERIFY RESULT:", result);
+
+          const paymentStatus = result?.data?.status;
+
+          if (paymentStatus === "paid") {
+            // تحديث الطلب
+            await supabase
+              .from("orders")
+              .update({ status: "paid" })
+              .eq("id", orderId);
+
+            setStatus("paid");
+          } else {
+            setStatus("pending");
+          }
         } else {
           setStatus("pending");
         }
@@ -66,22 +79,15 @@ function SuccessContent() {
         console.error("Verify error:", err);
         setStatus("pending");
       }
-    } else {
-      setStatus("pending");
-    }
-  };
+    };
 
-  checkPayment();
-}, [orderId, sessionId]);
-
-  const sessionId = params.get("session_id");
+    checkPayment();
+  }, [orderId, sessionId]);
 
   return (
     <div style={container}>
-      {/* Logo */}
       <img src="/logo.png" style={logo} />
 
-      {/* Card */}
       <div style={card}>
         {status === "loading" && <h2>⏳ جاري التحقق من الدفع...</h2>}
 
@@ -97,36 +103,31 @@ function SuccessContent() {
 
         {orderId && (
           <div style={orderBox}>
-            <div dir="rtl" className="flex items-center justify-center gap-2">
-              <span className="text-gray-600" style={{ fontSize: "20px" }}>
-                {" "}
-                رقم الطلب :
-              </span>
+            <div dir="rtl" style={{ display: "flex", gap: "10px", justifyContent: "center", alignItems: "center" }}>
+              <span style={{ fontSize: "20px" }}>رقم الطلب :</span>
 
-              {sessionId && (
-                <p style={{ fontSize: "12px", color: "#999" }}>
-                  Session: {sessionId}
-                </p>
-              )}
-
-              <span className="font-bold">{orderId}</span>
+              <span style={{ fontWeight: "bold" }}>{orderId}</span>
 
               <button
                 onClick={() => navigator.clipboard.writeText(orderId)}
-                className="text-sm bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded"
                 style={{
                   background: "#000",
                   color: "#fff",
                   border: "none",
                   padding: "5px 12px",
-                  marginRight: "15px",
                   borderRadius: "8px",
+                  cursor: "pointer"
                 }}
               >
                 نسخ
               </button>
             </div>
-            <b>{orderId}</b>
+
+            {sessionId && (
+              <p style={{ fontSize: "12px", color: "#999", marginTop: "5px" }}>
+                Session: {sessionId}
+              </p>
+            )}
           </div>
         )}
 
