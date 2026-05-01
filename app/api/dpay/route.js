@@ -81,13 +81,13 @@ export async function POST(req) {
       return Response.json({ error: "DPAY ERROR", data }, { status: 500 });
     }
 
-    if (!data.session_id) {
+    if (!data.payment_link) {
       return Response.json({ error: "لم يتم إنشاء session", data }, { status: 500 });
     }
 
     return Response.json({
       success: true,
-      payment_url: data.payment_url,
+      payment_link: data.payment_link,
       session_id: data.session_id,
     });
 
