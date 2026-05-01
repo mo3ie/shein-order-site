@@ -16,7 +16,7 @@ export async function POST(req) {
     }
 
     let payload = {
-      amount: Number(amount),
+      amount: Math.round(amount),
       currency: "LYD",
       order_id: orderId,
       pay_method: method,
