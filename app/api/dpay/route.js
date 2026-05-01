@@ -41,7 +41,7 @@ export async function POST(req) {
     // ✅ البطاقات
     if (
       method === "mobicash" ||
-      method === "masrafypay" ||
+      method === "masrefypay" ||
       method === "yousrpay" ||
       method === "saharpay"
     ) {
@@ -61,9 +61,9 @@ export async function POST(req) {
     const response = await fetch(baseUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: Bearer `${process.env.DPAY_TOKEN}`,
-      },
+  Authorization: `Bearer ${process.env.DPAY_TOKEN}`,
+  "Content-Type": "application/json"
+},
       body: JSON.stringify(payload),
     });
 
