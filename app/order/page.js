@@ -415,18 +415,22 @@ console.log("💰 FINAL AMOUNT:", priceLYD);
   })
 });
 
-    const data = await res.json();
+   const data = await res.json();
 console.log("DPAY RESPONSE:", data);
 
-   if (data.payment_link) {
+if (data.payment_link) {
   window.location.href = data.payment_link;
 
- // 🔥 مهم جدًا
-    localStorage.setItem("lastOrderId", orderId);
+  localStorage.setItem("lastOrderId", orderId);
 
 } else {
- console.error("DPAY ERROR:", data);
+  console.error("❌ DPAY ERROR FULL:", data);  // 👈 مهم
   alert("❌ " + (data.error || "فشل الدفع"));
+}
+  } catch (err) {
+    console.error(err);
+    alert("خطأ في الدفع");
+  }
 };
 
 
