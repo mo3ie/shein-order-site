@@ -7,12 +7,18 @@ export async function POST(req) {
 
   try {
     const payload = {
-      amount,
-      pay_method: "moamalat",
-      order_id: orderId,
-      callback_url: `${process.env.BASE_URL}/api/dpay/moamalat/webhook`,
-      return_url: `${process.env.BASE_URL}/success?source=dpay`
-    };
+  amount,
+  currency: "LYD",
+  order_id,
+  pay_method: method,
+
+  customer_name: body.customer_name || "customer",
+  customer_phone: body.customer_mobile,
+
+  callback_url: `${process.env.BASE_URL}/api/dpay/webhook`,
+  return_url: `${process.env.BASE_URL}/success?orderId=${order_id}`
+};
+    
 
     const response = await fetch("https://dpay.ly/api/payment/sessions/open", {
       method: "POST",

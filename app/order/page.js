@@ -410,7 +410,8 @@ console.log("💰 FINAL AMOUNT:", priceLYD);
     amount: priceLYD,
     method: selectedMethod,
     customer_mobile: phone,
-    card_number: cardNumber
+    card_number: cardNumber,
+    customer_name: name
   })
 });
 
