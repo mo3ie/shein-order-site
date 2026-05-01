@@ -68,7 +68,7 @@ console.log("🔥 MODE:", process.env.DPAY_MODE);
     const response = await fetch(baseUrl, {
       method: "POST",
       headers: {
-  Authorization: `Bearer ${process.env.DPAY_TOKEN}`,
+  Authorization: process.env.DPAY_TOKEN,
   "Content-Type": "application/json"
 },
       body: JSON.stringify(payload),
