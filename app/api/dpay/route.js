@@ -56,7 +56,7 @@ export async function POST(req) {
     const baseUrl =
       process.env.DPAY_MODE === "production"
         ? "https://dpay.ly/api/payment/sessions/open"
-        : "https://dpay.ly/api/payment/sessions/open";
+        : "https://dpay.ly/api/sandbox/payment/sessions/open";
 
     const response = await fetch(baseUrl, {
       method: "POST",
@@ -81,7 +81,7 @@ export async function POST(req) {
       return Response.json({ error: "DPAY ERROR", data }, { status: 500 });
     }
 
-    if (!data.session_id) {
+    if (!data.payment_link) {
       return Response.json({ error: "لم يتم إنشاء session", data }, { status: 500 });
     }
 
