@@ -1,7 +1,6 @@
 export async function POST(req) {
 
-  console.log("🔥 TOKEN:", process.env.DPAY_TOKEN);
-console.log("🔥 MODE:", process.env.DPAY_MODE);
+ 
 
   try {
     const body = await req.json();
@@ -56,6 +55,10 @@ console.log("🔥 MODE:", process.env.DPAY_MODE);
     }
 
     console.log("📦 FINAL PAYLOAD:", payload);
+
+     console.log("🔥 TOKEN:", process.env.DPAY_TOKEN);
+console.log("🔥 MODE:", process.env.DPAY_MODE);
+
 
     const baseUrl =
       process.env.DPAY_MODE === "production"
