@@ -56,7 +56,7 @@ export async function POST(req) {
     const baseUrl =
       process.env.DPAY_MODE === "production"
         ? "https://dpay.ly/api/payment/sessions/open"
-        : "https://dpay.ly/api/sandbox/payment/sessions/open";
+        : "https://dpay.ly/api/payment/sessions/open";
 
     const response = await fetch(baseUrl, {
       method: "POST",
