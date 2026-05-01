@@ -25,12 +25,12 @@ const [cardNumber, setCardNumber] = useState("");
 
 
 const paymentMethods = [
-  { id: "moamalat", name: "🏦 موامالات", color: "#22c55e" },
-  { id: "mobicash", name: "📱 موبي كاش", color: "#0ea5e9" },
-  { id: "edfali", name: "🏧 ادفعلي", color: "#a855f7" },
-  { id: "masrefypay", name: "💳 مصرفي", color: "#f97316" },
-  { id: "yousrpay", name: "💳 يسر باي", color: "#14b8a6" },
-  { id: "saharpay", name: "💳 سحارة باي", color: "#eab308" }
+  { id: "moamalat", name: "🏦 معامالات", color: "#16a34a" },
+  { id: "mobicash", name: "📱 موبي كاش", color: "#0284c7" },
+  { id: "edfali", name: "🏧 ادفع لي", color: "#9333ea" },
+  { id: "masrefypay", name: "💳 مصرفي", color: "#ea580c" },
+  { id: "yousrpay", name: "💳 يسر باي", color: "#0d9488" },
+  { id: "saharpay", name: "💳 صحارة باي", color: "#ca8a04" }
 ];
 
 
@@ -400,13 +400,13 @@ console.log("💰 FINAL AMOUNT:", priceLYD);
       payload.card_number = cardNumber;
     }
 
-    const res = await fetch("/api/dpay/moamalat", {
+    const res = await fetch("/api/dpay", {
   method: "POST",
   headers: {
     "Content-Type": "application/json"
   },
   body: JSON.stringify({
-    order_id, orderId,
+    orderId: orderId,
     amount: Math.round(Number(priceLYD)),
     method: method,
     customer_mobile: phone,
@@ -425,12 +425,8 @@ console.log("DPAY RESPONSE:", data);
     localStorage.setItem("lastOrderId", orderId);
 
 } else {
-  alert("❌ فشل إنشاء رابط الدفع");
-}
-  } catch (err) {
-    console.error(err);
-    alert("خطأ في الدفع");
-  }
+ console.error("DPAY ERROR:", data);
+  alert("❌ " + (data.error || "فشل الدفع"));
 };
 
 
@@ -850,14 +846,17 @@ backgroundBlendMode: "darken",
 
 const optionBtn = {
   width: "100%",
-  padding: "12px",
-  marginBottom: "10px",
-  borderRadius: "10px",
+  padding: "14px",
+  marginBottom: "12px",
+  borderRadius: "12px",
   border: "none",
-  background: "#000",
+  background: "#111",
   color: "#fff",
   cursor: "pointer",
-  fontSize: "14px"
+  fontSize: "15px",
+  fontWeight: "500",
+  transition: "0.2s",
+  boxShadow: "0 4px 10px rgba(0,0,0,0.1)"
 };
 
 const cardStyle = {
