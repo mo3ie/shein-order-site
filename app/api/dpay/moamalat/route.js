@@ -9,7 +9,7 @@ export async function POST(req) {
     const payload = {
   amount: body.amount,
   currency: "LYD",
-  order_id: body.orderId,
+  order_id: body.order_id,
   pay_method: "moamalat",
 
   customer_name: body.customer_name || "customer",
@@ -32,7 +32,7 @@ export async function POST(req) {
     const data = await response.json();
 
     return NextResponse.json({
-      payment_link: data.payment_link
+      payment_url: data.payment_url
     });
 
   } catch (err) {
