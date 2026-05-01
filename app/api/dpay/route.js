@@ -1,4 +1,8 @@
 export async function POST(req) {
+
+  console.log("🔥 TOKEN:", process.env.DPAY_TOKEN);
+console.log("🔥 MODE:", process.env.DPAY_MODE);
+
   try {
     const body = await req.json();
 
