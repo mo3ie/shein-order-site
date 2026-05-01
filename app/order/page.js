@@ -406,9 +406,9 @@ console.log("💰 FINAL AMOUNT:", priceLYD);
     "Content-Type": "application/json"
   },
   body: JSON.stringify({
-    orderId,
-    amount: priceLYD,
-    method: selectedMethod,
+    order_id, orderId,
+    amount: Math.round(Number(priceLYD)),
+    method: method,
     customer_mobile: phone,
     card_number: cardNumber,
     customer_name: name

@@ -7,16 +7,16 @@ export async function POST(req) {
 
   try {
     const payload = {
-  amount,
+  amount: body.amount,
   currency: "LYD",
-  order_id,
-  pay_method: method,
+  order_id: body.order_id,
+  pay_method: "moamalat",
 
   customer_name: body.customer_name || "customer",
   customer_phone: body.customer_mobile,
 
   callback_url: `${process.env.BASE_URL}/api/dpay/webhook`,
-  return_url: `${process.env.BASE_URL}/success?orderId=${order_id}`
+  return_url: `${process.env.BASE_URL}/success?orderId=${body.order_id}`
 };
     
 
