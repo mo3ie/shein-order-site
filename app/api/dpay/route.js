@@ -18,13 +18,15 @@ export async function POST(req) {
       throw new Error("السعر غير صالح");
     }
 
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
+
     let payload = {
       amount: Math.round(amount),
       currency: "LYD",
       order_id: orderId,
       pay_method: method,
-      callback_url: `${process.env.BASE_URL}/api/dpay/webhook`,
-      return_url: `${process.env.BASE_URL}/success?orderId=${orderId}`,
+      callback_url: `${BASE_URL}/api/dpay/webhook`,
+      return_url: `${BASE_URL}/success?orderId=${orderId}`,
     };
 
     // ✅ Moamalat (الأهم عندك)
@@ -61,14 +63,14 @@ console.log("🔥 MODE:", process.env.DPAY_MODE);
 
 
     const baseUrl =
-      process.env.DPAY_MODE === "production"
+      process.env.DPAY_MODE === "Production"
         ? "https://dpay.ly/api/payment/sessions/open"
         : "https://dpay.ly/api/sandbox/payment/sessions/open";
 
     const response = await fetch(baseUrl, {
       method: "POST",
       headers: {
-  Authorization: process.env.DPAY_TOKEN,
+  Authorization: `Bearer ${process.env.DPAY_TOKEN}`,
   "Content-Type": "application/json"
 },
       body: JSON.stringify(payload),
