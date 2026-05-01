@@ -25,9 +25,9 @@ const [cardNumber, setCardNumber] = useState("");
 
 
 const paymentMethods = [
-  { id: "moamalat", name: "🏦 معامالات", color: "#16a34a" },
-  { id: "mobicash", name: "📱 موبي كاش", color: "#0284c7" },
+  { id: "moamalat", name: "🏦 معاملات", color: "#16a34a" },
   { id: "edfali", name: "🏧 ادفع لي", color: "#9333ea" },
+  { id: "mobicash", name: "📱 موبي كاش", color: "#0284c7" },
   { id: "masrefypay", name: "💳 مصرفي", color: "#ea580c" },
   { id: "yousrpay", name: "💳 يسر باي", color: "#0d9488" },
   { id: "saharpay", name: "💳 صحارة باي", color: "#ca8a04" }
@@ -726,11 +726,13 @@ onMouseOut={(e)=> e.target.style.opacity="1"}
   src={preview}
   onClick={(e) => e.stopPropagation()}
   style={{
-    maxWidth: "90%",
-    maxHeight: "80vh", // 👈 أهم سطر
-    objectFit: "contain",
-    borderRadius: "12px",
-    animation: "zoomIn 0.3s ease"
+    background: "#ffffff",
+    padding: "25px",
+    borderRadius: "20px",
+    width: "340px",
+    textAlign: "center",
+    animation: "zoomIn 0.25s ease",
+    boxShadow: "0 20px 40px rgba(0,0,0,0.2)"
   }}
 />
   </div>
@@ -767,11 +769,15 @@ onMouseOut={(e)=> e.target.style.opacity="1"}
 
       {/* 💳 Stripe */}
       <button
-        onClick={async () => handlePayment()}
-        style={optionBtn}
-      >
-        💳 دفع دولي (Visa / MasterCard)
-      </button>
+  onClick={async () => handlePayment()}
+  style={{
+    ...optionBtn,
+    background: "#000",
+    fontWeight: "bold"
+  }}
+>
+  💳 الدفع الدولي (Visa / MasterCard)
+</button>
 
       {/* 🏦 DPay */}
       {/* 🏦 Moamalat */}
@@ -779,12 +785,11 @@ onMouseOut={(e)=> e.target.style.opacity="1"}
 {paymentMethods.map((method) => (
   <button
     key={method.id}
-    onClick={() => {
-  setSelectedMethod(method.id);
-}}
+    onClick={() => setSelectedMethod(method.id)}
     style={{
       ...optionBtn,
-      background: method.color
+      background: selectedMethod === method.id ? method.color : "#f3f4f6",
+      color: selectedMethod === method.id ? "#fff" : "#111"
     }}
   >
     {method.name}
@@ -810,11 +815,23 @@ onMouseOut={(e)=> e.target.style.opacity="1"}
 )}
 
 <button
-  type="button"
-  onClick={() => {console.log("تم الضغط"); handleDpay(selectedMethod)}}
+  disabled={!selectedMethod}
+  onClick={() => handleDpay(selectedMethod)}
+  style={{
+    width: "100%",
+    padding: "14px",
+    borderRadius: "14px",
+    border: "none",
+    background: selectedMethod ? "#22c55e" : "#ccc",
+    color: "#fff",
+    fontWeight: "bold",
+    marginTop: "10px",
+    cursor: selectedMethod ? "pointer" : "not-allowed"
+  }}
 >
-  تأكيد الدفع
+  {selectedMethod ? "تأكيد الدفع" : "اختر طريقة الدفع أولاً"}
 </button>
+
       {/* 💵 لاحقاً */}
       <button
         onClick={() => {
@@ -824,6 +841,19 @@ onMouseOut={(e)=> e.target.style.opacity="1"}
       >
         💵 تحويل يدوي
       </button>
+<button
+  onClick={() => setShowPaymentOptions(false)}
+  style={{
+    marginTop: "10px",
+    background: "none",
+    border: "none",
+    color: "#888",
+    cursor: "pointer"
+  }}
+>
+  إغلاق
+</button>
+
     </div>
   </div>
 )}
@@ -851,16 +881,16 @@ backgroundBlendMode: "darken",
 const optionBtn = {
   width: "100%",
   padding: "14px",
-  marginBottom: "12px",
-  borderRadius: "12px",
+  marginBottom: "10px",
+  borderRadius: "14px",
   border: "none",
   background: "#111",
   color: "#fff",
   cursor: "pointer",
-  fontSize: "15px",
+  fontSize: "14px",
   fontWeight: "500",
-  transition: "0.2s",
-  boxShadow: "0 4px 10px rgba(0,0,0,0.1)"
+  transition: "0.25s",
+  boxShadow: "0 6px 15px rgba(0,0,0,0.1)"
 };
 
 const cardStyle = {
@@ -876,12 +906,10 @@ const cardStyle = {
 const inputStyle = {
   width: "100%",
   padding: "12px",
-  marginBottom: "12px",
-  borderRadius: "10px",
-  border: "1px solid #e5e7eb",
+  marginBottom: "10px",
+  borderRadius: "12px",
+  border: "1px solid #ddd",
   outline: "none",
-  color: "#111",
-  background: "#fff",
   fontSize: "14px"
 };
 
