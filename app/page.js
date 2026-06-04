@@ -826,7 +826,7 @@ if (data.payment_link) {
 
 const mainStyle = {
   minHeight: "calc(100vh - 60px)",
-  background: "#f5f5f5",
+  background: "transparent",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
