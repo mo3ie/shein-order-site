@@ -192,59 +192,85 @@ color:"#fff",
 
 
     <div style={{
-  display: "flex",
-  gap: "10px",
-  marginBottom: "20px",
-  alignItems: "center"
+  background: "#1a1a1a",
+  border: "1px solid #333",
+  borderRadius: "14px",
+  padding: "20px",
+  marginBottom: "20px"
 }}>
 
-  <input
-    placeholder="💱 سعر الدولار (مثال: 5.2)"
-    value={exchangeRate}
-    onChange={(e) => setExchangeRate(e.target.value)}
-    style={{
-      padding: "12px",
-      borderRadius: "10px",
-      border: "1px solid #ffffff",
-      background: "#4d4e4d",
-      color: "#fff",
-      width: "200px",
-      fontSize: "16px"
-    }}
-  />
+  <h3 style={{ margin: "0 0 14px 0", color: "#facc15", fontSize: "15px" }}>
+    💱 سعر الدولار اليومي
+  </h3>
 
-  <button
-  onClick={async () => {
-  setLoading(true);
+  {/* السعر الحالي المحفوظ */}
+  <div style={{
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+    background: "#22c55e22",
+    border: "1px solid #22c55e55",
+    borderRadius: "999px",
+    padding: "6px 16px",
+    marginBottom: "14px"
+  }}>
+    <span style={{ color: "#86efac", fontSize: "13px" }}>السعر الحالي:</span>
+    <strong style={{ color: "#22c55e", fontSize: "18px" }}>{exchangeRate || "—"} د.ل</strong>
+  </div>
 
-  const { error } = await supabase
-    .from("settings")
-    .update({
-      exchange_rate: Number(exchangeRate)
-    })
-    .eq("id", 1);
+  <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+    <input
+      placeholder="أدخل السعر الجديد (مثال: 5.2)"
+      value={exchangeRate}
+      onChange={(e) => setExchangeRate(e.target.value)}
+      type="number"
+      step="0.01"
+      style={{
+        padding: "12px",
+        borderRadius: "10px",
+        border: "1px solid #444",
+        background: "#2d2d2d",
+        color: "#fff",
+        width: "220px",
+        fontSize: "16px",
+        outline: "none"
+      }}
+    />
 
-  if (error) {
-    console.error(error);
-    alert("❌ فشل التحديث");
-  } else {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }
+    <button
+      onClick={async () => {
+        const { error } = await supabase
+          .from("settings")
+          .update({ exchange_rate: Number(exchangeRate) })
+          .eq("id", 1);
 
-  setLoading(false);
-}}
-  style={{
-    background: "#fff",
-    color: "black",
-    padding: "10px 16px",
-    borderRadius: "8px",
-    border: "none",
-    cursor: "pointer"
-  }}
->
-  {loading ? "⏳ جاري التحديث..." : "💾 تحديث"}
-</button>
+        if (error) {
+          alert("❌ فشل التحديث");
+        } else {
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2000);
+        }
+      }}
+      style={{
+        background: "#22c55e",
+        color: "#fff",
+        padding: "12px 20px",
+        borderRadius: "10px",
+        border: "none",
+        cursor: "pointer",
+        fontWeight: "bold",
+        fontSize: "15px"
+      }}
+    >
+      💾 حفظ
+    </button>
+
+    {saved && (
+      <span style={{ color: "#22c55e", fontWeight: "bold", fontSize: "14px" }}>
+        ✅ تم الحفظ
+      </span>
+    )}
+  </div>
 
 </div>
 

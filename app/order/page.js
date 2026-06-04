@@ -56,7 +56,7 @@ useEffect(()=>{
 const [exchangeRate, setExchangeRate] = useState(1);
 const base = price || 0; // من الصورة
 
-const profit = base * 0.03;
+const profit = base * 0.01;
 const totalUSD = base + profit;
 const priceLYD = exchangeRate
   ? totalUSD * exchangeRate
@@ -562,49 +562,64 @@ if (data.payment_link) {
     <br />
 
     {price && (
-  <div
-  style={priceBoxStyle}
->
-  {/* الدولار */}
-  <p style={{ margin: "6px 0", color: "#6b7280" }}>
-    💵 السعر بالدولار: <strong>{totalUSD.toFixed(2)} $</strong>
-  </p>
+  <div style={priceBoxStyle}>
 
-  {/* سعر الصرف */}
-  <p style={{ margin: "6px 0", color: "#aaa" }}>
-    💱 سعر الصرف: <strong>{exchangeRate}</strong>
-  </p>
+    {/* السعر الأصلي */}
+    <div style={{ display: "flex", justifyContent: "space-between", margin: "6px 0", color: "#6b7280" }}>
+      <span>📦 السعر الأصلي</span>
+      <strong>{base.toFixed(2)} $</strong>
+    </div>
 
-  {/* الدينار */}
-  <p style={{ margin: "6px 0", color: "#4ade80", fontWeight: "bold" }}>
-    🇱🇾 السعر بالدينار: {priceLYD.toFixed(2)} د.ل
-  </p>
+    {/* العمولة */}
+    <div style={{ display: "flex", justifyContent: "space-between", margin: "6px 0", color: "#f97316" }}>
+      <span>💸 العمولة (1%)</span>
+      <strong>{profit.toFixed(2)} $</strong>
+    </div>
 
-  {/* الشحن */}
-  <p style={{ margin: "6px 0", color: "#facc15" }}>
-    🚚 الشحن: يحدد لاحقًا حسب الوزن
-  </p>
+    {/* خط فاصل */}
+    <hr style={{ margin: "10px 0", borderColor: "#e5e7eb" }} />
 
-  {/* خط فاصل */}
-  <hr
-    style={{
-      margin: "12px 0",
-      borderColor: "rgba(255,255,255,0.1)",
-    }}
-  />
+    {/* الإجمالي بالدولار */}
+    <div style={{ display: "flex", justifyContent: "space-between", margin: "6px 0", color: "#2563eb" }}>
+      <span>💵 الإجمالي بالدولار</span>
+      <strong>{totalUSD.toFixed(2)} $</strong>
+    </div>
 
-  {/* الإجمالي */}
-  <p
-    style={{
-      fontSize: "18px",
-      fontWeight: "bold",
-      color: "#22c55e",
-    }}
-  >
-    💰 الإجمالي: {priceLYD.toFixed(2)} د.ل
-  </p>
+    {/* سعر الدولار الحالي */}
+    <div style={{ display: "flex", justifyContent: "space-between", margin: "6px 0", color: "#aaa" }}>
+      <span>💱 سعر الدولار الحالي</span>
+      <strong>{exchangeRate} د.ل</strong>
+    </div>
 
-   
+    {/* خط فاصل */}
+    <hr style={{ margin: "10px 0", borderColor: "#e5e7eb" }} />
+
+    {/* الإجمالي بالليبي */}
+    <div style={{ display: "flex", justifyContent: "space-between", margin: "6px 0", color: "#4ade80", fontWeight: "bold" }}>
+      <span>🇱🇾 الإجمالي بالليبي</span>
+      <strong>{priceLYD.toFixed(2)} د.ل</strong>
+    </div>
+
+    {/* الشحن */}
+    <div style={{ display: "flex", justifyContent: "space-between", margin: "6px 0", color: "#facc15" }}>
+      <span>🚚 الشحن</span>
+      <span>يحدد لاحقًا حسب الوزن</span>
+    </div>
+
+    {/* الإجمالي النهائي */}
+    <div style={{
+      display: "flex",
+      justifyContent: "space-between",
+      marginTop: "12px",
+      padding: "10px 14px",
+      borderRadius: "10px",
+      background: "#f0fdf4",
+      border: "1px solid #bbf7d0"
+    }}>
+      <span style={{ fontWeight: "bold", color: "#15803d" }}>💰 المبلغ المطلوب</span>
+      <strong style={{ fontSize: "18px", color: "#15803d" }}>{priceLYD.toFixed(2)} د.ل</strong>
+    </div>
+
   </div>
 )}
 
