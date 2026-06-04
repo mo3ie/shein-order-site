@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Cairo } from "next/font/google";
-import "./globals.css";
 import Header from "./components/Header";
 
 const cairo = Cairo({
@@ -21,7 +20,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" className={cairo.className}>
-      <body className="min-h-full flex flex-col" style={{ background: "#f5f5f5" }}>
+      <body
+        className="min-h-full flex flex-col"
+        style={{
+          backgroundImage: "url('/bg.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundAttachment: "fixed",
+        }}
+      >
         <Header />
         {children}
       </body>
