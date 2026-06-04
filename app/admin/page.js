@@ -145,29 +145,35 @@ ${text}`;
 }
 
 const btnBase = {
-  padding:"6px 10px",
-  border:"none",
-  borderRadius:"6px",
-  cursor:"pointer",
-  marginRight:"5px",
-  marginTop:"5px",
-  fontSize:"13px"
+  padding: "7px 12px",
+  border: "none",
+  borderRadius: "8px",
+  cursor: "pointer",
+  marginRight: "5px",
+  marginTop: "5px",
+  fontSize: "12px",
+  fontWeight: "600",
 };
 
 const filterBtn = {
-  padding:"6px 12px",
-  marginRight:"5px",
-  borderRadius:"6px",
-  border:"1px solid #444",
-  background:"#fff",
-color:"#111",
-border:"1px solid #eee",
-boxShadow:"0 10px 25px rgba(0,0,0,0.05)",
-  color:"#fff",
-  cursor:"pointer"
+  padding: "7px 14px",
+  marginRight: "6px",
+  borderRadius: "8px",
+  border: "1px solid #2a2a2a",
+  background: "#1a1a1a",
+  color: "#aaa",
+  cursor: "pointer",
+  fontSize: "13px",
+  fontWeight: "500",
+  transition: "0.2s",
 };
 
-if (loading) {return  <p>جاري التحميل...</p>;
+if (loading) {
+  return (
+    <main style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <p style={{ color: "#555", fontSize: "15px" }}>⏳ جاري التحميل...</p>
+    </main>
+  );
 }
 
 console.log("ADMIN COMPONENT RUNNING");
@@ -176,18 +182,43 @@ console.log("ADMIN COMPONENT RUNNING");
   return (
 
     <main style={{
-      minHeight:"100vh",
-     background:"#0f0f0f",
-color:"#fff",
-      padding:"30px",
-
-      direction: "rtl",
-      textAlign: "right"
+      minHeight: "100vh",
+      background: "#0a0a0a",
+      color: "#fff",
+      padding: "28px",
     }}>
 
+    {/* Header */}
+    <div style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: "24px",
+      paddingBottom: "20px",
+      borderBottom: "1px solid #1f1f1f",
+    }}>
+      <div>
+        <h1 style={{ fontSize: "20px", fontWeight: "800", letterSpacing: "2px",
+          background: "linear-gradient(90deg,#a855f7,#3b82f6)",
+          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+          margin: 0 }}>
+          TREND
+        </h1>
+        <p style={{ color: "#555", fontSize: "13px", margin: "2px 0 0" }}>لوحة الإدارة</p>
+      </div>
+      <button
+        onClick={async () => { await supabase.auth.signOut(); router.push("/admin/login"); }}
+        style={{
+          background: "transparent", color: "#ef4444",
+          border: "1px solid #ef444430", padding: "8px 16px",
+          borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600"
+        }}
+      >
+        تسجيل الخروج
+      </button>
+    </div>
 
-
-    <div style={{marginBottom:"20px", textAlign:"left"}}>
+    <div style={{marginBottom:"20px"}}>
 
 
 
@@ -275,49 +306,25 @@ color:"#fff",
 </div>
 
 
-      <button
-        onClick={async ()=>{
-          await supabase.auth.signOut();
-          router.push("/login");
-        }}
-        style={{
-          background:"#ef4444",
-          color:"#fff",
-          border:"none",
-          padding:"8px 12px",
-          borderRadius:"6px",
-          cursor:"pointer"
-        }}
-      >
-        تسجيل الخروج
-      </button>
-
-      {saved && (
-  <span
-    style={{
-      marginLeft: "12px",
-      color: "#22c55e",
-      fontWeight: "bold",
-      transition: "0.3s"
-    }}
-  >
-    ✅ تم تحديث سعر الصرف
-  </span>
-)}
 
     </div>
 
 <input
-  placeholder="ابحث برقم الهاتف أو الاسم"
+  placeholder="🔍 ابحث برقم الهاتف أو الاسم"
   value={search}
   onChange={(e)=>setSearch(e.target.value)}
   style={{
-  padding:"12px",
-  width:"100%",
-  marginBottom:"20px",
-  borderRadius:"10px",
-  border:"1px solid #ddd"
-}}
+    padding: "12px 16px",
+    width: "100%",
+    marginBottom: "16px",
+    borderRadius: "10px",
+    border: "1px solid #2a2a2a",
+    background: "#1a1a1a",
+    color: "#fff",
+    fontSize: "14px",
+    outline: "none",
+    boxSizing: "border-box",
+  }}
 />
 <div style={{marginBottom:"15px"}}>
 
@@ -362,44 +369,28 @@ color:"#fff",
   </button>
 
 </div>
-      <h1 style={{marginBottom:"20px"}}>لوحة الطلبات</h1>
-
-<div style={{ marginBottom: "20px", display: "flex", gap: "10px" }}>
-
-  <button
-    onClick={() => router.push("/admin/trash")}
-    style={{
-      padding: "10px 14px",
-      borderRadius: "8px",
-      background: "#ef4444",
-      color: "#fff",
-      border: "none",
-      cursor: "pointer"
-    }}
-  >
-    🗑️ سلة المحذوفات
-  </button>
-
-  <button
-    onClick={() => router.push("/admin/completed")}
-    style={{
-      padding: "10px 14px",
-      borderRadius: "8px",
-      background: "#22c55e",
-      color: "#fff",
-      border: "none",
-      cursor: "pointer"
-    }}
-  >
-    ✅ الطلبات المنجزة
-  </button>
-
-</div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
+        <h2 style={{ fontSize: "16px", fontWeight: "700", color: "#fff", margin: 0 }}>
+          الطلبات الحالية <span style={{ color: "#555", fontWeight: "400", fontSize: "14px" }}>({orders.filter(o => filterStatus === "all" || o.status === filterStatus).length})</span>
+        </h2>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button onClick={() => router.push("/admin/trash")} style={{
+            padding: "8px 14px", borderRadius: "8px",
+            background: "#ef444415", color: "#ef4444",
+            border: "1px solid #ef444430", cursor: "pointer", fontSize: "13px", fontWeight: "600"
+          }}>🗑️ المحذوفات</button>
+          <button onClick={() => router.push("/admin/completed")} style={{
+            padding: "8px 14px", borderRadius: "8px",
+            background: "#22c55e15", color: "#22c55e",
+            border: "1px solid #22c55e30", cursor: "pointer", fontSize: "13px", fontWeight: "600"
+          }}>✅ المنجزة</button>
+        </div>
+      </div>
 
       <div style={{
-        display:"grid",
-        gridTemplateColumns:"repeat(auto-fill, minmax(300px,1fr))",
-        gap:"15px"
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(320px,1fr))",
+        gap: "16px"
       }}>
 
         {(orders || [])
@@ -415,7 +406,10 @@ color:"#fff",
 
 
 
-const priceLYD = Number(order.price || 0) * Number(exchangeRate || 0);
+const base = Number(order.price || 0);
+const profit = base * 0.01;
+const totalUSD = base + profit;
+const priceLYD = Number(exchangeRate || 0) ? totalUSD * Number(exchangeRate || 0) : 0;
 const shippingValue = Number(shipping[order.id] || 0);
 const finalTotal = priceLYD + shippingValue;
 
@@ -427,20 +421,16 @@ console.log("SHIPPING:", shipping[order.id]);
 
     
           <div key={order.id} style={{
-            background:"#fff",
-            color:"#111",
-            border:"1px solid #eee",
-            boxShadow:"0 10px 25px rgba(0,0,0,0.2)",
-            padding:"15px",
-            borderRadius:"12px",
-            boxShadow:"0 0 10px rgba(0,0,0,0.3)",
-            transition:"0.3s"
-
-            
+            background: "#fff",
+            color: "#111",
+            border: "1px solid #e8e8e8",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+            padding: "18px",
+            borderRadius: "16px",
+            transition: "transform 0.2s, box-shadow 0.2s",
           }}
-          
-          onMouseEnter={(e)=> e.currentTarget.style.transform="translateY(-5px)"}
-onMouseLeave={(e)=> e.currentTarget.style.transform="translateY(0)"}
+          onMouseEnter={(e)=> { e.currentTarget.style.transform="translateY(-3px)"; e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.1)"; }}
+          onMouseLeave={(e)=> { e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.boxShadow="0 2px 12px rgba(0,0,0,0.06)"; }}
 >
 
 <div style={{
@@ -554,18 +544,29 @@ onMouseOut={(e)=> e.target.style.background="#2563eb"}
 
 
 
-<p>💵 السعر بالدولار: {order.price}</p>
-<p>💱 سعر الصرف: {exchangeRate || "—"}</p>
-<p>🇱🇾 السعر بالدينار: {priceLYD.toFixed(2)}</p>
-<p>🚚 الشحن: {shippingValue}</p>
-<p style={{
-  color: "#22c55e",
-  fontWeight: "bold",
-  transition: "0.3s",
-  transform: exchangeRate ? "scale(1.05)" : "scale(1)"
-}}>
-  💰 الإجمالي: {finalTotal.toFixed(2)}
-</p>
+<div style={{ fontSize: "13px", margin: "10px 0", background: "#f9fafb", borderRadius: "10px", padding: "12px", border: "1px solid #e5e7eb" }}>
+  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px", color: "#6b7280" }}>
+    <span>📦 السعر الأصلي</span><strong>{base.toFixed(2)} $</strong>
+  </div>
+  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px", color: "#f97316" }}>
+    <span>💸 العمولة (1%)</span><strong>{profit.toFixed(2)} $</strong>
+  </div>
+  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px", color: "#2563eb" }}>
+    <span>💵 الإجمالي بالدولار</span><strong>{totalUSD.toFixed(2)} $</strong>
+  </div>
+  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px", color: "#666" }}>
+    <span>💱 سعر الدولار</span><strong>{exchangeRate || "—"} د.ل</strong>
+  </div>
+  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px", color: "#059669" }}>
+    <span>🇱🇾 الإجمالي بالليبي</span><strong>{priceLYD.toFixed(2)} د.ل</strong>
+  </div>
+  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px", color: "#7c3aed" }}>
+    <span>🚚 الشحن</span><strong>{shippingValue} د.ل</strong>
+  </div>
+  <div style={{ display: "flex", justifyContent: "space-between", marginTop: "8px", paddingTop: "8px", borderTop: "1px solid #e5e7eb", color: "#15803d", fontWeight: "bold" }}>
+    <span>💰 الإجمالي النهائي</span><strong style={{ fontSize: "15px" }}>{finalTotal.toFixed(2)} د.ل</strong>
+  </div>
+</div>
 
 
 <button
@@ -808,13 +809,16 @@ function getStatusColor(status){
 }
 
 const btn = {
-  padding:"6px 10px",
-  borderRadius:"8px",
-  border:"1px solid #ddd",
-  background:"#fff",
-  color:"#111",
-  marginRight:"10px",
-  cursor:"pointer",
-  fontSize:"12px"
+  padding: "7px 12px",
+  borderRadius: "8px",
+  border: "1px solid #e0e0e0",
+  background: "#f8f8f8",
+  color: "#333",
+  marginRight: "6px",
+  marginTop: "4px",
+  cursor: "pointer",
+  fontSize: "12px",
+  fontWeight: "500",
+  transition: "0.2s",
 };
 
