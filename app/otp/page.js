@@ -42,7 +42,7 @@ const main = {
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
-  background: "#111"
+  background: "transparent"
 };
 
 const card = {
