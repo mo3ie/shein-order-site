@@ -337,14 +337,19 @@ function Step({ title, active }) {
     <div style={{ textAlign: "center", flex: 1 }}>
       <div
         style={{
-          width: 24,
-          height: 24,
+          width: 28,
+          height: 28,
           borderRadius: "50%",
-          background: active ? "#000" : "#ddd",
+          background: active ? "#9333ea" : "#e5e7eb",
           margin: "0 auto",
           transition: "all 0.4s ease",
-          transform: active ? "scale(1.2)" : "scale(1)",
-          boxShadow: active ? "0 0 10px rgba(0,0,0,0.4)" : "none"
+          transform: active ? "scale(1.15)" : "scale(1)",
+          boxShadow: active ? "0 0 10px rgba(147,51,234,0.4)" : "none",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#fff",
+          fontSize: "12px",
         }}
       />
       <p style={{
@@ -363,28 +368,22 @@ function Step({ title, active }) {
 /* 🎨 Styles */
 
 const container = {
-  minHeight: "100vh",
-  backgroundImage: "url('/bg.png')",
-  backgroundSize: "cover",
-  backgroundPosition: "center",
-  backgroundColor: "rgba(255,255,255,0.6)",
-  backgroundColor: "rgba(0,0,0,0.3)",
-backgroundBlendMode: "darken",
+  minHeight: "calc(100vh - 60px)",
+  background: "#f5f5f5",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  padding: "20px",
-  fontFamily: "system-ui, sans-serif"
+  padding: "24px 16px",
 };
 
 const header = {
-  background: "rgba(255,255,255,0.9)",
-  backdropFilter: "blur(12px)",
-  color: "#000",
-  padding: 20,
-  borderRadius: 16,
-  marginBottom: 15,
-  boxShadow: "0 10px 30px rgba(0,0,0,0.1)"
+  background: "#fff",
+  border: "1px solid #ebebeb",
+  color: "#111",
+  padding: "16px 20px",
+  borderRadius: "16px",
+  marginBottom: 0,
+  boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
 };
 
 const idBox = {
@@ -392,75 +391,81 @@ const idBox = {
   justifyContent: "space-between",
   alignItems: "center",
   marginTop: 10,
-  background: "#f1f1f1",
-  padding: "10px",
-  borderRadius: 10
+  background: "#f5f5f5",
+  padding: "10px 14px",
+  borderRadius: 10,
 };
 
 const copyBtn = {
-  background: "#000",
+  background: "#111",
   color: "#fff",
   border: "none",
-  padding: "6px 12px",
+  padding: "6px 14px",
   borderRadius: 8,
-  cursor: "pointer"
+  cursor: "pointer",
+  fontSize: "13px",
+  fontWeight: "600",
 };
 
 const note = {
   fontSize: 12,
   marginTop: 10,
-  color: "#555"
+  color: "#999",
 };
 
 const timelineBox = {
   display: "flex",
   justifyContent: "space-between",
-  background: "rgba(255,255,255,0.9)",
-  padding: 15,
-  borderRadius: 16,
-  marginBottom: 15,
-  boxShadow: "0 10px 25px rgba(0,0,0,0.08)"
+  background: "#fff",
+  border: "1px solid #ebebeb",
+  padding: "16px",
+  borderRadius: "16px",
+  marginBottom: 0,
+  boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
 };
 
 const card = {
-  background: "rgba(255,255,255,0.95)",
-  padding: 20,
-  borderRadius: 16,
-  boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
-  color: "#000"
+  background: "#fff",
+  border: "1px solid #ebebeb",
+  padding: "20px",
+  borderRadius: "16px",
+  boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+  color: "#111",
 };
 
 const image = {
   width: "100%",
   borderRadius: 12,
-  marginTop: 10
+  marginTop: 10,
 };
 
 const buttons = {
   display: "flex",
   gap: 10,
-  marginTop: 20
+  marginTop: 4,
 };
 
 const btnYellow = {
   flex: 1,
-  padding: 12,
-  borderRadius: 12,
-  border: "1px solid #000",
+  padding: "12px",
+  borderRadius: "12px",
+  border: "1px solid #ebebeb",
   background: "#fff",
   cursor: "pointer",
-  fontWeight: "bold"
+  fontWeight: "600",
+  fontSize: "14px",
 };
 
 const btnBlue = {
   flex: 1,
-  padding: 12,
-  borderRadius: 12,
+  padding: "12px",
+  borderRadius: "12px",
   border: "none",
-  background: "#000",
+  background: "#111",
   color: "white",
   cursor: "pointer",
-  fontWeight: "bold"
+  fontWeight: "600",
+  fontSize: "14px",
 };
 
 

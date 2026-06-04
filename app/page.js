@@ -477,7 +477,7 @@ if (data.payment_link) {
        منتجاتك و سلتك بضغطة زر تكون عندك
         </h1>
 
-        <p style={{fontSize:14, marginBottom:20, color:"#ccc"}}>
+        <p style={{fontSize:14, marginBottom:20, color:"#888"}}>
           ضع رابط السلة من شي إن وسنتكفل بشراء الطلب لك
         </p>
 
@@ -509,12 +509,15 @@ if (data.payment_link) {
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  border: "2px dashed #ccc",
+  gap: "8px",
+  border: "2px dashed #d0d0d0",
   borderRadius: "12px",
   padding: "20px",
   cursor: "pointer",
-  transition: "0.3s",
-  background: "#fafafa"
+  transition: "border-color 0.2s",
+  background: "#fafafa",
+  color: "#888",
+  fontSize: "14px",
 }}>
 
 
@@ -640,73 +643,23 @@ if (data.payment_link) {
 
     </div>
     
-<div style={{
-  display: "flex",
-  gap: "10px"
-}}>
-
-
-  <div style={{
-  position: "absolute",
-  top: "20px",
-  left: "20px",
-  display: "flex",
-  gap: "10px"
-}}>
-
-  {/* تسجيل الدخول (القديم - الأدمن) */}
-  <button
-    onClick={() => router.push("/login")}
-    style={{
-      padding: "8px 14px",
-      borderRadius: "8px",
-      background: "linear-gradient(135deg,#000,#333)",
-      color: "#fff",
-      border: "1px solid #333",
-      cursor: "pointer"
-    }}
-  >
-    🔐 تسجيل دخول 
-  </button>
-
-  {/* تسجيل حساب (الجديد) */}
-  <button
-    onClick={() => router.push("/signup")}
-    style={{
-      padding: "8px 14px",
-      borderRadius: "8px",
-      background: "linear-gradient(135deg,#fff,#999)",
-      
-      color: "#000000",
-      border: "none",
-      cursor: "pointer"
-    }}
-  >
-    ✨ إنشاء حساب
-  </button>
-
-</div>
-
-  <a
-    href="/my-orders"
-    style={{
-      padding: "10px 16px",
-      borderRadius: "10px",
-      background: "#000000",
-      textAlign: "center",
-      width: "100%",
-      color: "#fff",
-      textDecoration: "none",
-      transition: "0.2s"
-    }}
-
-    onMouseOver={(e)=> e.target.style.opacity="0.8"}
-onMouseOut={(e)=> e.target.style.opacity="1"}
-  >
-    📦 طلباتي
+<div style={{ marginTop: "16px", textAlign: "center" }}>
+  <a href="/my-orders" style={{
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "10px 20px",
+    borderRadius: "10px",
+    background: "#f5f5f5",
+    color: "#333",
+    textDecoration: "none",
+    fontSize: "14px",
+    fontWeight: "500",
+    border: "1px solid #ebebeb",
+    transition: "0.2s",
+  }}>
+    📦 تتبع طلباتي
   </a>
-
-
 </div>
 
       </div>
@@ -764,11 +717,13 @@ onMouseOut={(e)=> e.target.style.opacity="1"}
       onClick={(e) => e.stopPropagation()}
       style={{
         background: "#fff",
-        padding: "25px",
-        borderRadius: "16px",
-        width: "300px",
+        padding: "28px",
+        borderRadius: "20px",
+        width: "340px",
+        maxWidth: "90vw",
         textAlign: "center",
-        animation: "zoomIn 0.3s ease"
+        animation: "zoomIn 0.3s ease",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
       }}
     >
       <h3 style={{ marginBottom: 20 }}>اختر طريقة الدفع</h3>
@@ -870,101 +825,103 @@ onMouseOut={(e)=> e.target.style.opacity="1"}
 }
 
 const mainStyle = {
-  minHeight: "100vh",
-  backgroundImage: "url('/bg.png')",
-  backgroundSize: "cover",
-  backgroundPosition: "center",
-  backgroundColor: "rgba(255,255,255,0.6)",
-  backgroundColor: "rgba(0,0,0,0.3)",
-backgroundBlendMode: "darken",
-  backgroundRepeat: "no-repeat",
+  minHeight: "calc(100vh - 60px)",
+  background: "#f5f5f5",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  fontFamily: "system-ui, sans-serif",
+  padding: "24px 16px",
 };
 
 const optionBtn = {
   width: "100%",
-  padding: "14px",
-  marginBottom: "10px",
-  borderRadius: "14px",
-  border: "none",
-  background: "#111",
-  color: "#fff",
+  padding: "13px 16px",
+  marginBottom: "8px",
+  borderRadius: "12px",
+  border: "1px solid #ebebeb",
+  background: "#fff",
+  color: "#111",
   cursor: "pointer",
   fontSize: "14px",
   fontWeight: "500",
-  transition: "0.25s",
-  boxShadow: "0 6px 15px rgba(0,0,0,0.1)"
+  transition: "0.2s",
+  textAlign: "right",
 };
 
 const cardStyle = {
-  width: "420px",
+  width: "100%",
+  maxWidth: "460px",
   background: "#ffffff",
-  padding: "30px",
-  borderRadius: "16px",
-  boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
-  border: "1px solid #eee",
-  color: "#111"
+  padding: "32px",
+  borderRadius: "20px",
+  boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
+  border: "1px solid #ebebeb",
+  color: "#111",
 };
 
 const inputStyle = {
   width: "100%",
-  padding: "12px",
-  marginBottom: "10px",
-  borderRadius: "12px",
-  border: "1px solid #ddd",
+  padding: "12px 16px",
+  marginBottom: "12px",
+  borderRadius: "10px",
+  border: "1px solid #e0e0e0",
   outline: "none",
-  fontSize: "14px"
+  fontSize: "14px",
+  background: "#fff",
+  color: "#111",
+  boxSizing: "border-box",
 };
 
 const buttonStyle = {
   width: "100%",
   padding: "14px",
-  background: "#000",
+  background: "#111",
   color: "#fff",
   border: "none",
-  borderRadius: "10px",
+  borderRadius: "12px",
   cursor: "pointer",
-  marginTop: "10px",
-  fontWeight: "600",
+  marginTop: "12px",
+  fontWeight: "700",
   fontSize: "15px",
-  transition: "0.2s"
+  transition: "0.2s",
+  letterSpacing: "0.3px",
 };
 
 const priceBoxStyle = {
-  marginTop: "20px",
+  marginTop: "16px",
   padding: "16px",
   borderRadius: "14px",
-  background: "#f9fafb",
-  border: "1px solid #eee",
-  color: "#111"
+  background: "#f8f8f8",
+  border: "1px solid #ebebeb",
+  color: "#111",
 };
 
 const trackBox = {
   display: "flex",
   gap: 8,
   alignItems: "center",
-  marginTop: "15px"
+  marginTop: "16px",
 };
 
 const trackInput = {
   flex: 1,
-  padding: 12,
-  borderRadius: 10,
-  border: "1px solid #e5e7eb",
+  padding: "11px 16px",
+  borderRadius: "10px",
+  border: "1px solid #e0e0e0",
   outline: "none",
   color: "#111",
-  background: "#fff"
+  background: "#fff",
+  fontSize: "14px",
 };
 
 const trackBtn = {
-  padding: "10px 16px",
-  borderRadius: 10,
+  padding: "11px 18px",
+  borderRadius: "10px",
   border: "none",
-  background: "#000",
+  background: "#111",
   color: "white",
   cursor: "pointer",
-  whiteSpace: "nowrap"
+  fontSize: "14px",
+  fontWeight: "600",
+  whiteSpace: "nowrap",
 };
