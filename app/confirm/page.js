@@ -10,6 +10,7 @@ const supabase = createClient(
 
 export default function ConfirmPage() {
   const [order, setOrder] = useState(null);
+  const [orderId, setOrderId] = useState(null);
   const [otp, setOtp] = useState("");
   const [phone, setPhone] = useState("");
   const [verified, setVerified] = useState(false);
@@ -96,30 +97,42 @@ console.log("FINAL PHONE:", formattedPhone);
   // الدفع
   const handlePay = async () => {
   setLoading(true);
+  try {
+    const resOrder = await fetch("/api/order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: order.name,
+        phone: order.phone,
+        cart_link: order.cartlink,
+        price: order.price,
+        image_url: order.image_url,
+      }),
+    });
 
-  // 🔥 أولاً: أنشئ الطلب في قاعدة البيانات
-  
-  const orderData = await resOrder.json();
+    const orderData = await resOrder.json();
+    const newOrderId = orderData.id;
 
-  const orderId = orderData.Id; // ✅ هذا هو UUID الحقيقي
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount: order.totalUSD,
+        orderId: newOrderId,
+      }),
+    });
 
-  // 🔥 ثانياً: أرسل إلى Stripe
-  const res = await fetch("/api/checkout", {
-    method: "POST",
-    body: JSON.stringify({
-      amount: order.totalUSD,
-      orderId: orderId,
-    }),
-  });
+    const data = await res.json();
 
-  const data = await res.json();
-
-  if (data.url) {
-    window.location.href = data.url;
-  } else {
-    alert("فشل إنشاء رابط الدفع");
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      alert("فشل إنشاء رابط الدفع");
+    }
+  } catch (err) {
+    console.error(err);
+    alert("خطأ في الدفع");
   }
-
   setLoading(false);
 };
   
