@@ -15,9 +15,15 @@ export default function AdminLogin() {
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (!session) return;
-      const { data: profile } = await supabase
-        .from("profiles").select("role").eq("id", session.user.id).single();
-      if (profile?.role === "admin" || profile?.role === "employee") {
+
+      // Call /api/admin/check to verify role AND set the admin_role cookie
+      const res = await fetch("/api/admin/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: session.access_token }),
+      });
+
+      if (res.ok) {
         router.push("/admin");
       } else {
         await supabase.auth.signOut();
@@ -41,31 +47,13 @@ export default function AdminLogin() {
     if (!email || !password) { setError("أدخل البريد وكلمة المرور"); return; }
     setLoading(true);
 
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
     if (authError) {
       setLoading(false);
       setError("بيانات الدخول غير صحيحة");
-      return;
     }
-
-    const token = data.session.access_token;
-    const res = await fetch("/api/admin/check", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    });
-
-    const result = await res.json();
-    setLoading(false);
-
-    if (!res.ok) {
-      await supabase.auth.signOut();
-      setError("ليس لديك صلاحية الوصول للوحة التحكم");
-      return;
-    }
-
-    router.push("/admin");
+    // onAuthStateChange handles the rest (check + redirect)
   }
 
   return (
