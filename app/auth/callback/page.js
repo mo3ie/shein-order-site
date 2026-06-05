@@ -6,54 +6,63 @@ import { useRouter } from "next/navigation";
 
 export default function AuthCallback() {
   const router = useRouter();
-  const [status, setStatus] = useState("⏳ جاري تسجيل الدخول...");
+  const [logs, setLogs] = useState([]);
+
+  const log = (msg) => {
+    console.log("[callback]", msg);
+    setLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${msg}`]);
+  };
 
   useEffect(() => {
+    const url = window.location.href;
+    const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash;
+    log(`URL params: code=${params.get("code")?.slice(0,20)}... error=${params.get("error")}`);
+    log(`Hash: ${hash ? hash.slice(0,50) : "none"}`);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      log(`onAuthStateChange: event=${event}, session=${session ? "YES uid="+session.user.id.slice(0,8) : "NULL"}`);
+
       if (!session) return;
 
-      // Call admin/check to verify role and set the admin_role cookie
+      log("Calling /api/admin/check...");
       const res = await fetch("/api/admin/check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: session.access_token }),
       });
 
+      log(`admin/check status: ${res.status}`);
       if (res.ok) {
+        log("Redirecting to /admin...");
         router.replace("/admin");
       } else {
+        const body = await res.json();
+        log(`Denied: ${JSON.stringify(body)}`);
         await supabase.auth.signOut();
         router.replace("/admin/login?error=not_authorized");
       }
     });
 
-    // Timeout fallback in case onAuthStateChange never fires
-    const timeout = setTimeout(() => {
-      setStatus("⚠️ انتهت مهلة تسجيل الدخول");
-      router.replace("/admin/login?error=timeout");
-    }, 10000);
+    // Also try getSession in case onAuthStateChange already fired
+    setTimeout(async () => {
+      const { data } = await supabase.auth.getSession();
+      log(`getSession (after 2s): session=${data.session ? "YES" : "NULL"}`);
+    }, 2000);
 
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
-    };
+    return () => subscription.unsubscribe();
   }, [router]);
 
   return (
     <main style={{
       minHeight: "100vh", background: "#0b0f1a",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      direction: "rtl",
+      padding: "40px 24px", direction: "ltr",
     }}>
-      <div style={{ textAlign: "center" }}>
-        <div style={{
-          width: "48px", height: "48px", borderRadius: "50%",
-          border: "3px solid #7c3aed", borderTopColor: "transparent",
-          animation: "spin 0.8s linear infinite", margin: "0 auto 20px",
-        }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <p style={{ color: "#9ca3af", fontSize: "15px" }}>{status}</p>
-      </div>
+      <h2 style={{ color: "#a855f7", marginBottom: 16 }}>Auth Callback Debug</h2>
+      {logs.map((l, i) => (
+        <p key={i} style={{ color: "#9ca3af", fontSize: 13, margin: "4px 0", fontFamily: "monospace" }}>{l}</p>
+      ))}
+      {logs.length === 0 && <p style={{ color: "#555" }}>Waiting...</p>}
     </main>
   );
 }
