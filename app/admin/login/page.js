@@ -13,18 +13,19 @@ export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!session) return;
       const { data: profile } = await supabase
-        .from("profiles").select("role").eq("id", data.session.user.id).single();
+        .from("profiles").select("role").eq("id", session.user.id).single();
       if (profile?.role === "admin" || profile?.role === "employee") {
         router.push("/admin");
-      } else if (data.session) {
+      } else {
         await supabase.auth.signOut();
         setError("ليس لديك صلاحية الوصول للوحة التحكم");
       }
     });
-  }, []);
+    return () => subscription.unsubscribe();
+  }, [router]);
 
   async function handleGoogle() {
     setError("");
