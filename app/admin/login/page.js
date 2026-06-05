@@ -3,26 +3,45 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
-export default function Login() {
+export default function AdminLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleLogin() {
+    setError("");
+    if (!email || !password) {
+      setError("أدخل البريد وكلمة المرور");
+      return;
+    }
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (authError) {
+      setLoading(false);
+      setError("بيانات الدخول غير صحيحة");
+      return;
+    }
+
+    const token = data.session.access_token;
+    const res = await fetch("/api/admin/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
     });
 
+    const result = await res.json();
     setLoading(false);
 
-    if (error) {
-      alert("بيانات الدخول غير صحيحة");
-    } else {
-      window.location.href = "/admin";
+    if (!res.ok) {
+      await supabase.auth.signOut();
+      setError("ليس لديك صلاحية الوصول للوحة التحكم");
+      return;
     }
+
+    window.location.href = "/admin";
   }
 
   return (
@@ -31,11 +50,16 @@ export default function Login() {
         <h2 style={styles.title}>لوحة التحكم</h2>
         <p style={styles.subtitle}>تسجيل دخول الأدمن</p>
 
+        {error && (
+          <div style={styles.errorBox}>{error}</div>
+        )}
+
         <input
           style={styles.input}
           placeholder="البريد الإلكتروني"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          type="email"
         />
 
         <input
@@ -44,10 +68,11 @@ export default function Login() {
           placeholder="كلمة المرور"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleLogin()}
         />
 
-        <button style={styles.button} onClick={handleLogin}>
-          {loading ? "جاري الدخول..." : "دخول"}
+        <button style={styles.button} onClick={handleLogin} disabled={loading}>
+          {loading ? "جاري التحقق..." : "دخول"}
         </button>
       </div>
     </main>
@@ -70,15 +95,8 @@ const styles = {
     boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
     textAlign: "center",
   },
-  title: {
-    color: "#fff",
-    marginBottom: "5px",
-  },
-  subtitle: {
-    color: "#9ca3af",
-    marginBottom: "20px",
-    fontSize: "14px",
-  },
+  title: { color: "#fff", marginBottom: "5px" },
+  subtitle: { color: "#9ca3af", marginBottom: "20px", fontSize: "14px" },
   input: {
     width: "100%",
     padding: "10px",
@@ -87,6 +105,7 @@ const styles = {
     border: "1px solid #374151",
     background: "#1f2937",
     color: "#fff",
+    boxSizing: "border-box",
   },
   button: {
     width: "100%",
@@ -97,5 +116,13 @@ const styles = {
     borderRadius: "8px",
     cursor: "pointer",
     fontWeight: "bold",
+  },
+  errorBox: {
+    background: "#fee2e2",
+    color: "#dc2626",
+    padding: "10px",
+    borderRadius: "8px",
+    marginBottom: "12px",
+    fontSize: "13px",
   },
 };

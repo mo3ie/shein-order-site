@@ -4,12 +4,12 @@ export function middleware(request) {
   const { pathname } = request.nextUrl;
 
   if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login")) {
-    // Supabase JS v2 stores the session in a cookie named sb-*-auth-token
     const hasSession = request.cookies.getAll().some(
       (cookie) => cookie.name.startsWith("sb-") && cookie.name.endsWith("-auth-token")
     );
+    const adminRole = request.cookies.get("admin_role")?.value;
 
-    if (!hasSession) {
+    if (!hasSession || !adminRole) {
       return NextResponse.redirect(new URL("/admin/login", request.url));
     }
   }
