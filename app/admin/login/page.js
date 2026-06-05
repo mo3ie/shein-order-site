@@ -13,31 +13,18 @@ export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (!session) return;
-
-      // Call /api/admin/check to verify role AND set the admin_role cookie
-      const res = await fetch("/api/admin/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: session.access_token }),
-      });
-
-      if (res.ok) {
-        router.push("/admin");
-      } else {
-        await supabase.auth.signOut();
-        setError("ليس لديك صلاحية الوصول للوحة التحكم");
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, [router]);
+    // Check if there's an error from the OAuth callback
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get("error");
+    if (err === "not_authorized") setError("ليس لديك صلاحية الوصول للوحة التحكم");
+    else if (err) setError("حدث خطأ أثناء تسجيل الدخول");
+  }, []);
 
   async function handleGoogle() {
     setError("");
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: `${window.location.origin}/admin/login` },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
     if (oauthError) setError(oauthError.message);
   }
