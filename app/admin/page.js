@@ -19,12 +19,30 @@ export default function Admin(){
   useEffect(() => {
     const checkUser = async () => {
       const { data } = await supabase.auth.getUser();
+      if (!data.user) { router.push("/admin/login"); return; }
 
-      if (!data.user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, full_name")
+        .eq("id", data.user.id)
+        .single();
+
+      if (!profile || (profile.role !== "admin" && profile.role !== "employee")) {
         router.push("/admin/login");
+        return;
+      }
+
+      setRole(profile.role);
+
+      if (profile.role === "employee") {
+        const { data: perms } = await supabase
+          .from("employee_permissions")
+          .select("*")
+          .eq("user_id", data.user.id)
+          .single();
+        setPermissions(perms);
       }
     };
-
     checkUser();
   }, []);
   const [loading, setLoading] = useState(true);
@@ -33,6 +51,8 @@ export default function Admin(){
   const [exchangeRate, setExchangeRate] = useState("");
   const [successId, setSuccessId] = useState(null);
   const [saved, setSaved] = useState(false);
+  const [role, setRole] = useState(null);
+  const [permissions, setPermissions] = useState(null);
 
 const getRate = async () => {
   const { data, error } = await supabase
@@ -144,6 +164,9 @@ ${text}`;
   window.location.href = url;
 }
 
+const can = (role, permissions, key) =>
+  role === "admin" || (permissions && permissions[key] === true);
+
 const btnBase = {
   padding: "7px 12px",
   border: "none",
@@ -206,23 +229,37 @@ console.log("ADMIN COMPONENT RUNNING");
         </h1>
         <p style={{ color: "#555", fontSize: "13px", margin: "2px 0 0" }}>لوحة الإدارة</p>
       </div>
-      <button
-        onClick={async () => { await supabase.auth.signOut(); router.push("/admin/login"); }}
-        style={{
-          background: "transparent", color: "#ef4444",
-          border: "1px solid #ef444430", padding: "8px 16px",
-          borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600"
-        }}
-      >
-        تسجيل الخروج
-      </button>
+      <div style={{ display: "flex", gap: "8px" }}>
+        {role === "admin" && (
+          <button
+            onClick={() => router.push("/admin/employees")}
+            style={{
+              background: "#7c3aed22", color: "#a855f7",
+              border: "1px solid #7c3aed44", padding: "8px 16px",
+              borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600"
+            }}
+          >
+            👥 الموظفون
+          </button>
+        )}
+        <button
+          onClick={async () => { await supabase.auth.signOut(); router.push("/admin/login"); }}
+          style={{
+            background: "transparent", color: "#ef4444",
+            border: "1px solid #ef444430", padding: "8px 16px",
+            borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600"
+          }}
+        >
+          تسجيل الخروج
+        </button>
+      </div>
     </div>
 
     <div style={{marginBottom:"20px"}}>
 
 
 
-    <div style={{
+    {can(role, permissions, "shein_edit_exchange_rate") && <div style={{
   background: "#1a1a1a",
   border: "1px solid #333",
   borderRadius: "14px",
@@ -303,9 +340,7 @@ console.log("ADMIN COMPONENT RUNNING");
     )}
   </div>
 
-</div>
-
-
+</div>}
 
     </div>
 
@@ -467,8 +502,9 @@ console.log("SHIPPING:", shipping[order.id]);
   📦 نسخ ID
 </span>
 
-<button 
-  onClick={()=>updateStatus(order.id, "deleted", order)} 
+{can(role, permissions, "shein_delete_orders") && (
+<button
+  onClick={()=>updateStatus(order.id, "deleted", order)}
   style={{
     ...btn,
     background: "#ef4444",
@@ -477,6 +513,7 @@ console.log("SHIPPING:", shipping[order.id]);
 >
   حذف
 </button>
+)}
 
             <p><strong>👤 الاسم:</strong> {order.name}</p>
             <p><strong>📞 الهاتف:</strong> {order.phone}</p>
@@ -518,7 +555,7 @@ onMouseOut={(e)=> e.target.style.background="#2563eb"}
 
 
 
-<input
+{can(role, permissions, "shein_set_shipping") && <input
   placeholder="سعر الشحن"
   style={{
     width:"100%",
@@ -530,9 +567,8 @@ onMouseOut={(e)=> e.target.style.background="#2563eb"}
     fontSize:"14px",
     transition:"0.3s"
   }}
-  onFocus={(e)=> e.target.style.border="2px solid #000"}   // 👈 عند الضغط
-  onBlur={(e)=> e.target.style.border="2px solid #ddd"}    //
-
+  onFocus={(e)=> e.target.style.border="2px solid #000"}
+  onBlur={(e)=> e.target.style.border="2px solid #ddd"}
   value={shipping[order.id] || ""}
   onChange={(e) =>
     setShipping({
@@ -540,7 +576,7 @@ onMouseOut={(e)=> e.target.style.background="#2563eb"}
       [order.id]: e.target.value,
     })
   }
-/>
+/>}
 
 
 
@@ -569,13 +605,11 @@ onMouseOut={(e)=> e.target.style.background="#2563eb"}
 </div>
 
 
-<button
+{can(role, permissions, "shein_set_shipping") && <button
   onClick={async () => {
     const res = await fetch("/api/order", {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: order.id,
         shipping: shipping[order.id],
@@ -584,24 +618,16 @@ onMouseOut={(e)=> e.target.style.background="#2563eb"}
         final_total: finalTotal
       })
     });
-
     if (res.ok) {
       setSuccessId(order.id);
       setTimeout(() => setSuccessId(null), 2000);
     }
   }}
-
   style={{
-  background:"#000",
-  color:"#fff",
-  border:"none",
-  borderRadius:"10px",
-  padding:"12px",
-  width:"100%",
-  marginTop:"10px",
-  cursor:"pointer",
-  fontWeight:"600"
-}}
+    background:"#000", color:"#fff", border:"none",
+    borderRadius:"10px", padding:"12px", width:"100%",
+    marginTop:"10px", cursor:"pointer", fontWeight:"600"
+  }}
   onMouseEnter={(e) => e.target.style.transform = "scale(1.05)"}
   onMouseLeave={(e) => e.target.style.transform = "scale(1)"}
 >
@@ -634,7 +660,7 @@ onMouseOut={(e)=> e.target.style.background="#2563eb"}
   )}
 
 </div>
-</button>
+</button>}
 
 
 
@@ -657,8 +683,9 @@ onMouseOut={(e)=> e.target.style.background="#2563eb"}
 
             <div style={{marginTop:"10px"}}>
 
-              <button 
-  onClick={()=>updateStatus(order.id, "ordered", order)} 
+            {can(role, permissions, "shein_change_status") && <>
+              <button
+  onClick={()=>updateStatus(order.id, "ordered", order)}
   style={{
     ...btn,
     background: order.status === "ordered" ? "#3b82f6" : "#e5e7eb",
@@ -701,13 +728,15 @@ onMouseOut={(e)=> e.target.style.background="#2563eb"}
   منجز
 </button>
 
-              <button 
+              </>}
+
+<button
   onClick={()=>sendWhatsApp(order)}
   style={{
     ...btnBase,
     background:"#25D366",
-borderRadius:"8px",
-padding:"6px 12px"
+    borderRadius:"8px",
+    padding:"6px 12px"
   }}
 >
   واتساب

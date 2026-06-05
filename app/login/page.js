@@ -15,10 +15,23 @@ export default function LoginPage() {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
+      setLoading(false);
       alert("بيانات الدخول غير صحيحة");
+      return;
+    }
+
+    // Check role and redirect accordingly
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", data.user.id)
+      .single();
+
+    setLoading(false);
+    if (profile?.role === "admin" || profile?.role === "employee") {
+      window.location.href = "/admin";
     } else {
       window.location.href = "/account";
     }

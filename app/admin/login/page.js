@@ -1,20 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useRouter } from "next/navigation";
 
 export default function AdminLogin() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) router.push("/admin");
+    });
+  }, []);
 
   async function handleLogin() {
     setError("");
-    if (!email || !password) {
-      setError("أدخل البريد وكلمة المرور");
-      return;
-    }
+    if (!email || !password) { setError("أدخل البريد وكلمة المرور"); return; }
     setLoading(true);
 
     const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
@@ -41,88 +47,109 @@ export default function AdminLogin() {
       return;
     }
 
-    window.location.href = "/admin";
+    router.push("/admin");
   }
 
   return (
-    <main style={styles.container}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>لوحة التحكم</h2>
-        <p style={styles.subtitle}>تسجيل دخول الأدمن</p>
+    <main style={{
+      minHeight: "100vh",
+      background: "#0b0f1a",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      direction: "rtl",
+      position: "relative",
+      overflow: "hidden",
+    }}>
+      {/* Glow effects */}
+      <div style={{ position: "fixed", top: "-100px", left: "-100px", width: "400px", height: "400px", background: "rgba(124,58,237,0.15)", borderRadius: "50%", filter: "blur(120px)", pointerEvents: "none" }} />
+      <div style={{ position: "fixed", bottom: "-100px", right: "-100px", width: "400px", height: "400px", background: "rgba(59,130,246,0.15)", borderRadius: "50%", filter: "blur(120px)", pointerEvents: "none" }} />
+
+      <div style={{
+        background: "#0f1320",
+        border: "1px solid rgba(124,58,237,0.3)",
+        borderRadius: "24px",
+        padding: "40px",
+        width: "360px",
+        boxShadow: "0 0 60px rgba(168,85,247,0.1)",
+        position: "relative",
+      }}>
+        {/* Logo */}
+        <div style={{ textAlign: "center", marginBottom: "30px" }}>
+          <h1 style={{
+            fontSize: "32px", fontWeight: "900", letterSpacing: "4px",
+            background: "linear-gradient(90deg,#a855f7,#3b82f6)",
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+            margin: 0,
+          }}>TREND</h1>
+          <p style={{ color: "#4b5563", fontSize: "13px", margin: "6px 0 0" }}>لوحة التحكم</p>
+        </div>
+
+        <p style={{ color: "#9ca3af", fontSize: "14px", margin: "0 0 22px", fontWeight: "600" }}>
+          ⚡ تسجيل الدخول
+        </p>
 
         {error && (
-          <div style={styles.errorBox}>{error}</div>
+          <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171", padding: "10px 14px", borderRadius: "10px", marginBottom: "16px", fontSize: "13px" }}>
+            ⚠️ {error}
+          </div>
         )}
 
         <input
-          style={styles.input}
           placeholder="البريد الإلكتروني"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={e => setEmail(e.target.value)}
           type="email"
+          style={inputStyle}
         />
 
-        <input
-          style={styles.input}
-          type="password"
-          placeholder="كلمة المرور"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-        />
+        <div style={{ position: "relative" }}>
+          <input
+            type={showPassword ? "text" : "password"}
+            placeholder="كلمة المرور"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && handleLogin()}
+            style={{ ...inputStyle, paddingLeft: "42px" }}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(s => !s)}
+            style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: "16px" }}
+          >
+            {showPassword ? "🙈" : "👁️"}
+          </button>
+        </div>
 
-        <button style={styles.button} onClick={handleLogin} disabled={loading}>
-          {loading ? "جاري التحقق..." : "دخول"}
+        <button
+          onClick={handleLogin}
+          disabled={loading}
+          style={{
+            width: "100%", padding: "13px",
+            background: loading ? "#4b2a9a" : "linear-gradient(135deg,#7c3aed,#3b82f6)",
+            color: "#fff", border: "none", borderRadius: "12px",
+            cursor: loading ? "not-allowed" : "pointer",
+            fontWeight: "800", fontSize: "15px", marginTop: "4px",
+            boxShadow: loading ? "none" : "0 0 20px rgba(124,58,237,0.4)",
+            transition: "0.2s",
+          }}
+        >
+          {loading ? "⏳ جاري التحقق..." : "دخول →"}
         </button>
       </div>
     </main>
   );
 }
 
-const styles = {
-  container: {
-    minHeight: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "linear-gradient(135deg, #0f172a, #1e293b)",
-  },
-  card: {
-    background: "#111827",
-    padding: "40px",
-    borderRadius: "16px",
-    width: "320px",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
-    textAlign: "center",
-  },
-  title: { color: "#fff", marginBottom: "5px" },
-  subtitle: { color: "#9ca3af", marginBottom: "20px", fontSize: "14px" },
-  input: {
-    width: "100%",
-    padding: "10px",
-    marginBottom: "12px",
-    borderRadius: "8px",
-    border: "1px solid #374151",
-    background: "#1f2937",
-    color: "#fff",
-    boxSizing: "border-box",
-  },
-  button: {
-    width: "100%",
-    padding: "12px",
-    background: "#22c55e",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontWeight: "bold",
-  },
-  errorBox: {
-    background: "#fee2e2",
-    color: "#dc2626",
-    padding: "10px",
-    borderRadius: "8px",
-    marginBottom: "12px",
-    fontSize: "13px",
-  },
+const inputStyle = {
+  width: "100%",
+  padding: "12px 14px",
+  marginBottom: "12px",
+  borderRadius: "12px",
+  border: "1px solid rgba(124,58,237,0.2)",
+  background: "rgba(0,0,0,0.4)",
+  color: "#fff",
+  fontSize: "14px",
+  outline: "none",
+  boxSizing: "border-box",
 };
