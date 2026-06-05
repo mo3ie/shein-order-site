@@ -13,10 +13,27 @@ export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) router.push("/admin");
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!data.session) return;
+      const { data: profile } = await supabase
+        .from("profiles").select("role").eq("id", data.session.user.id).single();
+      if (profile?.role === "admin" || profile?.role === "employee") {
+        router.push("/admin");
+      } else if (data.session) {
+        await supabase.auth.signOut();
+        setError("ليس لديك صلاحية الوصول للوحة التحكم");
+      }
     });
   }, []);
+
+  async function handleGoogle() {
+    setError("");
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}/admin/login` },
+    });
+    if (oauthError) setError(oauthError.message);
+  }
 
   async function handleLogin() {
     setError("");
@@ -135,6 +152,27 @@ export default function AdminLogin() {
           }}
         >
           {loading ? "⏳ جاري التحقق..." : "دخول →"}
+        </button>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "16px 0" }}>
+          <div style={{ flex: 1, height: "1px", background: "#1f1f2e" }} />
+          <span style={{ color: "#4b5563", fontSize: "12px" }}>أو</span>
+          <div style={{ flex: 1, height: "1px", background: "#1f1f2e" }} />
+        </div>
+
+        <button
+          onClick={handleGoogle}
+          style={{
+            width: "100%", padding: "12px",
+            background: "#fff", color: "#333",
+            border: "1px solid rgba(255,255,255,0.15)",
+            borderRadius: "12px", cursor: "pointer",
+            fontSize: "14px", fontWeight: "600",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
+          }}
+        >
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" width={18} />
+          تسجيل الدخول بـ Google
         </button>
       </div>
     </main>
