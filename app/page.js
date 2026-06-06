@@ -25,6 +25,10 @@ export default function OrderPage() {
   const [priceWarning,      setPriceWarning]      = useState(false);
   const [priceCurrencyErr,  setPriceCurrencyErr]  = useState(false);
   const [orderId,           setOrderId]           = useState(null);
+  const [edfaliStep,        setEdfaliStep]        = useState(null);
+  const [edfaliSession,     setEdfaliSession]     = useState(null);
+  const [edfaliOtp,         setEdfaliOtp]         = useState("");
+  const [edfaliOrderId,     setEdfaliOrderId]     = useState(null);
 
   const base      = price || 0;
   const profit    = base * 0.01;
@@ -32,7 +36,6 @@ export default function OrderPage() {
   const priceLYD  = exchangeRate ? totalUSD * exchangeRate : 0;
 
   const paymentMethods = [
-    { id: "edfali",     name: "ادفع لي",   icon: "🏧", color: "#9333ea" },
     { id: "mobicash",   name: "موبي كاش",  icon: "📱", color: "#0284c7" },
     { id: "masrefypay", name: "مصرفي",     icon: "💳", color: "#ea580c" },
     { id: "yousrpay",   name: "يسر باي",   icon: "💳", color: "#0d9488" },
@@ -178,6 +181,52 @@ export default function OrderPage() {
       }
     } catch (err) {
       alert(err.message || "خطأ في الدفع");
+      setSending(false);
+    }
+  };
+
+  // ── EDFali (DPAY.LY) ────────────────────────────────────────────────────
+  const handleEdfali = async () => {
+    try {
+      setSending(true);
+      const imageUrl = await uploadImage();
+      const oid = await createOrder(imageUrl);
+      setOrderId(oid);
+      setEdfaliOrderId(oid);
+      await supabase.from("payments").insert({ order_id: oid, method: "edfali", status: "pending", amount: priceLYD });
+
+      const res = await fetch("/api/edfali", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: oid, amountLYD: priceLYD, phone }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "فشل إرسال طلب الدفع");
+
+      setEdfaliSession(data.session_id);
+      setEdfaliStep("otp");
+      setSending(false);
+    } catch (err) {
+      alert(err.message || "خطأ في الدفع");
+      setSending(false);
+    }
+  };
+
+  const handleEdfaliVerify = async () => {
+    if (!edfaliOtp || edfaliOtp.length < 4) { alert("أدخل رمز التحقق المكون من 4 أرقام"); return; }
+    try {
+      setSending(true);
+      const res = await fetch("/api/edfali/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: edfaliSession, otp: edfaliOtp, orderId: edfaliOrderId }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "رمز التحقق خاطئ");
+      localStorage.setItem("lastOrderId", edfaliOrderId);
+      window.location.href = `/success?orderId=${edfaliOrderId}&via=edfali`;
+    } catch (err) {
+      alert(err.message || "رمز خاطئ، حاول مجدداً");
       setSending(false);
     }
   };
@@ -440,8 +489,42 @@ export default function OrderPage() {
 
       {/* ── Payment Modal ── */}
       {showPayment && (
-        <div onClick={() => setShowPayment(false)} style={s.overlay}>
+        <div onClick={() => { if (!edfaliStep) setShowPayment(false); }} style={s.overlay}>
           <div onClick={e => e.stopPropagation()} style={s.modal}>
+
+            {/* ── OTP Screen ── */}
+            {edfaliStep === "otp" ? (
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>🏧</div>
+                <h3 style={{ fontSize: 17, fontWeight: 800, color: "#1e1b4b", margin: "0 0 6px" }}>تحقق من رمز ادفع لي</h3>
+                <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>
+                  أُرسل رمز تحقق مكوّن من <strong>4 أرقام</strong> إلى هاتفك<br />
+                  <strong style={{ color: PRIMARY }}>{phone}</strong>
+                </p>
+                <input
+                  type="number"
+                  maxLength={4}
+                  placeholder="أدخل الرمز"
+                  value={edfaliOtp}
+                  onChange={e => setEdfaliOtp(e.target.value.slice(0, 4))}
+                  style={{ ...s.input, fontSize: 28, textAlign: "center", letterSpacing: 12, fontWeight: 700, marginBottom: 16 }}
+                  autoFocus
+                />
+                <button
+                  onClick={handleEdfaliVerify}
+                  disabled={sending || edfaliOtp.length < 4}
+                  style={{ ...s.btn, background: edfaliOtp.length === 4 ? "linear-gradient(135deg,#7c3aed,#9333ea)" : "#e5e7eb", color: edfaliOtp.length === 4 ? "#fff" : "#9ca3af", cursor: edfaliOtp.length === 4 ? "pointer" : "not-allowed" }}
+                >
+                  {sending ? "⏳ جاري التحقق..." : "تأكيد الدفع ✓"}
+                </button>
+                <button
+                  onClick={() => { setEdfaliStep(null); setEdfaliOtp(""); setSending(false); }}
+                  style={{ width: "100%", marginTop: 10, padding: 10, background: "none", border: "1px solid #f3f4f6", borderRadius: 10, color: "#9ca3af", cursor: "pointer", fontSize: 13 }}
+                >
+                  رجوع
+                </button>
+              </div>
+            ) : (<>
 
             <div style={{ textAlign: "center", marginBottom: 20 }}>
               <h3 style={{ fontSize: 18, fontWeight: 800, color: "#1e1b4b", margin: 0 }}>اختر طريقة الدفع</h3>
@@ -473,12 +556,26 @@ export default function OrderPage() {
             <button
               onClick={handleMoamalat}
               disabled={sending}
-              style={{ ...s.payBtn, background: "linear-gradient(135deg,#15803d,#16a34a)", color: "#fff", marginBottom: 10 }}
+              style={{ ...s.payBtn, background: "linear-gradient(135deg,#15803d,#16a34a)", color: "#fff", marginBottom: 8 }}
             >
               <span style={{ fontSize: 22 }}>🏦</span>
               <div style={{ textAlign: "right" }}>
                 <div style={{ fontWeight: 700, fontSize: 14 }}>معاملات</div>
                 <div style={{ fontSize: 11, opacity: 0.85 }}>بطاقة ليبية — Moamalat</div>
+              </div>
+              <span style={{ marginRight: "auto", fontWeight: 700, fontSize: 13 }}>{priceLYD.toFixed(0)} د.ل</span>
+            </button>
+
+            {/* EDFali — dedicated button */}
+            <button
+              onClick={handleEdfali}
+              disabled={sending}
+              style={{ ...s.payBtn, background: "linear-gradient(135deg,#7c3aed,#9333ea)", color: "#fff", marginBottom: 10 }}
+            >
+              <span style={{ fontSize: 22 }}>🏧</span>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>ادفع لي</div>
+                <div style={{ fontSize: 11, opacity: 0.85 }}>محفظة EDFali — OTP</div>
               </div>
               <span style={{ marginRight: "auto", fontWeight: 700, fontSize: 13 }}>{priceLYD.toFixed(0)} د.ل</span>
             </button>
@@ -536,6 +633,7 @@ export default function OrderPage() {
             <button onClick={() => setShowPayment(false)} style={{ width: "100%", marginTop: 10, padding: "10px", background: "none", border: "1px solid #f3f4f6", borderRadius: 10, color: "#9ca3af", cursor: "pointer", fontSize: 13 }}>
               إغلاق
             </button>
+            </>)}
           </div>
         </div>
       )}
