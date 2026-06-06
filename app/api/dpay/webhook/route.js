@@ -1,55 +1,37 @@
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
+
 export async function POST(req) {
   try {
     const body = await req.json();
-
     console.log("DPAY WEBHOOK:", body);
-
-    /**
-     * 🔴 شكل متوقع من dpay (قد يختلف):
-     * {
-     *   session_id: 123,
-     *   status: "paid",
-     *   order_id: "abc123"
-     * }
-     */
 
     const { session_id, status, order_id } = body;
 
-    if (!session_id) {
-      return Response.json({ error: "No session_id" }, { status: 400 });
+    if (!order_id) {
+      console.error("Webhook: order_id مفقود");
+      return Response.json({ received: true });
     }
 
-    // 🟡 فقط إذا تم الدفع
-    if (status === "paid" || status === "success") {
-      
-      // 🟢 تحديث الطلب في Supabase
-      const { createClient } = await import("@supabase/supabase-js");
+    const isPaid = status === "paid" || status === "success";
 
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.SUPABASE_SERVICE_ROLE_KEY // 🔥 مهم
-      );
-
-      const { error } = await supabase
+    if (isPaid) {
+      await supabaseAdmin
         .from("orders")
-        .update({
-          status: "paid",
-          payment_session: session_id,
-        })
+        .update({ status: "paid" })
         .eq("id", order_id);
 
-      if (error) {
-        console.error("SUPABASE ERROR:", error);
-        return Response.json({ error: "DB error" }, { status: 500 });
-      }
+      await supabaseAdmin
+        .from("payments")
+        .update({ status: "paid", payment_session: session_id })
+        .eq("order_id", order_id)
+        .eq("method", "dpay");
 
-      console.log("✅ ORDER PAID:", order_id);
+      console.log("✅ DPay order paid:", order_id);
     }
 
     return Response.json({ received: true });
-
   } catch (err) {
-    console.error("WEBHOOK ERROR:", err);
+    console.error("DPAY WEBHOOK ERROR:", err);
     return Response.json({ error: "Server error" }, { status: 500 });
   }
 }

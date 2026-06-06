@@ -76,9 +76,7 @@ export async function POST(req) {
     const body = await req.json();
     console.log("BODY:", body);
 
-    const user = null;
-
-    const { name, phone, cart_link, price, image_url } = body;
+    const { name, phone, cart_link, price, image_url, user_id } = body;
 
    const { data, error } = await supabaseAdmin
   .from("orders")
@@ -91,6 +89,7 @@ export async function POST(req) {
       type: "shein",
       status: "new",
       price,
+      ...(user_id ? { user_id } : {}),
     }
   ])
   .select()

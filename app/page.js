@@ -1,927 +1,660 @@
-"use client"
+"use client";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import Tesseract from "tesseract.js";
-import { useRouter } from "next/navigation";
 
-export default function orderPage () {
+const PRIMARY   = "#7c3aed";
+const GRADIENT  = "linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%)";
+const BG        = "transparent";
 
-  const [showPaymentOptions, setShowPaymentOptions] = useState(false);
-  const [cartLink, setcartLink] = useState("");
- const [orderId, setOrderId] = useState(null);
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-const router = useRouter();
-  const [image, setImage] = useState(null);
-const [text, setText] = useState("");
-const [price, setPrice] = useState(null);
-const [loading, setLoading] = useState(false);
-const [sending, setSending] = useState(false);
-const [preview, setPreview] = useState(null);
-const [trackId, setTrackId] = useState("");
-const [user, setUser] = useState(null);
-const [selectedMethod, setSelectedMethod] = useState(null);
-const [cardNumber, setCardNumber] = useState("");
+export default function OrderPage() {
+  const [cartLink,          setCartLink]          = useState("");
+  const [name,              setName]              = useState("");
+  const [phone,             setPhone]             = useState("");
+  const [image,             setImage]             = useState(null);
+  const [price,             setPrice]             = useState(null);
+  const [exchangeRate,      setExchangeRate]      = useState(1);
+  const [loading,           setLoading]           = useState(false);
+  const [sending,           setSending]           = useState(false);
+  const [preview,           setPreview]           = useState(null);
+  const [trackId,           setTrackId]           = useState("");
+  const [showPayment,       setShowPayment]       = useState(false);
+  const [selectedMethod,    setSelectedMethod]    = useState(null);
+  const [cardNumber,        setCardNumber]        = useState("");
+  const [errors,            setErrors]            = useState({});
+  const [priceWarning,      setPriceWarning]      = useState(false);
+  const [orderId,           setOrderId]           = useState(null);
 
+  const base      = price || 0;
+  const profit    = base * 0.01;
+  const totalUSD  = base + profit;
+  const priceLYD  = exchangeRate ? totalUSD * exchangeRate : 0;
 
-const paymentMethods = [
-  { id: "moamalat", name: "🏦 معاملات", color: "#16a34a" },
-  { id: "edfali", name: "🏧 ادفع لي", color: "#9333ea" },
-  { id: "mobicash", name: "📱 موبي كاش", color: "#0284c7" },
-  { id: "masrefypay", name: "💳 مصرفي", color: "#ea580c" },
-  { id: "yousrpay", name: "💳 يسر باي", color: "#0d9488" },
-  { id: "saharpay", name: "💳 صحارة باي", color: "#ca8a04" }
-];
+  const paymentMethods = [
+    { id: "edfali",     name: "ادفع لي",   icon: "🏧", color: "#9333ea" },
+    { id: "mobicash",   name: "موبي كاش",  icon: "📱", color: "#0284c7" },
+    { id: "masrefypay", name: "مصرفي",     icon: "💳", color: "#ea580c" },
+    { id: "yousrpay",   name: "يسر باي",   icon: "💳", color: "#0d9488" },
+    { id: "saharpay",   name: "صحارة باي", icon: "💳", color: "#ca8a04" },
+  ];
 
+  useEffect(() => {
+    supabase.from("settings").select("exchange_rate").eq("id", 1).single()
+      .then(({ data }) => { if (data) setExchangeRate(Number(data.exchange_rate)); });
+  }, []);
 
-useEffect(()=>{
+  // ── Validation ──────────────────────────────────────────────────────────
+  function isValidSheinLink(url) { return /shein\.com/i.test(url.trim()); }
+  function isValidLibyanPhone(p) {
+    return /^(00218|\+218|0)9[1-5]\d{7}$/.test(p.replace(/[\s-]/g, ""));
+  }
+  function validate() {
+    const errs = {};
+    if (!isValidSheinLink(cartLink))  errs.cartLink = "يجب أن يكون رابط سلة من موقع shein.com";
+    if (!name.trim())                 errs.name     = "أدخل اسمك الكامل";
+    if (!isValidLibyanPhone(phone))   errs.phone    = "رقم الهاتف غير صحيح — مثال: 0913456789";
+    if (!image)                       errs.image    = "يجب رفع صورة تحتوي على السعر المقدر";
+    if (!price)                       errs.price    = "لم يُستخرج سعر من الصورة";
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
 
-
-  supabase.auth.getUser().then(({data})=>{
-    setUser(data.user);
-  });
-},[]);
-
-
-  const handleTrack = () => {
-    if (!trackId) {
-      alert("أدخل رقم الطلب");
-      return;
+  // ── OCR ─────────────────────────────────────────────────────────────────
+  async function handleImage(file) {
+    setLoading(true);
+    setPriceWarning(false);
+    const { data: { text } } = await Tesseract.recognize(file, "eng+ara");
+    let p = null;
+    let found = false;
+    const en = text.match(/Estimated Price[^0-9]*([\d,]+\.\d+)/i);
+    const ar = text.match(/السعر المقدر[^0-9]*([\d,]+\.\d+)/i);
+    if (en)       { p = parseFloat(en[1].replace(/,/g, "")); found = true; }
+    else if (ar)  { p = parseFloat(ar[1].replace(/,/g, "")); found = true; }
+    if (!p) {
+      const any = text.match(/[\d,]+\.\d+/);
+      p = any ? parseFloat(any[0].replace(/,/g, "")) : 0;
     }
+    if (!found) setPriceWarning(true);
+    setPrice(p);
+    setLoading(false);
+  }
 
+  // ── Upload helper ────────────────────────────────────────────────────────
+  async function uploadImage() {
+    const fileName = `${Date.now()}-${image.name}`;
+    const { error } = await supabase.storage.from("orders-images").upload(`public/${fileName}`, image);
+    if (error) throw new Error("فشل رفع الصورة");
+    const { data } = supabase.storage.from("orders-images").getPublicUrl(`public/${fileName}`);
+    return data.publicUrl;
+  }
+
+  async function createOrder(imageUrl) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const res = await fetch("/api/order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, phone, cart_link: cartLink, price, image_url: imageUrl, user_id: user?.id }),
+    });
+    const result = await res.json();
+    if (!result.success) throw new Error("فشل إنشاء الطلب");
+    return result.id;
+  }
+
+  // ── Track ────────────────────────────────────────────────────────────────
+  const handleTrack = () => {
+    if (!trackId) return;
     window.location.href = `/track?id=${trackId}`;
   };
 
-
-const [exchangeRate, setExchangeRate] = useState(1);
-const base = price || 0; // من الصورة
-
-const profit = base * 0.01;
-const totalUSD = base + profit;
-const priceLYD = exchangeRate
-  ? totalUSD * exchangeRate
-  : 0;
-
-useEffect(() => {
-  const getRate = async () => {
-    const { data, error } = await supabase
-  .from("settings")
-  .select("exchange_rate")
-  .eq("id", 1)
-  .single();
-
-if (error) {
-  console.error(error);
-  return;
-}
-
-if (data) {
-  setExchangeRate(Number(data.exchange_rate));
-}
+  // ── Stripe ───────────────────────────────────────────────────────────────
+  const handlePayment = async () => {
+    try {
+      setSending(true);
+      const imageUrl = await uploadImage();
+      const oid = await createOrder(imageUrl);
+      await supabase.from("payments").insert({ order_id: oid, method: "stripe", status: "pending", amount: totalUSD });
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: totalUSD, orderId: oid }),
+      });
+      const data = await res.json();
+      window.location.href = data.url;
+    } catch (err) {
+      alert(err.message || "خطأ في الدفع");
+      setSending(false);
+    }
   };
 
-  getRate();
-}, []);
-
-
-
-
-
-
-
-
-
-async function handleImage(file) {
-  setLoading(true);
-
-  const { data: { text } } = await Tesseract.recognize(file, "eng+ara");
-
-  console.log(text);
-
-  let price = null;
-
-  let matchEn = text.match(/Estimated Price[^0-9]*([\d,]+\.\d+)/i);
-  let matchAr = text.match(/السعر المقدر[^0-9]*([\d,]+\.\d+)/i);
-
-  if (matchEn) {
-  price = parseFloat(matchEn[1].replace(/,/g, ""));
-} else if (matchAr) {
-    price = parseFloat(matchAr[1].replace(/,/g, ""));
-  }
-
-  if (!price) {
-    const anyNumber = text.match(/[\d,]+\.\d+/);
-price = anyNumber ? parseFloat(anyNumber[0].replace(/,/g, "")) : 0;
-  }
-
-  setPrice(price);
-
-  setLoading(false); // 👈 هذا السطر كان ناقص أو في المكان الخطأ
-}
-async function handleSubmit() {
-
-
-const { data: { user } } = await supabase.auth.getUser();
-
-
-  console.log("IMAGE STATE:", image);
-  
-  try {
-    if (loading) {
-  alert("انتظر قليلاً...");
-  return;
-}
-
-if (!name || !phone || price === null || !image) {
-  alert("تأكد من كل البيانات ورفع الصورة");
-  return;
-}
-    setSending(true);
-
-    // 🟡 1. رفع الصورة إلى Supabase
-    const fileName = Date.now() + "-" + image.name;
-
-    const { data: uploadData, error: uploadError } =
-      await supabase.storage
-        .from("orders-images")
-        .upload(`public/${fileName}`, image);
-
-    if (uploadError) {
-      console.error(uploadError);
-      alert("فشل رفع الصورة");
-      return;
+  // ── DPay ─────────────────────────────────────────────────────────────────
+  const handleDpay = async (method) => {
+    if (!method) { alert("اختر طريقة الدفع أولاً"); return; }
+    try {
+      setSending(true);
+      const imageUrl = await uploadImage();
+      const oid = await createOrder(imageUrl);
+      setOrderId(oid);
+      await supabase.from("payments").insert({ order_id: oid, method: "dpay", status: "pending", amount: priceLYD });
+      const res = await fetch("/api/dpay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: oid,
+          amount: Math.round(Number(priceLYD)),
+          method,
+          customer_mobile: phone,
+          card_number: cardNumber,
+          customer_name: name,
+        }),
+      });
+      const data = await res.json();
+      if (data.payment_link) {
+        localStorage.setItem("lastOrderId", oid);
+        if (data.session_id) localStorage.setItem("dpaySession", data.session_id);
+        window.location.href = data.payment_link;
+      } else {
+        throw new Error(data.error || "فشل الدفع");
+      }
+    } catch (err) {
+      alert(err.message || "خطأ في الدفع");
+      setSending(false);
     }
+  };
 
-    // 🟢 2. جلب رابط الصورة
-    const { data: publicUrlData } = supabase.storage
-      .from("orders-images")
-      .getPublicUrl(`public/${fileName}`);
+  // ── Moamalat ─────────────────────────────────────────────────────────────
+  const handleMoamalat = async () => {
+    try {
+      setSending(true);
+      const imageUrl = await uploadImage();
+      const oid = await createOrder(imageUrl);
+      setOrderId(oid);
+      await supabase.from("payments").insert({ order_id: oid, method: "moamalat", status: "pending", amount: priceLYD });
 
-    const imageUrl = publicUrlData.publicUrl;
+      const res = await fetch("/api/moamalat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: oid, amountLYD: priceLYD }),
+      });
+      const params = await res.json();
+      if (!params.success) throw new Error(params.error || "فشل تهيئة بوابة الدفع");
 
-    // 🟢 3. إرسال الطلب
-    const res = await fetch("/api/order", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-  name,
-  phone,
-  cart_link: cartLink,
-  price,
-  image_url: imageUrl,
-  user_id: user?.id
-}),
-    });
+      await new Promise((resolve, reject) => {
+        if (document.getElementById("moamalat-lb")) { resolve(); return; }
+        const script = document.createElement("script");
+        script.id = "moamalat-lb";
+        script.src = params.scriptUrl;
+        script.onload = resolve;
+        script.onerror = () => reject(new Error("فشل تحميل بوابة معاملات"));
+        document.head.appendChild(script);
+      });
 
-const result = await res.json();
-console.log("RESULT FROM API:", result);
+      await new Promise(r => setTimeout(r, 300));
+      localStorage.setItem("lastOrderId", oid);
 
-setSending(false);
-
-if (result.success) {
-  alert("تم إرسال طلبك ✅ رقم الطلب: " + result.id);
-
-  localStorage.setItem("lastOrderId", result.id);
-
- 
-
-  setName("");
-  setPhone("");
-  setcartLink("");
-  setPrice(null);
-  setImage(null);
-} else {
-  alert("فشل ❌");
-}
-
-  } catch (err) {
-    console.error(err);
-    alert("خطأ ❌");
-  }
-}
-
-function extractPrice(text) {
-  const match = text.match(/\$?\d+(\.\d+)?/);
-  return match ? parseFloat(match[0]) : 0;
-}
-
-function calculateFinalPrice(base) {
-  let shipping = 15;
-  let profit = base * 0.03;
-
-  return Math.round(base + shipping + profit);
-}
-
-
-
-  
-
-const handlePayment = async () => {
-  try {
-    if (!name || !phone || price === null || !image) {
-      alert("تأكد من كل البيانات");
-      return;
+      window.Lightbox.Checkout.configure = {
+        MID:               params.MID,
+        TID:               params.TID,
+        AmountTrxn:        params.AmountTrxn,
+        MerchantReference: params.MerchantReference,
+        TrxDateTime:       params.TrxDateTime,
+        SecureHash:        params.SecureHash,
+        completeCallback:  () => { window.location.href = `/success?orderId=${oid}&via=moamalat`; },
+        errorCallback:     () => { setSending(false); alert("حدث خطأ في عملية الدفع، حاول مجدداً"); },
+        cancelCallback:    () => { setSending(false); },
+      };
+      window.Lightbox.Checkout.showLightbox();
+      setSending(false);
+    } catch (err) {
+      alert(err.message || "خطأ في الدفع");
+      setSending(false);
     }
+  };
 
-    // 1️⃣ رفع الصورة
-    const fileName = Date.now() + "-" + image.name;
-
-    const { error } = await supabase.storage
-      .from("orders-images")
-      .upload(`public/${fileName}`, image);
-
-    if (error) {
-      alert("فشل رفع الصورة");
-      return;
-    }
-
-    const { data: publicUrlData } = supabase.storage
-      .from("orders-images")
-      .getPublicUrl(`public/${fileName}`);
-
-    const imageUrl = publicUrlData.publicUrl;
-
-    // 2️⃣ إنشاء الطلب في الداتابيس
-    const orderRes = await fetch("/api/order", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        name,
-        phone,
-        cart_link: cartLink,
-        price,
-        image_url: imageUrl
-        
-         
-      })
-    });
-
-    const orderData = await orderRes.json();
-
-    if (!orderData.success) {
-      alert("فشل إنشاء الطلب");
-      return;
-    }
-
-    const orderId = orderData.id; // ✅ هنا الصحيح
-
-    await supabase.from("payments").insert({
-  order_id: orderId,
-  method: "stripe",
-  status: "pending",
-  amount: totalUSD
-});
-
-    // 3️⃣ إرسال إلى Stripe
-    const res = await fetch("/api/checkout", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-  amount: totalUSD,
-
-  orderId: orderId
-}),
-    });
-
-    const data = await res.json();
-
-    window.location.href = data.url;
-
-  } 
-  
-  
-  catch (err) {
-  console.error(err);
-  alert("خطأ في الدفع");
-}
-};
-
-
-
-const handleDpay = async (method) => {
-  try {
-
-    console.log("🔥 METHOD:", method);
-
-    if (!method) {
-      alert("اختار طريقة الدفع أولاً");
-      return;
-    }
-
-    if (!name || !phone || price === null || !image) {
-      alert("تأكد من كل البيانات");
-      return;
-    }
-
-    // 1️⃣ رفع الصورة
-    const fileName = Date.now() + "-" + image.name;
-
-    const { error } = await supabase.storage
-      .from("orders-images")
-      .upload(`public/${fileName}`, image);
-
-    if (error) {
-      alert("فشل رفع الصورة");
-      return;
-    }
-
-    const { data: publicUrlData } = supabase.storage
-      .from("orders-images")
-      .getPublicUrl(`public/${fileName}`);
-
-    const imageUrl = publicUrlData.publicUrl;
-
-    // 2️⃣ إنشاء الطلب
-    const orderRes = await fetch("/api/order", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        name,
-        phone,
-        cart_link: cartLink,
-        price,
-        image_url: imageUrl
-      })
-    });
-
-    const orderData = await orderRes.json();
-
-    if (!orderData.success) {
-      alert("فشل إنشاء الطلب");
-      return;
-    }
-
-    const orderId = orderData.id;
-setOrderId(orderId);
-
-    await supabase.from("payments").insert({
-  order_id: orderId,
-  method: "dpay",
-  status: "pending",
-  amount: priceLYD
-});
-
-   
-
-if (!priceLYD || isNaN(priceLYD)) {
-  throw new Error("السعر غير صالح");
-}
-
-    // 3️⃣ إرسال لـ DPAY
-    const payload = {
-      amount: Math.round(Number(priceLYD)) ,
-      method: method,
-      order_id: orderId // ✅ الحل الحقيقي
-    };
-
-console.log("📦 PAYLOAD:", payload);
-console.log("💰 FINAL AMOUNT:", priceLYD);
-
-
-
-    if (method === "edfali") {
-      payload.customer_mobile = phone;
-    }
-
-    if (
-      method === "mobicash" ||
-      method === "masrefypay" || 
-      method === "yousrpay" ||
-      method === "saharpay"
-    ) {
-      payload.card_number = cardNumber;
-    }
-
-    const res = await fetch("/api/dpay", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({
-    orderId: orderId,
-    amount: Math.round(Number(priceLYD)),
-    method: method,
-    customer_mobile: phone,
-    card_number: cardNumber,
-    customer_name: name
-  })
-});
-
-   const data = await res.json();
-console.log("DPAY RESPONSE:", data);
-
-if (data.payment_link) {
-  window.location.href = data.payment_link;
-
-  localStorage.setItem("lastOrderId", orderId);
-
-} else {
-  console.error("❌ DPAY ERROR FULL:", data);  // 👈 مهم
-  alert("❌ " + (data.error || "فشل الدفع"));
-}
-  } catch (err) {
-    console.error(err);
-    alert("خطأ في الدفع");
-  }
-};
-
-
-
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <main style={mainStyle}>
+    <main style={{ minHeight: "calc(100vh - 60px)", background: BG, display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 16px", direction: "rtl" }}>
 
+      <style>{`
+        @keyframes zoomIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes spin    { to   { transform: rotate(360deg); } }
+        input:focus { outline: none !important; border-color: ${PRIMARY} !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.12) !important; }
+      `}</style>
 
+      <div style={{ width: "100%", maxWidth: 480 }}>
 
-<style>
-{`
-@keyframes zoomIn {
-  from {
-    transform: scale(0.7);
-    opacity: 0;
-  }
-  to {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-`}
-</style>
+        {/* ── Card ── */}
+        <div style={{ background: "#fff", borderRadius: 24, padding: "36px 32px", boxShadow: "0 8px 40px rgba(124,58,237,0.10)", border: "1px solid #ede9fe" }}>
 
-      <div style={cardStyle}>
-        
-<div style={{
-  display: "flex",
-  justifyContent: "center",
-  marginBottom: "5px"
-}}>
+          {/* Logo */}
+          <div style={{ textAlign: "center", marginBottom: 8 }}>
+            <img src="/logo.png" alt="logo" style={{ height: 90, objectFit: "contain" }} />
+          </div>
+          <h1 style={{ textAlign: "center", fontSize: 18, fontWeight: 800, color: "#1e1b4b", marginBottom: 4 }}>
+            منتجاتك وسلتك بضغطة زر
+          </h1>
+          <p style={{ textAlign: "center", fontSize: 13, color: "#9ca3af", marginBottom: 24 }}>
+            ضع رابط سلتك من شي إن وسنتكفل بالباقي
+          </p>
 
-  
-  <img
-    src="/logo.png"
-    alt="logo"
-    style={{
-      height: "100px",
-      objectFit: "contain"
-    }}
-  />
-</div>
-        <h1 style={{textAlign:"center", marginBottom:20}}>
-       منتجاتك و سلتك بضغطة زر تكون عندك
-        </h1>
+          {/* Note: UAE */}
+          <div style={s.noteBlue}>
+            🇦🇪 <strong>تنبيه هام:</strong> يجب أن يكون متجر شي إن موجّهاً لـ <strong>دبي / الإمارات العربية المتحدة</strong> حتى تظهر الأسعار بالدولار الأمريكي بشكل صحيح.
+          </div>
 
-        <p style={{fontSize:14, marginBottom:20, color:"#888"}}>
-          ضع رابط السلة من شي إن وسنتكفل بشراء الطلب لك
-        </p>
+          {/* Cart Link */}
+          <label style={s.label}>رابط سلة شي إن</label>
+          <input
+            placeholder="https://www.shein.com/..."
+            value={cartLink}
+            onChange={e => { setCartLink(e.target.value); setErrors(p => ({ ...p, cartLink: null })); }}
+            style={{ ...s.input, ...(errors.cartLink ? s.inputErr : {}) }}
+          />
+          {errors.cartLink
+            ? <p style={s.err}>⚠️ {errors.cartLink}</p>
+            : <p style={s.hint}>🔗 يُقبل فقط رابط من shein.com — روابط المتاجر الأخرى مرفوضة</p>
+          }
 
-        <input
-          placeholder="رابط السلة"
-          value={cartLink}
-          onChange={(e)=>setcartLink(e.target.value)}
-          style={inputStyle}
-        />
+          {/* Name */}
+          <label style={s.label}>الاسم الكامل</label>
+          <input
+            placeholder="أدخل اسمك الكامل"
+            value={name}
+            onChange={e => { setName(e.target.value); setErrors(p => ({ ...p, name: null })); }}
+            style={{ ...s.input, ...(errors.name ? s.inputErr : {}) }}
+          />
+          {errors.name && <p style={s.err}>⚠️ {errors.name}</p>}
 
-        <input
-          placeholder="اسمك"
-          value={name}
-          onChange={(e)=>setName(e.target.value)}
-          style={inputStyle}
-        />
+          {/* Phone */}
+          <label style={s.label}>رقم الهاتف الليبي</label>
+          <input
+            placeholder="0913456789"
+            value={phone}
+            type="tel"
+            maxLength={13}
+            onChange={e => { setPhone(e.target.value); setErrors(p => ({ ...p, phone: null })); }}
+            style={{ ...s.input, ...(errors.phone ? s.inputErr : {}) }}
+          />
+          {errors.phone
+            ? <p style={s.err}>⚠️ {errors.phone}</p>
+            : <p style={s.hint}>📞 يبدأ بـ 091 أو 092 أو 093 أو 094 أو 095 — 10 أرقام</p>
+          }
 
-        <input
-          placeholder="رقم الهاتف"
-          value={phone}
-          onChange={(e)=>setPhone(e.target.value)}
-          style={inputStyle}
-        />
-        <br /><br />
+          {/* Image note */}
+          <div style={s.noteYellow}>
+            📸 <strong>مهم:</strong> ارفع سكرين شوت من تطبيق شي إن يظهر فيه <strong>السعر المقدر (Estimated Price)</strong> بالدولار الأمريكي $ بوضوح — لا تُقبل صور بعملات أخرى.
+          </div>
 
-    {/* رفع الصورة */}
+          {/* Upload */}
+          <label style={{ ...s.uploadBox, ...(errors.image ? s.uploadBoxErr : {}) }}>
+            <input
+              type="file"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={e => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setImage(file);
+                setErrors(p => ({ ...p, image: null, price: null }));
+                handleImage(file);
+              }}
+            />
+            <span style={{ fontSize: 28 }}>📷</span>
+            <span style={{ fontSize: 13, color: image ? PRIMARY : "#9ca3af", fontWeight: image ? 600 : 400 }}>
+              {image ? image.name : "اضغط لرفع صورة السعر المقدر"}
+            </span>
+          </label>
+          {errors.image && <p style={s.err}>⚠️ {errors.image}</p>}
 
-    <label style={{
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: "8px",
-  border: "2px dashed #d0d0d0",
-  borderRadius: "12px",
-  padding: "20px",
-  cursor: "pointer",
-  transition: "border-color 0.2s",
-  background: "#fafafa",
-  color: "#888",
-  fontSize: "14px",
-}}>
+          {/* Preview thumbnail */}
+          {image && (
+            <img
+              src={URL.createObjectURL(image)}
+              onClick={() => setPreview(URL.createObjectURL(image))}
+              style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 10, marginTop: 10, cursor: "pointer", border: "2px solid #ede9fe" }}
+            />
+          )}
 
+          {/* OCR status */}
+          {loading && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0", color: PRIMARY, fontSize: 13 }}>
+              <span style={{ width: 16, height: 16, borderRadius: "50%", border: `2px solid ${PRIMARY}`, borderTopColor: "transparent", animation: "spin 0.8s linear infinite", display: "inline-block" }} />
+              جاري قراءة الصورة...
+            </div>
+          )}
 
-    <input
-      type="file"
-      accept="image/*"
-      onChange={(e) => {
-  const file = e.target.files[0];
+          {priceWarning && !loading && (
+            <div style={s.noteRed}>
+              ⚠️ لم يُعثر على <strong>"Estimated Price"</strong> في الصورة. تأكد أن السعر المقدر ظاهر بوضوح بالدولار $.
+            </div>
+          )}
+          {errors.price && <p style={s.err}>⚠️ {errors.price}</p>}
+          {price > 0 && !loading && (
+            <p style={{ color: "#16a34a", fontSize: 13, margin: "6px 0 0", fontWeight: 600 }}>✅ تم استخراج السعر: {price} $</p>
+          )}
 
-  console.log("FILE:", file);   // للتأكد
+          {/* Price breakdown */}
+          {price > 0 && (
+            <div style={s.priceBox}>
+              <div style={s.priceRow}>
+                <span style={{ color: "#6b7280" }}>📦 السعر الأصلي</span>
+                <strong>{base.toFixed(2)} $</strong>
+              </div>
+              <div style={s.priceRow}>
+                <span style={{ color: "#f97316" }}>💸 العمولة (1%)</span>
+                <strong style={{ color: "#f97316" }}>{profit.toFixed(2)} $</strong>
+              </div>
+              <hr style={{ margin: "10px 0", borderColor: "#f3f4f6", borderTop: "none" }} />
+              <div style={s.priceRow}>
+                <span style={{ color: "#2563eb" }}>💵 الإجمالي بالدولار</span>
+                <strong style={{ color: "#2563eb" }}>{totalUSD.toFixed(2)} $</strong>
+              </div>
+              <div style={s.priceRow}>
+                <span style={{ color: "#9ca3af" }}>💱 سعر الدولار</span>
+                <span style={{ color: "#9ca3af" }}>{exchangeRate} د.ل</span>
+              </div>
+              <hr style={{ margin: "10px 0", borderColor: "#f3f4f6", borderTop: "none" }} />
+              <div style={{ ...s.priceRow, padding: "12px 14px", background: "linear-gradient(135deg,#f0fdf4,#dcfce7)", borderRadius: 12, border: "1px solid #bbf7d0" }}>
+                <span style={{ color: "#15803d", fontWeight: 700 }}>🇱🇾 الإجمالي بالدينار</span>
+                <strong style={{ fontSize: 18, color: "#15803d" }}>{priceLYD.toFixed(2)} د.ل</strong>
+              </div>
+              <p style={{ fontSize: 12, color: "#facc15", margin: "8px 0 0", textAlign: "center" }}>
+                🚚 رسوم الشحن تُحدد لاحقاً حسب الوزن
+              </p>
+            </div>
+          )}
 
-  setImage(file);               // 👈 هذا أهم سطر
-  handleImage(file);
-}}
-    />
+          {/* Submit */}
+          <button
+            onClick={() => { if (validate()) setShowPayment(true); }}
+            disabled={sending || loading}
+            style={{ ...s.btn, marginTop: 20, opacity: (sending || loading) ? 0.7 : 1, cursor: (sending || loading) ? "not-allowed" : "pointer" }}
+          >
+            {sending ? "⏳ جاري الإرسال..." : "إرسال الطلب ←"}
+          </button>
 
-<span style={{ color: "#777" }}>
-    📷  
-  </span>
-</label>
+          {/* Track */}
+          <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
+            <input
+              placeholder="🔍 أدخل رقم الطلب للتتبع"
+              value={trackId}
+              onChange={e => setTrackId(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleTrack()}
+              style={{ ...s.input, marginBottom: 0, flex: 1 }}
+            />
+            <button onClick={handleTrack} style={{ ...s.btn, width: "auto", padding: "0 20px", marginTop: 0 }}>
+              بحث
+            </button>
+          </div>
 
-
-{image && (
-  <img
-    src={URL.createObjectURL(image)}
-    onClick={() => setPreview(URL.createObjectURL(image))}
-    style={{
-      width: "120px",
-      height: "120px",
-      objectFit: "cover",
-      borderRadius: "10px",
-      marginTop: "10px",
-      cursor: "pointer",
-      border: "1px solid #eee"
-    }}
-  />
-)}
-
-    <br />
-
-    {loading && <p>⏳ جاري قراءة الصورة...</p>}
-
-    {price && <h3>💰 السعر النهائي: {price}</h3>}
-
-    <br />
-
-    {price && (
-  <div style={priceBoxStyle}>
-
-    <div style={{ display: "flex", justifyContent: "space-between", margin: "6px 0", color: "#6b7280" }}>
-      <span>📦 السعر الأصلي</span>
-      <strong>{base.toFixed(2)} $</strong>
-    </div>
-
-    <div style={{ display: "flex", justifyContent: "space-between", margin: "6px 0", color: "#f97316" }}>
-      <span>💸 العمولة (1%)</span>
-      <strong>{profit.toFixed(2)} $</strong>
-    </div>
-
-    <hr style={{ margin: "10px 0", borderColor: "#e5e7eb" }} />
-
-    <div style={{ display: "flex", justifyContent: "space-between", margin: "6px 0", color: "#2563eb" }}>
-      <span>💵 الإجمالي بالدولار</span>
-      <strong>{totalUSD.toFixed(2)} $</strong>
-    </div>
-
-    <div style={{ display: "flex", justifyContent: "space-between", margin: "6px 0", color: "#aaa" }}>
-      <span>💱 سعر الدولار الحالي</span>
-      <strong>{exchangeRate} د.ل</strong>
-    </div>
-
-    <hr style={{ margin: "10px 0", borderColor: "#e5e7eb" }} />
-
-    <div style={{ display: "flex", justifyContent: "space-between", margin: "6px 0", color: "#4ade80", fontWeight: "bold" }}>
-      <span>🇱🇾 الإجمالي بالليبي</span>
-      <strong>{priceLYD.toFixed(2)} د.ل</strong>
-    </div>
-
-    <div style={{ display: "flex", justifyContent: "space-between", margin: "6px 0", color: "#facc15" }}>
-      <span>🚚 الشحن</span>
-      <span>يحدد لاحقًا حسب الوزن</span>
-    </div>
-
-    <div style={{
-      display: "flex",
-      justifyContent: "space-between",
-      marginTop: "12px",
-      padding: "10px 14px",
-      borderRadius: "10px",
-      background: "#f0fdf4",
-      border: "1px solid #bbf7d0"
-    }}>
-      <span style={{ fontWeight: "bold", color: "#15803d" }}>💰 المبلغ المطلوب</span>
-      <strong style={{ fontSize: "18px", color: "#15803d" }}>{priceLYD.toFixed(2)} د.ل</strong>
-    </div>
-
-  </div>
-)}
-
-    <button onClick={() => setShowPaymentOptions(true)} disabled={sending}  style={buttonStyle}>
-      {sending ? "جاري الإرسال..." : "إرسال الطلب"}
-    </button>
-
-<div style={{ maxWidth: 400, margin: "20px auto" }}>
-
-      {/* 🔍 خانة التتبع */}
-      <div style={trackBox}>
-        <input
-          placeholder="🔍 أدخل رقم الطلب"
-          value={trackId}
-          onChange={(e) => setTrackId(e.target.value)}
-          style={trackInput}
-
-          onKeyDown={(e) => {
-  if (e.key === "Enter") handleTrack();
-}}
-        />
-
-        <button onClick={handleTrack} style={trackBtn}>
-          بحث
-        </button>
+          <div style={{ textAlign: "center", marginTop: 14 }}>
+            <a href="/my-orders" style={{ fontSize: 13, color: PRIMARY, textDecoration: "none", fontWeight: 500 }}>
+              📦 عرض طلباتي السابقة
+            </a>
+          </div>
+        </div>
       </div>
 
-    </div>
-    
-<div style={{ marginTop: "16px", textAlign: "center" }}>
-  <a href="/my-orders" style={{
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "6px",
-    padding: "10px 20px",
-    borderRadius: "10px",
-    background: "#f5f5f5",
-    color: "#333",
-    textDecoration: "none",
-    fontSize: "14px",
-    fontWeight: "500",
-    border: "1px solid #ebebeb",
-    transition: "0.2s",
-  }}>
-    📦 تتبع طلباتي
-  </a>
-</div>
+      {/* ── Image Preview Modal ── */}
+      {preview && (
+        <div onClick={() => setPreview(null)} style={s.overlay}>
+          <img
+            src={preview}
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: "90vw", maxHeight: "85vh", borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.4)", animation: "zoomIn 0.2s ease" }}
+          />
+        </div>
+      )}
 
-      </div>
+      {/* ── Payment Modal ── */}
+      {showPayment && (
+        <div onClick={() => setShowPayment(false)} style={s.overlay}>
+          <div onClick={e => e.stopPropagation()} style={s.modal}>
 
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: "#1e1b4b", margin: 0 }}>اختر طريقة الدفع</h3>
+              <p style={{ fontSize: 13, color: "#9ca3af", margin: "4px 0 0" }}>
+                المبلغ: <strong style={{ color: PRIMARY }}>{priceLYD.toFixed(0)} د.ل</strong> أو <strong style={{ color: "#2563eb" }}>{totalUSD.toFixed(2)} $</strong>
+              </p>
+            </div>
 
-{preview && (
-  <div
-    onClick={() => setPreview(null)}
-    style={{
-      position: "fixed",
-      top: 0,
-      left: 0,
-      width: "100%",
-      height: "100%",
-      background: "rgba(0,0,0,0.7)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 999
-    }}
-  >
-    <img
-  src={preview}
-  onClick={(e) => e.stopPropagation()}
-  style={{
-    background: "#ffffff",
-    padding: "25px",
-    borderRadius: "20px",
-    width: "340px",
-    textAlign: "center",
-    animation: "zoomIn 0.25s ease",
-    boxShadow: "0 20px 40px rgba(0,0,0,0.2)"
-  }}
-/>
-  </div>
-)}
+            {/* Stripe */}
+            <button
+              onClick={handlePayment}
+              style={{ ...s.payBtn, background: "#1a1a2e", color: "#fff" }}
+            >
+              <span style={{ fontSize: 20 }}>💳</span>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>الدفع الدولي</div>
+                <div style={{ fontSize: 12, opacity: 0.7 }}>Visa / MasterCard</div>
+              </div>
+              <span style={{ marginRight: "auto", fontSize: 12, opacity: 0.6 }}>{totalUSD.toFixed(2)} $</span>
+            </button>
 
-{showPaymentOptions && (
-  <div
-    onClick={() => setShowPaymentOptions(false)}
-    style={{
-      position: "fixed",
-      top: 0,
-      left: 0,
-      width: "100%",
-      height: "100%",
-      background: "rgba(0,0,0,0.5)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 999
-    }}
-  >
-    <div
-      onClick={(e) => e.stopPropagation()}
-      style={{
-        background: "#fff",
-        padding: "28px",
-        borderRadius: "20px",
-        width: "340px",
-        maxWidth: "90vw",
-        textAlign: "center",
-        animation: "zoomIn 0.3s ease",
-        boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
-      }}
-    >
-      <h3 style={{ marginBottom: 20 }}>اختر طريقة الدفع</h3>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "12px 0" }}>
+              <div style={{ flex: 1, height: 1, background: "#f3f4f6" }} />
+              <span style={{ fontSize: 12, color: "#d1d5db" }}>أو ادفع بالدينار الليبي</span>
+              <div style={{ flex: 1, height: 1, background: "#f3f4f6" }} />
+            </div>
 
-      {/* 💳 Stripe */}
-      <button
-  onClick={async () => handlePayment()}
-  style={{
-    ...optionBtn,
-    background: "#000",
-    fontWeight: "bold"
-  }}
->
-  💳 الدفع الدولي (Visa / MasterCard)
-</button>
+            {/* Moamalat — dedicated button */}
+            <button
+              onClick={handleMoamalat}
+              disabled={sending}
+              style={{ ...s.payBtn, background: "linear-gradient(135deg,#15803d,#16a34a)", color: "#fff", marginBottom: 10 }}
+            >
+              <span style={{ fontSize: 22 }}>🏦</span>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>معاملات</div>
+                <div style={{ fontSize: 11, opacity: 0.85 }}>بطاقة ليبية — Moamalat</div>
+              </div>
+              <span style={{ marginRight: "auto", fontWeight: 700, fontSize: 13 }}>{priceLYD.toFixed(0)} د.ل</span>
+            </button>
 
-      {/* 🏦 DPay */}
-      {/* 🏦 Moamalat */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0 10px" }}>
+              <div style={{ flex: 1, height: 1, background: "#f3f4f6" }} />
+              <span style={{ fontSize: 11, color: "#d1d5db" }}>بوابات أخرى</span>
+              <div style={{ flex: 1, height: 1, background: "#f3f4f6" }} />
+            </div>
 
-{paymentMethods.map((method) => (
-  <button
-    key={method.id}
-    onClick={() => setSelectedMethod(method.id)}
-    style={{
-      ...optionBtn,
-      background: selectedMethod === method.id ? method.color : "#f3f4f6",
-      color: selectedMethod === method.id ? "#fff" : "#111"
-    }}
-  >
-    {method.name}
-  </button>
-))}
+            {/* DPay methods */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
+              {paymentMethods.map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => setSelectedMethod(m.id)}
+                  style={{
+                    padding: "12px 10px",
+                    borderRadius: 12,
+                    border: selectedMethod === m.id ? `2px solid ${m.color}` : "2px solid #f3f4f6",
+                    background: selectedMethod === m.id ? `${m.color}15` : "#fafafa",
+                    cursor: "pointer",
+                    textAlign: "center",
+                    transition: "all 0.15s",
+                  }}
+                >
+                  <div style={{ fontSize: 22 }}>{m.icon}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: selectedMethod === m.id ? m.color : "#374151", marginTop: 4 }}>{m.name}</div>
+                </button>
+              ))}
+            </div>
 
-{selectedMethod === "edfali" && (
-  <input
-    placeholder="📱 رقم الهاتف"
-    value={phone}
-    onChange={(e) => setPhone(e.target.value)}
-    style={inputStyle}
-  />
-)}
+            {/* Extra input for edfali */}
+            {selectedMethod === "edfali" && (
+              <input placeholder="📱 رقم الهاتف" value={phone} onChange={e => setPhone(e.target.value)} style={{ ...s.input, marginBottom: 10 }} />
+            )}
+            {["mobicash", "masrefypay", "yousrpay", "saharpay"].includes(selectedMethod) && (
+              <input placeholder="💳 رقم البطاقة (7 أرقام)" value={cardNumber} onChange={e => setCardNumber(e.target.value)} style={{ ...s.input, marginBottom: 10 }} />
+            )}
 
-{["mobicash","masrefypay","yousrpay","saharpay"].includes(selectedMethod) && (
-  <input
-    placeholder="💳 رقم البطاقة (7 أرقام)"
-    value={cardNumber}
-    onChange={(e) => setCardNumber(e.target.value)}
-    style={inputStyle}
-  />
-)}
+            <button
+              disabled={!selectedMethod || sending}
+              onClick={() => handleDpay(selectedMethod)}
+              style={{
+                ...s.btn,
+                marginTop: 4,
+                background: selectedMethod ? GRADIENT : "#e5e7eb",
+                color: selectedMethod ? "#fff" : "#9ca3af",
+                cursor: selectedMethod ? "pointer" : "not-allowed",
+              }}
+            >
+              {sending ? "⏳ جاري الدفع..." : selectedMethod ? `تأكيد الدفع — ${priceLYD.toFixed(0)} د.ل` : "اختر طريقة الدفع أولاً"}
+            </button>
 
-<button
-  disabled={!selectedMethod}
-  onClick={() => handleDpay(selectedMethod)}
-  style={{
-    width: "100%",
-    padding: "14px",
-    borderRadius: "14px",
-    border: "none",
-    background: selectedMethod ? "#22c55e" : "#ccc",
-    color: "#fff",
-    fontWeight: "bold",
-    marginTop: "10px",
-    cursor: selectedMethod ? "pointer" : "not-allowed"
-  }}
->
-  {selectedMethod ? "تأكيد الدفع" : "اختر طريقة الدفع أولاً"}
-</button>
-
-      {/* 💵 لاحقاً */}
-      <button
-        onClick={() => {
-          alert("قريباً");
-        }}
-        style={{ ...optionBtn, background: "#f59e0b" }}
-      >
-        💵 تحويل يدوي
-      </button>
-<button
-  onClick={() => setShowPaymentOptions(false)}
-  style={{
-    marginTop: "10px",
-    background: "none",
-    border: "none",
-    color: "#888",
-    cursor: "pointer"
-  }}
->
-  إغلاق
-</button>
-
-    </div>
-  </div>
-)}
-
+            <button onClick={() => setShowPayment(false)} style={{ width: "100%", marginTop: 10, padding: "10px", background: "none", border: "1px solid #f3f4f6", borderRadius: 10, color: "#9ca3af", cursor: "pointer", fontSize: 13 }}>
+              إغلاق
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
-
 }
 
-const mainStyle = {
-  minHeight: "calc(100vh - 60px)",
-  background: "transparent",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "24px 16px",
-};
-
-const optionBtn = {
-  width: "100%",
-  padding: "13px 16px",
-  marginBottom: "8px",
-  borderRadius: "12px",
-  border: "1px solid #ebebeb",
-  background: "#fff",
-  color: "#111",
-  cursor: "pointer",
-  fontSize: "14px",
-  fontWeight: "500",
-  transition: "0.2s",
-  textAlign: "right",
-};
-
-const cardStyle = {
-  width: "100%",
-  maxWidth: "460px",
-  background: "#ffffff",
-  padding: "32px",
-  borderRadius: "20px",
-  boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
-  border: "1px solid #ebebeb",
-  color: "#111",
-};
-
-const inputStyle = {
-  width: "100%",
-  padding: "12px 16px",
-  marginBottom: "12px",
-  borderRadius: "10px",
-  border: "1px solid #e0e0e0",
-  outline: "none",
-  fontSize: "14px",
-  background: "#fff",
-  color: "#111",
-  boxSizing: "border-box",
-};
-
-const buttonStyle = {
-  width: "100%",
-  padding: "14px",
-  background: "#111",
-  color: "#fff",
-  border: "none",
-  borderRadius: "12px",
-  cursor: "pointer",
-  marginTop: "12px",
-  fontWeight: "700",
-  fontSize: "15px",
-  transition: "0.2s",
-  letterSpacing: "0.3px",
-};
-
-const priceBoxStyle = {
-  marginTop: "16px",
-  padding: "16px",
-  borderRadius: "14px",
-  background: "#f8f8f8",
-  border: "1px solid #ebebeb",
-  color: "#111",
-};
-
-const trackBox = {
-  display: "flex",
-  gap: 8,
-  alignItems: "center",
-  marginTop: "16px",
-};
-
-const trackInput = {
-  flex: 1,
-  padding: "11px 16px",
-  borderRadius: "10px",
-  border: "1px solid #e0e0e0",
-  outline: "none",
-  color: "#111",
-  background: "#fff",
-  fontSize: "14px",
-};
-
-const trackBtn = {
-  padding: "11px 18px",
-  borderRadius: "10px",
-  border: "none",
-  background: "#111",
-  color: "white",
-  cursor: "pointer",
-  fontSize: "14px",
-  fontWeight: "600",
-  whiteSpace: "nowrap",
+// ── Styles ─────────────────────────────────────────────────────────────────
+const s = {
+  label: {
+    display: "block",
+    fontSize: 13,
+    fontWeight: 600,
+    color: "#374151",
+    marginBottom: 6,
+  },
+  input: {
+    width: "100%",
+    padding: "12px 14px",
+    marginBottom: 14,
+    borderRadius: 10,
+    border: "1.5px solid #e5e7eb",
+    fontSize: 14,
+    color: "#111",
+    background: "#fff",
+    boxSizing: "border-box",
+    transition: "border-color 0.15s, box-shadow 0.15s",
+  },
+  inputErr: {
+    borderColor: "#f87171",
+    background: "#fff5f5",
+  },
+  btn: {
+    width: "100%",
+    padding: "14px",
+    background: GRADIENT,
+    color: "#fff",
+    border: "none",
+    borderRadius: 12,
+    cursor: "pointer",
+    fontWeight: 700,
+    fontSize: 15,
+    letterSpacing: "0.3px",
+    boxShadow: "0 4px 14px rgba(124,58,237,0.3)",
+    transition: "opacity 0.15s",
+  },
+  uploadBox: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    border: "2px dashed #ddd6fe",
+    borderRadius: 12,
+    padding: "24px 16px",
+    cursor: "pointer",
+    background: "#faf5ff",
+    transition: "border-color 0.15s",
+    marginBottom: 4,
+  },
+  uploadBoxErr: {
+    borderColor: "#f87171",
+    background: "#fff5f5",
+  },
+  noteBlue: {
+    background: "#eff6ff",
+    border: "1px solid #bfdbfe",
+    borderRadius: 10,
+    padding: "12px 14px",
+    fontSize: 13,
+    color: "#1d4ed8",
+    lineHeight: 1.6,
+    marginBottom: 16,
+  },
+  noteYellow: {
+    background: "#fffbeb",
+    border: "1px solid #fcd34d",
+    borderRadius: 10,
+    padding: "12px 14px",
+    fontSize: 13,
+    color: "#92400e",
+    lineHeight: 1.6,
+    marginBottom: 12,
+  },
+  noteRed: {
+    background: "#fff5f5",
+    border: "1px solid #fca5a5",
+    borderRadius: 10,
+    padding: "12px 14px",
+    fontSize: 13,
+    color: "#991b1b",
+    lineHeight: 1.6,
+    margin: "8px 0",
+  },
+  err: {
+    color: "#ef4444",
+    fontSize: 12,
+    margin: "-10px 0 10px 2px",
+  },
+  hint: {
+    color: "#9ca3af",
+    fontSize: 12,
+    margin: "-10px 0 14px 2px",
+  },
+  priceBox: {
+    marginTop: 16,
+    padding: "16px",
+    borderRadius: 14,
+    background: "#f9fafb",
+    border: "1px solid #f3f4f6",
+  },
+  priceRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    margin: "6px 0",
+    fontSize: 14,
+  },
+  overlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.55)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 999,
+    backdropFilter: "blur(4px)",
+  },
+  modal: {
+    background: "#fff",
+    padding: "28px 24px",
+    borderRadius: 20,
+    width: 360,
+    maxWidth: "92vw",
+    maxHeight: "90vh",
+    overflowY: "auto",
+    animation: "zoomIn 0.2s ease",
+    boxShadow: "0 24px 60px rgba(0,0,0,0.18)",
+    direction: "rtl",
+  },
+  payBtn: {
+    width: "100%",
+    padding: "14px 16px",
+    marginBottom: 8,
+    borderRadius: 12,
+    border: "none",
+    cursor: "pointer",
+    fontSize: 14,
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    textAlign: "right",
+    transition: "opacity 0.15s",
+  },
 };

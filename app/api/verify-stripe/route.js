@@ -9,40 +9,36 @@ export async function POST(req) {
     const { session_id } = await req.json();
 
     if (!session_id) {
-      return NextResponse.json({ error: "No session_id" }, { status: 400 });
+      return NextResponse.json({ error: "session_id مطلوب" }, { status: 400 });
     }
 
     const session = await stripe.checkout.sessions.retrieve(session_id);
-
-    const orderId = session.metadata.order_id;
+    const orderId = session.metadata?.order_id;
 
     if (!orderId) {
-      return NextResponse.json({ error: "No order_id" }, { status: 400 });
+      return NextResponse.json({ error: "order_id غير موجود في الجلسة" }, { status: 400 });
     }
 
-    if (session.payment_status === "paid") {
-      // تحديث الطلب
-      await supabaseAdmin
-        .from("orders")
-        .update({ status: "paid" })
-        .eq("id", orderId);
-
-      // تسجيل الدفع
-      await supabaseAdmin
-        .from("payments")
-        .insert({
-          order_id: orderId,
-          method: "stripe",
-          status: "paid",
-          amount: session.amount_total / 100,
-        });
-
-      return NextResponse.json({ success: true });
+    if (session.payment_status !== "paid") {
+      return NextResponse.json({ success: false, status: session.payment_status });
     }
 
-    return NextResponse.json({ success: false });
+    // تحديث الطلب
+    await supabaseAdmin
+      .from("orders")
+      .update({ status: "paid" })
+      .eq("id", orderId);
+
+    // تحديث سجل الدفع (upsert لتفادي التكرار)
+    await supabaseAdmin
+      .from("payments")
+      .update({ status: "paid", amount: session.amount_total / 100 })
+      .eq("order_id", orderId)
+      .eq("method", "stripe");
+
+    return NextResponse.json({ success: true });
   } catch (err) {
     console.error("STRIPE VERIFY ERROR:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json({ error: "خطأ في الخادم" }, { status: 500 });
   }
 }

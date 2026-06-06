@@ -1,13 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next") || "/account";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState("login"); // "login" | "reset"
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) window.location.replace(next);
+    });
+  }, [next]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -33,15 +43,19 @@ export default function LoginPage() {
     if (profile?.role === "admin" || profile?.role === "employee") {
       window.location.href = "/admin";
     } else {
-      window.location.href = "/account";
+      window.location.href = next;
     }
   };
 
   const loginWithGoogle = async () => {
+    // Store next URL so callback can redirect there after OAuth
+    if (next && next !== "/account") {
+      sessionStorage.setItem("loginRedirectTo", next);
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_BASE_URL || window.location.origin}/account`,
+        redirectTo: `${window.location.origin}/auth/callback?for=customer`,
       },
     });
     if (error) alert(error.message);
@@ -196,3 +210,11 @@ const linkBtn = {
   fontSize: "13px",
   padding: 0,
 };
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>⏳</div>}>
+      <LoginForm />
+    </Suspense>
+  );
+}
