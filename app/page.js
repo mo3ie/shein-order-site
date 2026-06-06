@@ -71,7 +71,10 @@ export default function OrderPage() {
     setPriceCurrencyErr(false);
     setPrice(null);
 
-    const { data: { text } } = await Tesseract.recognize(file, "eng+ara");
+    const { data: { text } } = await Tesseract.recognize(file, "eng+ara", {
+      workerPath: "/tesseract-worker.min.js",
+      langPath: "/tessdata",
+    });
 
     const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
     let labelFound = false;

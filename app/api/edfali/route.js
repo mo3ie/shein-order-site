@@ -26,11 +26,14 @@ export async function POST(req) {
       }),
     });
 
-    const data = await res.json();
+    const rawText = await res.text();
+    console.log("DPAYLY EDFALI RAW:", res.status, rawText.substring(0, 300));
+    let data = {};
+    try { data = JSON.parse(rawText); } catch (_) { /* non-JSON response */ }
 
     if (!res.ok) {
-      console.error("DPAYLY EDFALI OPEN ERROR:", data);
-      return Response.json({ error: data.message || "فشل فتح جلسة الدفع" }, { status: res.status });
+      console.error("DPAYLY EDFALI OPEN ERROR:", res.status, data);
+      return Response.json({ error: data.message || rawText || "فشل فتح جلسة الدفع" }, { status: res.status });
     }
 
     console.log("EDFALI SESSION OPENED:", data.session_id, "order:", orderId);
