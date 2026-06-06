@@ -23,6 +23,7 @@ export default function OrderPage() {
   const [cardNumber,        setCardNumber]        = useState("");
   const [errors,            setErrors]            = useState({});
   const [priceWarning,      setPriceWarning]      = useState(false);
+  const [priceCurrencyErr,  setPriceCurrencyErr]  = useState(false);
   const [orderId,           setOrderId]           = useState(null);
 
   const base      = price || 0;
@@ -54,7 +55,8 @@ export default function OrderPage() {
     if (!name.trim())                 errs.name     = "أدخل اسمك الكامل";
     if (!isValidLibyanPhone(phone))   errs.phone    = "رقم الهاتف غير صحيح — مثال: 0913456789";
     if (!image)                       errs.image    = "يجب رفع صورة تحتوي على السعر المقدر";
-    if (!price)                       errs.price    = "لم يُستخرج سعر من الصورة";
+    if (priceCurrencyErr)             errs.price    = "العملة ليست دولار — افتح شي إن على دبي/الإمارات";
+    else if (!price)                  errs.price    = "لم يُستخرج سعر من الصورة";
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -63,20 +65,67 @@ export default function OrderPage() {
   async function handleImage(file) {
     setLoading(true);
     setPriceWarning(false);
+    setPriceCurrencyErr(false);
+    setPrice(null);
+
     const { data: { text } } = await Tesseract.recognize(file, "eng+ara");
-    let p = null;
+
+    // ── 1. Detect non-USD currencies ─────────────────────────────────────
+    const nonUSD = /\b(AED|SAR|EUR|GBP|CNY|TRY|KWD|OMR|BHD|QAR|EGP|MAD|INR|PKR)\b|د\.إ|ر\.س|درهم إماراتي|€|£|¥|₺|₹/i;
+
+    // ── 2. Search line-by-line near the "Estimated Price" label ──────────
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
     let found = false;
-    const en = text.match(/Estimated Price[^0-9]*([\d,]+\.\d+)/i);
-    const ar = text.match(/السعر المقدر[^0-9]*([\d,]+\.\d+)/i);
-    if (en)       { p = parseFloat(en[1].replace(/,/g, "")); found = true; }
-    else if (ar)  { p = parseFloat(ar[1].replace(/,/g, "")); found = true; }
-    if (!p) {
-      const any = text.match(/[\d,]+\.\d+/);
-      p = any ? parseFloat(any[0].replace(/,/g, "")) : 0;
+    let p = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      // Match label — allow OCR typos (estim, estimat, etc.) and Arabic
+      const isLabel =
+        /estim.{0,8}price/i.test(line) ||
+        /السعر.{0,8}المقدر/.test(line);
+
+      if (!isLabel) continue;
+
+      // Window: current + next 3 lines
+      const win = lines.slice(i, i + 4).join(' ');
+
+      // Patterns in priority order (handle common OCR mistakes like S → $)
+      const pats = [
+        /\$\s*([\d,]+\.?\d*)/,         // $25.00
+        /US[\$D]\s*([\d,]+\.?\d*)/i,   // US$25.00 / USD 25.00
+        /\bS\s*([\d,]+\.\d{2})\b/,     // S25.00 — OCR mistake for $
+        /([\d,]+\.\d{1,2})/,           // any decimal in window
+      ];
+
+      for (const pat of pats) {
+        const m = win.match(pat);
+        if (m) {
+          const val = parseFloat(m[1].replace(/,/g, ''));
+          if (val >= 0.5 && val <= 9999) { p = val; found = true; break; }
+        }
+      }
+      break; // stop after first label match
     }
-    if (!found) setPriceWarning(true);
-    setPrice(p);
+
     setLoading(false);
+
+    // Found price but non-USD currency visible → reject
+    if (found && nonUSD.test(text)) {
+      setPriceCurrencyErr(true);
+      setPrice(null);
+      return;
+    }
+
+    // Label not found at all
+    if (!found) {
+      setPriceWarning(true);
+      setPrice(null);
+      return;
+    }
+
+    setPrice(p);
   }
 
   // ── Upload helper ────────────────────────────────────────────────────────
@@ -295,6 +344,8 @@ export default function OrderPage() {
                 if (!file) return;
                 setImage(file);
                 setErrors(p => ({ ...p, image: null, price: null }));
+                setPriceWarning(false);
+                setPriceCurrencyErr(false);
                 handleImage(file);
               }}
             />
@@ -322,6 +373,12 @@ export default function OrderPage() {
             </div>
           )}
 
+          {priceCurrencyErr && !loading && (
+            <div style={s.noteRed}>
+              ❌ <strong>العملة المكتشفة ليست بالدولار الأمريكي $.</strong><br />
+              يجب فتح تطبيق شي إن وتغيير الدولة إلى <strong>الإمارات العربية المتحدة 🇦🇪</strong> حتى تظهر الأسعار بالدولار.
+            </div>
+          )}
           {priceWarning && !loading && (
             <div style={s.noteRed}>
               ⚠️ لم يُعثر على <strong>"Estimated Price"</strong> في الصورة. تأكد أن السعر المقدر ظاهر بوضوح بالدولار $.
