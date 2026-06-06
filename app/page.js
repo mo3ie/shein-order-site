@@ -111,14 +111,14 @@ export default function OrderPage() {
 
     setLoading(false);
 
-    // Found price but non-USD currency visible → reject
-    if (found && nonUSD.test(text)) {
+    // Non-USD currency anywhere in image → reject immediately
+    if (nonUSD.test(text)) {
       setPriceCurrencyErr(true);
       setPrice(null);
       return;
     }
 
-    // Label not found at all
+    // Label not found
     if (!found) {
       setPriceWarning(true);
       setPrice(null);
