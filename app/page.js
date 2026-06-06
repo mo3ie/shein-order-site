@@ -70,61 +70,33 @@ export default function OrderPage() {
 
     const { data: { text } } = await Tesseract.recognize(file, "eng+ara");
 
-    // ── 1. Detect non-USD currencies ─────────────────────────────────────
-    const nonUSD = /\b(AED|SAR|EUR|GBP|CNY|TRY|KWD|OMR|BHD|QAR|EGP|MAD|INR|PKR)\b|د\.إ|ر\.س|درهم إماراتي|€|£|¥|₺|₹/i;
-
-    // ── 2. Search line-by-line near the "Estimated Price" label ──────────
-    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-    let found = false;
+    const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+    let labelFound = false;
     let p = null;
 
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      // Match label — allow OCR typos (estim, estimat, etc.) and Arabic
       const isLabel =
-        /estim.{0,8}price/i.test(line) ||
-        /السعر.{0,8}المقدر/.test(line);
-
+        /estim.{0,8}price/i.test(lines[i]) ||
+        /السعر.{0,8}المقدر/.test(lines[i]);
       if (!isLabel) continue;
 
-      // Window: current + next 3 lines
-      const win = lines.slice(i, i + 4).join(' ');
+      labelFound = true;
+      const win = lines.slice(i, i + 4).join(" ");
 
-      // Patterns in priority order (handle common OCR mistakes like S → $)
-      const pats = [
-        /\$\s*([\d,]+\.?\d*)/,         // $25.00
-        /US[\$D]\s*([\d,]+\.?\d*)/i,   // US$25.00 / USD 25.00
-        /\bS\s*([\d,]+\.\d{2})\b/,     // S25.00 — OCR mistake for $
-        /([\d,]+\.\d{1,2})/,           // any decimal in window
-      ];
-
-      for (const pat of pats) {
-        const m = win.match(pat);
-        if (m) {
-          const val = parseFloat(m[1].replace(/,/g, ''));
-          if (val >= 0.5 && val <= 9999) { p = val; found = true; break; }
-        }
+      // Accept ONLY if $ present — also handle S as OCR mistake for $
+      const m = win.match(/\$\s*([\d,]+\.?\d*)/) ||
+                win.match(/\bS\s*([\d,]+\.\d{2})\b/);
+      if (m) {
+        const val = parseFloat(m[1].replace(/,/g, ""));
+        if (val >= 0.5 && val <= 9999) p = val;
       }
-      break; // stop after first label match
+      break;
     }
 
     setLoading(false);
 
-    // Non-USD currency anywhere in image → reject immediately
-    if (nonUSD.test(text)) {
-      setPriceCurrencyErr(true);
-      setPrice(null);
-      return;
-    }
-
-    // Label not found
-    if (!found) {
-      setPriceWarning(true);
-      setPrice(null);
-      return;
-    }
-
+    if (!labelFound) { setPriceWarning(true); setPrice(null); return; }
+    if (!p)          { setPriceCurrencyErr(true); setPrice(null); return; }
     setPrice(p);
   }
 
@@ -375,8 +347,12 @@ export default function OrderPage() {
 
           {priceCurrencyErr && !loading && (
             <div style={s.noteRed}>
-              ❌ <strong>العملة المكتشفة ليست بالدولار الأمريكي $.</strong><br />
-              يجب فتح تطبيق شي إن وتغيير الدولة إلى <strong>الإمارات العربية المتحدة 🇦🇪</strong> حتى تظهر الأسعار بالدولار.
+              ❌ <strong>السعر المقدر ليس بالدولار الأمريكي ($).</strong><br /><br />
+              لتصحيح ذلك:<br />
+              ١. افتح تطبيق شي إن<br />
+              ٢. اذهب إلى <strong>الإعدادات ← الدولة / المنطقة</strong><br />
+              ٣. اختر <strong>الإمارات العربية المتحدة 🇦🇪</strong><br />
+              ٤. تأكد أن العملة أصبحت <strong>USD $</strong> ثم أعد التصوير
             </div>
           )}
           {priceWarning && !loading && (
