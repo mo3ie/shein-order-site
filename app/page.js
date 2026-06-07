@@ -300,7 +300,7 @@ export default function OrderPage() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <main style={{ minHeight: "calc(100vh - 60px)", background: BG, display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 16px", direction: "rtl" }}>
+    <main className="form-main" style={{ minHeight: "calc(100vh - 60px)", background: BG, display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 16px", direction: "rtl" }}>
 
       <style>{`
         @keyframes zoomIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -308,10 +308,10 @@ export default function OrderPage() {
         input:focus { outline: none !important; border-color: ${PRIMARY} !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.12) !important; }
       `}</style>
 
-      <div style={{ width: "100%", maxWidth: 480 }}>
+      <div className="form-inner" style={{ width: "100%", maxWidth: 480 }}>
 
         {/* ── Card ── */}
-        <div style={{ background: "#fff", borderRadius: 24, padding: "36px 32px", boxShadow: "0 8px 40px rgba(124,58,237,0.10)", border: "1px solid #ede9fe" }}>
+        <div className="form-card" style={{ background: "#fff", borderRadius: 24, padding: "36px 32px", boxShadow: "0 8px 40px rgba(124,58,237,0.10)", border: "1px solid #ede9fe" }}>
 
           {/* Logo */}
           <div style={{ textAlign: "center", marginBottom: 8 }}>
@@ -508,7 +508,7 @@ export default function OrderPage() {
       {/* ── Payment Modal ── */}
       {showPayment && (
         <div onClick={() => { if (!edfaliStep) setShowPayment(false); }} style={s.overlay}>
-          <div onClick={e => e.stopPropagation()} style={s.modal}>
+          <div onClick={e => e.stopPropagation()} className="pay-modal" style={s.modal}>
 
             {/* ── Phone Input Screen ── */}
             {edfaliStep === "phone" ? (
