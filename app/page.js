@@ -29,6 +29,7 @@ export default function OrderPage() {
   const [edfaliSession,     setEdfaliSession]     = useState(null);
   const [edfaliOtp,         setEdfaliOtp]         = useState("");
   const [edfaliOrderId,     setEdfaliOrderId]     = useState(null);
+  const [edfaliPhone,       setEdfaliPhone]       = useState("");
 
   const base      = price || 0;
   const profit    = base * 0.01;
@@ -189,7 +190,15 @@ export default function OrderPage() {
   };
 
   // ── EDFali (DPAY.LY) ────────────────────────────────────────────────────
-  const handleEdfali = async () => {
+  const handleEdfaliPhoneSubmit = () => {
+    const cleaned = edfaliPhone.replace(/\D/g, "").replace(/^0+/, "");
+    if (cleaned.length < 9) { alert("أدخل رقم هاتف صحيح (9 أرقام على الأقل بدون صفر)"); return; }
+    setEdfaliPhone(cleaned);
+    setEdfaliStep("sending");
+    handleEdfali(cleaned);
+  };
+
+  const handleEdfali = async (ePhone) => {
     try {
       setSending(true);
       const imageUrl = await uploadImage();
@@ -201,7 +210,7 @@ export default function OrderPage() {
       const res = await fetch("/api/edfali", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId: oid, amountLYD: priceLYD, phone }),
+        body: JSON.stringify({ orderId: oid, amountLYD: priceLYD, phone: ePhone }),
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "فشل إرسال طلب الدفع");
@@ -211,6 +220,7 @@ export default function OrderPage() {
       setSending(false);
     } catch (err) {
       alert(err.message || "خطأ في الدفع");
+      setEdfaliStep(null);
       setSending(false);
     }
   };
@@ -495,14 +505,53 @@ export default function OrderPage() {
         <div onClick={() => { if (!edfaliStep) setShowPayment(false); }} style={s.overlay}>
           <div onClick={e => e.stopPropagation()} style={s.modal}>
 
-            {/* ── OTP Screen ── */}
-            {edfaliStep === "otp" ? (
+            {/* ── Phone Input Screen ── */}
+            {edfaliStep === "phone" ? (
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>🏧</div>
+                <h3 style={{ fontSize: 17, fontWeight: 800, color: "#1e1b4b", margin: "0 0 6px" }}>ادفع لي — أدخل رقم هاتفك</h3>
+                <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>
+                  أدخل رقم الهاتف المرتبط بحساب <strong>ادفع لي</strong><br />
+                  <span style={{ color: "#ef4444", fontSize: 12 }}>بدون صفر في البداية · مثال: 91xxxxxxx</span>
+                </p>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="91xxxxxxx"
+                  value={edfaliPhone}
+                  onChange={e => setEdfaliPhone(e.target.value.replace(/[^0-9]/g, ""))}
+                  style={{ ...s.input, fontSize: 20, textAlign: "center", letterSpacing: 4, fontWeight: 700, marginBottom: 16 }}
+                  autoFocus
+                />
+                <button
+                  onClick={handleEdfaliPhoneSubmit}
+                  disabled={edfaliPhone.replace(/^0+/, "").length < 9}
+                  style={{ ...s.btn, background: edfaliPhone.replace(/^0+/, "").length >= 9 ? "linear-gradient(135deg,#7c3aed,#9333ea)" : "#e5e7eb", color: edfaliPhone.replace(/^0+/, "").length >= 9 ? "#fff" : "#9ca3af", cursor: edfaliPhone.replace(/^0+/, "").length >= 9 ? "pointer" : "not-allowed" }}
+                >
+                  إرسال رمز التحقق →
+                </button>
+                <button
+                  onClick={() => { setEdfaliStep(null); setEdfaliPhone(""); }}
+                  style={{ width: "100%", marginTop: 10, padding: 10, background: "none", border: "1px solid #f3f4f6", borderRadius: 10, color: "#9ca3af", cursor: "pointer", fontSize: 13 }}
+                >
+                  رجوع
+                </button>
+              </div>
+
+            ) : edfaliStep === "sending" ? (
+              <div style={{ textAlign: "center", padding: "40px 0" }}>
+                <div style={{ width: 56, height: 56, borderRadius: "50%", border: "4px solid #ede9fe", borderTopColor: "#7c3aed", animation: "spin 0.8s linear infinite", margin: "0 auto 20px" }} />
+                <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+                <p style={{ color: "#6b7280", fontSize: 14 }}>⏳ جاري إرسال رمز التحقق...</p>
+              </div>
+
+            ) : edfaliStep === "otp" ? (
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 40, marginBottom: 8 }}>🏧</div>
                 <h3 style={{ fontSize: 17, fontWeight: 800, color: "#1e1b4b", margin: "0 0 6px" }}>تحقق من رمز ادفع لي</h3>
                 <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>
                   أُرسل رمز تحقق مكوّن من <strong>4 أرقام</strong> إلى هاتفك<br />
-                  <strong style={{ color: PRIMARY }}>{phone}</strong>
+                  <strong style={{ color: PRIMARY }}>{edfaliPhone}</strong>
                 </p>
                 <input
                   type="number"
@@ -571,7 +620,7 @@ export default function OrderPage() {
 
             {/* EDFali — dedicated button */}
             <button
-              onClick={handleEdfali}
+              onClick={() => setEdfaliStep("phone")}
               disabled={sending}
               style={{ ...s.payBtn, background: "linear-gradient(135deg,#7c3aed,#9333ea)", color: "#fff", marginBottom: 10 }}
             >
@@ -611,10 +660,6 @@ export default function OrderPage() {
               ))}
             </div>
 
-            {/* Extra input for edfali */}
-            {selectedMethod === "edfali" && (
-              <input placeholder="📱 رقم الهاتف" value={phone} onChange={e => setPhone(e.target.value)} style={{ ...s.input, marginBottom: 10 }} />
-            )}
             {["mobicash", "masrefypay", "yousrpay", "saharpay"].includes(selectedMethod) && (
               <input placeholder="💳 رقم البطاقة (7 أرقام)" value={cardNumber} onChange={e => setCardNumber(e.target.value)} style={{ ...s.input, marginBottom: 10 }} />
             )}
