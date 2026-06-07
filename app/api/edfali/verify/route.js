@@ -1,41 +1,54 @@
+// Adfali OnlineConfTrans — confirms customer OTP and marks order as paid
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-const BASE  = "https://dpay.ly/api";
-const TOKEN = process.env.DPAYLY_TOKEN;
+const ADFALI_URL = "http://62.240.55.2:6187/BCDUssd/NewEdfali.asmx";
+const PW = "123@xdsr$#!!";
 
+function extractXml(xml) {
+  return xml.match(/<string[^>]*>([^<]*)<\/string>/)?.[1]?.trim() ?? "";
+}
+
+// POST /api/edfali/verify
+// Body: { sessionId, otp, orderId }
+// Calls Adfali OnlineConfTrans, updates order status on success
 export async function POST(req) {
   try {
     const { sessionId, otp, orderId } = await req.json();
 
-    const res = await fetch(`${BASE}/payment/sessions/verify`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${TOKEN}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({ session_id: sessionId, otp }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      console.error("EDFALI VERIFY ERROR:", data);
-      return Response.json({ error: data.message || "رمز التحقق خاطئ أو انتهت صلاحيته" }, { status: res.status });
+    if (!sessionId || !otp) {
+      return Response.json({ error: "sessionId و otp مطلوبان" }, { status: 400 });
     }
 
-    if (data.status === "paid" && orderId) {
+    const mobile = process.env.EDFALI_MOBILE;
+
+    const url = new URL(`${ADFALI_URL}/OnlineConfTrans`);
+    url.searchParams.set("Mobile",    mobile);
+    url.searchParams.set("Pin",       otp);
+    url.searchParams.set("sessionID", sessionId);
+    url.searchParams.set("PW",        PW);
+
+    const res = await fetch(url.toString(), { cache: "no-store" });
+    const xml = await res.text();
+    const value = extractXml(xml);
+
+    if (value !== "OK") {
+      console.error("EDFALI VERIFY FAILED:", value, "session:", sessionId);
+      return Response.json({ error: "رمز التحقق غير صحيح أو انتهت صلاحيته" }, { status: 400 });
+    }
+
+    // Update order status
+    if (orderId) {
       await Promise.all([
         supabaseAdmin.from("orders").update({ status: "paid" }).eq("id", orderId),
         supabaseAdmin.from("payments")
-          .update({ status: "paid", gateway_ref: data.tx_id })
+          .update({ status: "paid" })
           .eq("order_id", orderId)
           .eq("method", "edfali"),
       ]);
     }
 
-    console.log("EDFALI PAID:", orderId, "tx:", data.tx_id);
-    return Response.json({ success: true, status: data.status, tx_id: data.tx_id });
+    console.log("EDFALI PAID ✅ — order:", orderId);
+    return Response.json({ success: true });
 
   } catch (err) {
     console.error("EDFALI VERIFY ERROR:", err);
