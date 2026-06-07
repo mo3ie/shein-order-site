@@ -191,8 +191,13 @@ export default function OrderPage() {
 
   // ── EDFali (DPAY.LY) ────────────────────────────────────────────────────
   const handleEdfaliPhoneSubmit = () => {
-    const cleaned = edfaliPhone.replace(/\D/g, "").replace(/^0+/, "");
-    if (cleaned.length < 9) { alert("أدخل رقم هاتف صحيح (9 أرقام على الأقل بدون صفر)"); return; }
+    let cleaned = edfaliPhone.replace(/\D/g, "");
+    // Normalize to 10 digits with leading 0 (Libyan format: 09xxxxxxxx)
+    if (cleaned.length === 9 && !cleaned.startsWith("0")) cleaned = "0" + cleaned;
+    if (cleaned.length !== 10 || !cleaned.startsWith("0")) {
+      alert("أدخل رقم هاتف صحيح · مثال: 0912345678");
+      return;
+    }
     setEdfaliPhone(cleaned);
     setEdfaliStep("sending");
     handleEdfali(cleaned);
@@ -512,21 +517,21 @@ export default function OrderPage() {
                 <h3 style={{ fontSize: 17, fontWeight: 800, color: "#1e1b4b", margin: "0 0 6px" }}>ادفع لي — أدخل رقم هاتفك</h3>
                 <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>
                   أدخل رقم الهاتف المرتبط بحساب <strong>ادفع لي</strong><br />
-                  <span style={{ color: "#ef4444", fontSize: 12 }}>بدون صفر في البداية · مثال: 91xxxxxxx</span>
+                  <span style={{ color: "#6b7280", fontSize: 12 }}>مثال: 0912345678</span>
                 </p>
                 <input
                   type="tel"
                   inputMode="numeric"
-                  placeholder="91xxxxxxx"
+                  placeholder="0912345678"
                   value={edfaliPhone}
-                  onChange={e => setEdfaliPhone(e.target.value.replace(/[^0-9]/g, ""))}
+                  onChange={e => setEdfaliPhone(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
                   style={{ ...s.input, fontSize: 20, textAlign: "center", letterSpacing: 4, fontWeight: 700, marginBottom: 16 }}
                   autoFocus
                 />
                 <button
                   onClick={handleEdfaliPhoneSubmit}
-                  disabled={edfaliPhone.replace(/^0+/, "").length < 9}
-                  style={{ ...s.btn, background: edfaliPhone.replace(/^0+/, "").length >= 9 ? "linear-gradient(135deg,#7c3aed,#9333ea)" : "#e5e7eb", color: edfaliPhone.replace(/^0+/, "").length >= 9 ? "#fff" : "#9ca3af", cursor: edfaliPhone.replace(/^0+/, "").length >= 9 ? "pointer" : "not-allowed" }}
+                  disabled={edfaliPhone.replace(/\D/g, "").length < 9}
+                  style={{ ...s.btn, background: edfaliPhone.replace(/\D/g, "").length >= 9 ? "linear-gradient(135deg,#7c3aed,#9333ea)" : "#e5e7eb", color: edfaliPhone.replace(/\D/g, "").length >= 9 ? "#fff" : "#9ca3af", cursor: edfaliPhone.replace(/\D/g, "").length >= 9 ? "pointer" : "not-allowed" }}
                 >
                   إرسال رمز التحقق →
                 </button>
