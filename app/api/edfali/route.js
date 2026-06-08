@@ -4,10 +4,10 @@ const ADFALI_ENDPOINT = "http://62.240.55.2:6187/BCDUssd/NewEdfali.asmx";
 const PW = "123@xdsr$#!!";
 
 const ERROR_MESSAGES = {
-  LIMIT: "المبلغ خارج الحدود المسموح بها — تواصل مع البنك لتعديل الحدود",
+  LIMIT: "المبلغ خارج الحدود المسموح بها",
   PW1:   "خطأ في إعداد الخدمة",
   PW:    "خطأ في إعداد الخدمة",
-  ACC:   "رقم الهاتف غير مسجل في ادفع لي",
+  ACC:   "تعذّر معالجة الطلب — تحقق من إعدادات حساب ادفع لي التاجر",
   BAL:   "تعذّر إتمام العملية",
 };
 
@@ -20,15 +20,29 @@ function soapBody(method, params) {
 }
 
 async function soapCall(method, params) {
-  const res = await fetch(ADFALI_ENDPOINT, {
-    method: "POST",
-    headers: { "Content-Type": "text/xml; charset=utf-8", "SOAPAction": `http://tempuri.org/${method}` },
-    body: soapBody(method, params),
-    cache: "no-store",
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  let res;
+  try {
+    res = await fetch(ADFALI_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "text/xml; charset=utf-8", "SOAPAction": `http://tempuri.org/${method}` },
+      body: soapBody(method, params),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err.name === "AbortError") throw new Error("انتهت مهلة الاتصال بخدمة ادفع لي");
+    throw new Error(`تعذّر الاتصال بخدمة ادفع لي: ${err.message}`);
+  } finally {
+    clearTimeout(timeout);
+  }
+  if (!res.ok) throw new Error(`خدمة ادفع لي أعادت خطأ: ${res.status}`);
   const xml = await res.text();
   const tag = `${method}Result`;
-  return xml.match(new RegExp(`<${tag}>([^<]*)</${tag}>`))?.[1]?.trim() ?? "";
+  const value = xml.match(new RegExp(`<${tag}>([^<]*)</${tag}>`))?.[1]?.trim() ?? "";
+  if (!value) console.error(`[adfali] empty result for ${method}:`, xml.slice(0, 300));
+  return value;
 }
 
 // Edfali expects number without leading zero (no +218 prefix)
@@ -52,15 +66,22 @@ export async function POST(req) {
       return Response.json({ error: "رقم الهاتف والمبلغ مطلوبان" }, { status: 400 });
     }
 
+    if (!process.env.EDFALI_MOBILE || !process.env.EDFALI_PIN) {
+      return Response.json({ error: "إعدادات ادفع لي غير مكتملة" }, { status: 500 });
+    }
+
+    const normalized = normalizePhone(phone);
+    console.log(`[edfali] phone: ${phone} → ${normalized}, amount: ${amountLYD}`);
+
     const value = await soapCall("DoPTrans", {
-      Mobile:        process.env.EDFALI_MOBILE,
-      Pin:           process.env.EDFALI_PIN,
-      Cmobile:       normalizePhone(phone),
-      decimalAmount: Math.round(Number(amountLYD)),
+      Mobile:  process.env.EDFALI_MOBILE,
+      Pin:     process.env.EDFALI_PIN,
+      Cmobile: normalized,
+      Amount:  Math.round(Number(amountLYD)),
       PW,
     });
 
-    if (!value) return Response.json({ error: "لم يتم الاتصال بخدمة ادفع لي" }, { status: 502 });
+    if (!value) return Response.json({ error: "لم يستجب سيرفر ادفع لي — حاول مرة أخرى" }, { status: 502 });
     if (ERROR_MESSAGES[value.toUpperCase()]) {
       return Response.json({ error: ERROR_MESSAGES[value.toUpperCase()] }, { status: 400 });
     }
