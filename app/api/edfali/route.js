@@ -31,11 +31,13 @@ async function soapCall(method, params) {
   return xml.match(new RegExp(`<${tag}>([^<]*)</${tag}>`))?.[1]?.trim() ?? "";
 }
 
+// Edfali expects number without leading zero (no +218 prefix)
+// e.g. 0918621511 → 918621511
 function normalizePhone(phone) {
   let d = phone.replace(/\D/g, "");
   if (d.startsWith("218")) d = d.slice(3);
   if (d.startsWith("0"))   d = d.slice(1);
-  return `+218${d}`;
+  return d;
 }
 
 // POST /api/edfali
