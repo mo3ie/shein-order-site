@@ -12,9 +12,11 @@ function SuccessContent() {
   const router  = useRouter();
   const pollRef = useRef(null);
 
-  const orderId   = params.get("orderId");
-  const sessionId = params.get("session_id");
-  const viaDpay   = params.get("via") === "dpay";
+  const orderId    = params.get("orderId");
+  const sessionId  = params.get("session_id");
+  const viaDpay    = params.get("via") === "dpay";
+  const viaMoamalat = params.get("via") === "moamalat";
+  const moamalatPaid = params.get("paid") === "1";
 
   const [status,    setStatus]    = useState("loading");
   const [copied,    setCopied]    = useState(false);
@@ -32,6 +34,16 @@ function SuccessContent() {
   // ── Payment verification ─────────────────────────────────────────────────
   useEffect(() => {
     if (!orderId) { setStatus("pending"); return; }
+
+    // If returning from trendstore-ly.com/moamalat-pay after successful payment,
+    // confirm immediately before polling.
+    if (viaMoamalat && moamalatPaid) {
+      fetch("/api/moamalat/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      }).catch(() => {});
+    }
 
     const check = async () => {
       const { data } = await supabase
