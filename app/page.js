@@ -250,6 +250,9 @@ export default function OrderPage() {
   };
 
   // ── Moamalat ─────────────────────────────────────────────────────────────
+  // Lightbox must load on trendstore-ly.com (whitelisted domain) — redirect there with params
+  const TRENDSTORE = "https://trendstore-ly.com";
+
   const handleMoamalat = async () => {
     try {
       setSending(true);
@@ -263,35 +266,28 @@ export default function OrderPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId: oid, amountLYD: priceLYD }),
       });
-      const params = await res.json();
-      if (!params.success) throw new Error(params.error || "فشل تهيئة بوابة الدفع");
+      const p = await res.json();
+      if (!p.success) throw new Error(p.error || "فشل تهيئة بوابة الدفع");
 
-      await new Promise((resolve, reject) => {
-        if (document.getElementById("moamalat-lb")) { resolve(); return; }
-        const script = document.createElement("script");
-        script.id = "moamalat-lb";
-        script.src = params.scriptUrl;
-        script.onload = resolve;
-        script.onerror = () => reject(new Error("فشل تحميل بوابة معاملات"));
-        document.head.appendChild(script);
-      });
-
-      await new Promise(r => setTimeout(r, 300));
       localStorage.setItem("lastOrderId", oid);
 
-      window.Lightbox.Checkout.configure = {
-        MID:               params.MID,
-        TID:               params.TID,
-        AmountTrxn:        params.AmountTrxn,
-        MerchantReference: params.MerchantReference,
-        TrxDateTime:       params.TrxDateTime,
-        SecureHash:        params.SecureHash,
-        completeCallback:  () => { window.location.href = `/success?orderId=${oid}&via=moamalat`; },
-        errorCallback:     () => { setSending(false); alert("حدث خطأ في عملية الدفع، حاول مجدداً"); },
-        cancelCallback:    () => { setSending(false); },
-      };
-      window.Lightbox.Checkout.showLightbox();
-      setSending(false);
+      const origin      = window.location.origin;
+      const returnUrl   = `${origin}/success?orderId=${oid}&via=moamalat`;
+      const cancelUrl   = `${origin}`;
+
+      const qs = new URLSearchParams({
+        mid:      p.MID,
+        tid:      p.TID,
+        amount:   p.AmountTrxn,
+        ref:      p.MerchantReference,
+        datetime: p.TrxDateTime,
+        hash:     p.SecureHash,
+        script:   p.scriptUrl,
+        return:   returnUrl,
+        cancel:   cancelUrl,
+      }).toString();
+
+      window.location.href = `${TRENDSTORE}/moamalat-pay?${qs}`;
     } catch (err) {
       alert(err.message || "خطأ في الدفع");
       setSending(false);
