@@ -83,14 +83,15 @@ export async function POST(req) {
     if (!process.env.EDFALI_MOBILE || !process.env.EDFALI_PIN)
       return Response.json({ error: "متغيرات البيئة EDFALI_MOBILE / EDFALI_PIN غير موجودة" }, { status: 500 });
 
-    const normalized = normalizePhone(phone);
-    const amount     = Math.round(Number(amountLYD));
-    console.log(`[edfali] merchant: ${process.env.EDFALI_MOBILE}, customer: ${normalized}, amount: ${amount}, order: ${orderId}`);
+    // Cmobile must be +218XXXXXXXXX per Edfali API docs
+    const cmobile = "+218" + normalizePhone(phone);
+    const amount  = Math.round(Number(amountLYD));
+    console.log(`[edfali] merchant: ${process.env.EDFALI_MOBILE}, customer: ${cmobile}, amount: ${amount}, order: ${orderId}`);
 
     const value = await soapCall("DoPTrans", {
       Mobile:  process.env.EDFALI_MOBILE,
       Pin:     process.env.EDFALI_PIN,
-      Cmobile: normalized,
+      Cmobile: cmobile,
       Amount:  amount,
       PW:      SYS_PW,
     });
