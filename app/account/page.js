@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import AddressManager from "@/components/AddressManager";
 
 const GRAD   = "linear-gradient(135deg,#7c3aed,#3b82f6)";
 const PURPLE = "#7c3aed";
@@ -103,12 +104,19 @@ export default function AccountPage() {
   const [user,    setUser]    = useState(null);
   const [orders,  setOrders]  = useState([]);
   const [loading, setLoading] = useState(true);
+  const [avatar,  setAvatar]  = useState(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileRef = useRef(null);
 
   useEffect(() => {
     const getData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
       setUser(user);
+
+      const { data: prof } = await supabase
+        .from("profiles").select("avatar_url").eq("id", user.id).maybeSingle();
+      setAvatar(prof?.avatar_url || user.user_metadata?.avatar_url || null);
 
       // auto-claim طلب عند العودة من الدخول
       const claimId = sessionStorage.getItem("claimOrderId");
@@ -138,6 +146,25 @@ export default function AccountPage() {
     router.push("/");
   };
 
+  const uploadAvatar = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/profile/avatar", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${session?.access_token || ""}` },
+      body: fd,
+    });
+    const data = await res.json().catch(() => ({}));
+    setUploadingAvatar(false);
+    if (res.ok && data.url) setAvatar(data.url);
+    else alert(data.error || "فشل رفع الصورة");
+    e.target.value = "";
+  };
+
   if (loading) {
     return (
       <div style={{ minHeight: "calc(100vh - 60px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -147,7 +174,7 @@ export default function AccountPage() {
     );
   }
 
-  const avatarUrl = user?.user_metadata?.avatar_url;
+  const avatarUrl = avatar;
   const name      = user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "مستخدم";
 
   return (
@@ -159,13 +186,20 @@ export default function AccountPage() {
         {/* ── بطاقة المستخدم ── */}
         <div style={{ background: "#fff", borderRadius: 20, padding: "20px 24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)", border: "1px solid #f3f4f6" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="avatar" style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: "2px solid #e9d5ff" }} />
-            ) : (
-              <div style={{ width: 56, height: 56, borderRadius: "50%", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: "#fff", fontWeight: 800 }}>
-                {name[0]?.toUpperCase()}
-              </div>
-            )}
+            <div onClick={() => !uploadingAvatar && fileRef.current?.click()} title="تغيير الصورة"
+              style={{ position: "relative", cursor: "pointer", flexShrink: 0 }}>
+              {avatarUrl ? (
+                <img src={avatarUrl} alt="avatar" style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: "2px solid #e9d5ff", opacity: uploadingAvatar ? 0.5 : 1 }} />
+              ) : (
+                <div style={{ width: 56, height: 56, borderRadius: "50%", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: "#fff", fontWeight: 800, opacity: uploadingAvatar ? 0.5 : 1 }}>
+                  {name[0]?.toUpperCase()}
+                </div>
+              )}
+              <span style={{ position: "absolute", bottom: -2, left: -2, width: 22, height: 22, borderRadius: "50%", background: "#fff", border: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
+                {uploadingAvatar ? "⏳" : "📷"}
+              </span>
+              <input ref={fileRef} type="file" accept="image/*" onChange={uploadAvatar} style={{ display: "none" }} />
+            </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 800, fontSize: 16, color: "#1e1b4b" }}>{name}</div>
               <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{user?.email}</div>
@@ -180,6 +214,11 @@ export default function AccountPage() {
               تسجيل خروج
             </button>
           </div>
+        </div>
+
+        {/* ── العناوين ── */}
+        <div style={{ background: "#fff", borderRadius: 20, padding: "20px 24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)", border: "1px solid #f3f4f6" }}>
+          <AddressManager />
         </div>
 
         {/* ── قائمة الطلبات ── */}
