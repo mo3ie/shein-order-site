@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { adminFetch } from "@/lib/adminFetch";
 
 export default function Trash() {
   const [orders, setOrders] = useState([]);
@@ -9,7 +10,7 @@ export default function Trash() {
   const router = useRouter();
 
   async function getOrders() {
-    const res = await fetch("/api/order");
+    const res = await adminFetch("/api/order");
     const result = await res.json();
 
     setOrders(result.data.filter(o => o.status === "deleted"));
@@ -21,7 +22,7 @@ export default function Trash() {
 
   const restoreSelected = async () => {
     for (let id of selected) {
-      await fetch("/api/order", {
+      await adminFetch("/api/order", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json"

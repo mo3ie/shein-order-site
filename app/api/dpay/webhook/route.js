@@ -2,6 +2,19 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(req) {
   try {
+    // SECURITY: this webhook marks orders paid, so it must present the shared
+    // secret. Configure the registered DPay webhook URL with ?secret=<value>
+    // and set DPAY_WEBHOOK_SECRET. If unset, the endpoint is fail-closed —
+    // /api/dpay (verify) already confirms payments server-to-server, so this
+    // being locked does not stop payments from completing.
+    const secret = process.env.DPAY_WEBHOOK_SECRET;
+    const provided =
+      req.headers.get("x-webhook-secret") ||
+      new URL(req.url).searchParams.get("secret");
+    if (!secret || provided !== secret) {
+      return Response.json({ error: "unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     console.log("DPAY WEBHOOK:", body);
 

@@ -1,8 +1,10 @@
 // Edfali (ادفع لي) — Step 2: OnlineConfTrans confirms customer OTP
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-const ENDPOINT = "http://62.240.55.2:6187/BCDUssd/NewEdfali.asmx";
-const SYS_PW   = "123@xdsr$#!!";
+const ENDPOINT = process.env.EDFALI_ENDPOINT || "http://62.240.55.2:6187/BCDUssd/NewEdfali.asmx";
+// SECURITY: the Edfali system password must never be hardcoded in source (it
+// was previously committed to git — rotate it with the provider). Read from env.
+const SYS_PW   = process.env.EDFALI_SYS_PW;
 
 function buildSoap(method, params) {
   const fields = Object.entries(params).map(([k, v]) => `<${k}>${v}</${k}>`).join("");
@@ -25,6 +27,9 @@ export async function POST(req) {
 
     if (!process.env.EDFALI_MOBILE)
       return Response.json({ error: "متغير EDFALI_MOBILE غير موجود" }, { status: 500 });
+
+    if (!SYS_PW)
+      return Response.json({ error: "متغير EDFALI_SYS_PW غير موجود" }, { status: 500 });
 
     console.log(`[edfali/verify] session: ${sessionId}, order: ${orderId}`);
 

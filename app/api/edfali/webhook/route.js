@@ -2,6 +2,18 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(req) {
   try {
+    // SECURITY: marks orders paid → must present the shared secret. Configure
+    // the registered Edfali webhook URL with ?secret=<value> and set
+    // EDFALI_WEBHOOK_SECRET. Fail-closed if unset — /api/edfali/verify confirms
+    // the customer OTP server-to-server, so this lock does not block payments.
+    const secret = process.env.EDFALI_WEBHOOK_SECRET;
+    const provided =
+      req.headers.get("x-webhook-secret") ||
+      new URL(req.url).searchParams.get("secret");
+    if (!secret || provided !== secret) {
+      return Response.json({ error: "unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     console.log("EDFALI WEBHOOK:", JSON.stringify(body, null, 2));
 

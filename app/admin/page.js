@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { adminFetch } from "@/lib/adminFetch";
 import { useRouter } from "next/navigation";
 
 export default function Admin() {
@@ -54,7 +55,7 @@ export default function Admin() {
   }, []);
 
   async function getOrders() {
-    const res = await fetch("/api/order");
+    const res = await adminFetch("/api/order");
     const result = await res.json();
     setOrders(result.data.filter((o) => o.status !== "deleted" && o.status !== "completed"));
     setLoading(false);
@@ -63,7 +64,7 @@ export default function Admin() {
   useEffect(() => { getOrders(); }, []);
 
   async function updateStatus(id, newStatus, order) {
-    await fetch("/api/order", {
+    await adminFetch("/api/order", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, status: newStatus })
@@ -397,7 +398,7 @@ export default function Admin() {
                       />
                       <button
                         onClick={async () => {
-                          const res = await fetch("/api/order", {
+                          const res = await adminFetch("/api/order", {
                             method: "PUT",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({ id: order.id, shipping: shipping[order.id], exchange_rate: exchangeRate, price_lyd: priceLYD, final_total: finalTotal })

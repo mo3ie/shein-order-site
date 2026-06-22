@@ -1,5 +1,18 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
+// Verify the caller is an admin/employee via Bearer token (same pattern as
+// /api/admin/employees). Returns the user or null.
+async function requireStaff(req) {
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  const token = authHeader.slice(7);
+  const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+  if (!user) return null;
+  const { data: profile } = await supabaseAdmin
+    .from("profiles").select("role").eq("id", user.id).single();
+  return (profile?.role === "admin" || profile?.role === "employee") ? user : null;
+}
+
 // 🔹 لجلب الطلبات (GET)
 export async function GET(req) {
   try {
@@ -43,7 +56,13 @@ export async function GET(req) {
       return Response.json({ success: true, order: data });
     }
 
-    // ✅ حالة 2: جلب كل الطلبات (الأدمن)
+    // ✅ حالة 2: جلب كل الطلبات (الأدمن) — يتطلب صلاحية موظف/أدمن
+    // بدون هذا الحاجز كان أي شخص يجلب كل بيانات الزبائن (أسماء/هواتف/روابط).
+    const staff = await requireStaff(req);
+    if (!staff) {
+      return Response.json({ success: false, message: "غير مصرّح" }, { status: 403 });
+    }
+
     const { data, error } = await supabaseAdmin
       .from("orders")
       .select("*")
@@ -125,8 +144,13 @@ return Response.json({
     return Response.json({ success: false, error: err.message });
   }
 }
-// 🔹 تحديث حالة الطلب
+// 🔹 تحديث حالة الطلب — يتطلب صلاحية موظف/أدمن
 export async function PUT(req){
+
+  const staff = await requireStaff(req);
+  if (!staff) {
+    return Response.json({ success: false, message: "غير مصرّح" }, { status: 403 });
+  }
 
   const body = await req.json();
 
