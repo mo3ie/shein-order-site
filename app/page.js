@@ -78,33 +78,69 @@ export default function OrderPage() {
     });
 
     const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
-    let labelFound = false;
-    let p = null;
 
-    for (let i = 0; i < lines.length; i++) {
-      const isLabel =
-        /estim.{0,8}price/i.test(lines[i]) ||
-        /السعر.{0,8}المقدر/.test(lines[i]);
-      if (!isLabel) continue;
-
-      labelFound = true;
-      const win = lines.slice(i, i + 4).join(" ");
-
-      // Accept ONLY if $ present — also handle S as OCR mistake for $
-      const m = win.match(/\$\s*([\d,]+\.?\d*)/) ||
-                win.match(/\bS\s*([\d,]+\.\d{2})\b/);
-      if (m) {
-        const val = parseFloat(m[1].replace(/,/g, ""));
-        if (val >= 0.5 && val <= 9999) p = val;
+    // Pull a $ amount (always shown with 2 decimals, e.g. $59.61 or 59.61$;
+    // OCR sometimes reads $ as S) from a label line or the next couple of lines.
+    // Requiring the decimals avoids matching coupon countdown timers (16 : 22 : 56).
+    const amountAt = (idx, span = 2) => {
+      for (let k = idx; k >= 0 && k <= Math.min(idx + span, lines.length - 1); k++) {
+        const L = lines[k];
+        const m = L.match(/\$\s*([\d][\d.,]*\.\d{2})/) ||
+                  L.match(/([\d][\d.,]*\.\d{2})\s*\$/) ||
+                  L.match(/\bS\s*([\d][\d.,]*\.\d{2})\b/);
+        if (m) {
+          const v = parseFloat(m[1].replace(/,/g, ""));
+          if (!isNaN(v) && v >= 0 && v <= 99999) return v;
+        }
       }
-      break;
+      return null;
+    };
+
+    // Locate the SHEIN "Promotion Details" breakdown labels (AR + EN). Labels
+    // are matched fuzzily because Arabic OCR is imperfect (التجزئة -> التجزثة).
+    let iEstimated = -1, iRetail = -1, iPromo = -1, iCoupon = -1;
+    for (let i = 0; i < lines.length; i++) {
+      const L = lines[i];
+      if (iEstimated < 0 && (/estim\w*\s*price/i.test(L) || /المقدر/.test(L)))  iEstimated = i;
+      if (iRetail    < 0 && (/retail\s*price/i.test(L) || /التجز/.test(L)))      iRetail = i;
+      if (iPromo     < 0 && (/promotions/i.test(L) || (/العروض/.test(L) && !/الترويجية|تفاصيل/.test(L)))) iPromo = i;
+      if (iCoupon    < 0 && (/coupon/i.test(L) || /كوبون/.test(L) || /قسيمة/.test(L))) iCoupon = i;
     }
 
     setLoading(false);
 
-    if (!labelFound) { setPriceWarning(true); setPrice(null); return; }
-    if (!p)          { setPriceCurrencyErr(true); setPrice(null); return; }
-    setPrice(p);
+    // FORMAT LOCK: only accept a genuine SHEIN promotion-details screenshot — it
+    // must show BOTH the retail price and the estimated price (retail first).
+    // This blocks random images that merely contain an "estimated price".
+    if (iEstimated < 0 || iRetail < 0 || iRetail >= iEstimated) {
+      setPriceWarning(true); setPrice(null); return;
+    }
+
+    const estimated = amountAt(iEstimated, 1);
+    const retail    = amountAt(iRetail, 1);
+    if (estimated == null || retail == null) { setPriceCurrencyErr(true); setPrice(null); return; }
+
+    // We want to charge: retail - promotions  ==  estimated + coupon
+    // (offers/promotions ARE applied, the coupon is NOT). The promotions and
+    // coupon amounts are small orange numbers that OCR often mangles (decimal
+    // dropped, or not read at all on Arabic screens), so each is sanity-checked
+    // against the total discount (retail - estimated = promotions + coupon).
+    const totalDiscount = Math.round((retail - estimated) * 100) / 100;
+    const inPanel = (idx) => idx >= iRetail && idx <= iEstimated + 1;
+    const promo   = (iPromo  >= 0 && inPanel(iPromo))  ? amountAt(iPromo, 1)  : null;
+    const coupon  = (iCoupon >= 0 && inPanel(iCoupon)) ? amountAt(iCoupon, 1) : null;
+    const sane = (x) => x != null && x > 0 && x <= totalDiscount + 0.5;
+
+    let finalPrice;
+    if (sane(promo))       finalPrice = retail - Math.abs(promo);       // preferred: retail - promotions
+    else if (sane(coupon)) finalPrice = estimated + Math.abs(coupon);   // fallback: estimated + coupon
+    else                   finalPrice = estimated;                      // last resort: discounts unreadable
+                                                                        // (keeps current behavior, never overcharges)
+
+    finalPrice = Math.round(finalPrice * 100) / 100;
+    if (finalPrice < 0.5 || finalPrice > 9999) { setPriceCurrencyErr(true); setPrice(null); return; }
+
+    setPrice(finalPrice);
   }
 
   // ── Upload helper ────────────────────────────────────────────────────────
