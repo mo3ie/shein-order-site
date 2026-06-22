@@ -11,13 +11,26 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState("login"); // "login" | "reset"
+  const [mode, setMode] = useState("login"); // "login" | "reset" | "otp"
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) window.location.replace(next);
     });
   }, [next]);
+
+  // Shared post-login routing: admins/employees → /admin, customers → next.
+  const routeAfterLogin = async (userId) => {
+    const { data: profile } = await supabase
+      .from("profiles").select("role").eq("id", userId).single();
+    if (profile?.role === "admin" || profile?.role === "employee") {
+      window.location.href = "/admin";
+    } else {
+      window.location.href = next;
+    }
+  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -31,20 +44,26 @@ function LoginForm() {
       alert("بيانات الدخول غير صحيحة");
       return;
     }
+    await routeAfterLogin(data.user.id);
+  };
 
-    // Check role and redirect accordingly
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", data.user.id)
-      .single();
-
+  // OTP login: email a one-time code, then verify it (no password needed).
+  const handleSendOtp = async () => {
+    if (!email) { alert("أدخل البريد أولاً"); return; }
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
     setLoading(false);
-    if (profile?.role === "admin" || profile?.role === "employee") {
-      window.location.href = "/admin";
-    } else {
-      window.location.href = next;
-    }
+    if (error) { alert(error.message); return; }
+    setOtpSent(true);
+    alert("أرسلنا رمزاً إلى بريدك");
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpCode) { alert("أدخل الرمز"); return; }
+    setLoading(true);
+    const { data, error } = await supabase.auth.verifyOtp({ email, token: otpCode.trim(), type: "email" });
+    if (error || !data.user) { setLoading(false); alert("الرمز غير صحيح أو منتهي الصلاحية"); return; }
+    await routeAfterLogin(data.user.id);
   };
 
   const loginWithGoogle = async () => {
@@ -83,7 +102,7 @@ function LoginForm() {
     <main style={mainStyle}>
       <div style={card}>
         <h2 style={{ textAlign: "center", marginBottom: 4 }}>
-          {mode === "reset" ? "🔑 استعادة كلمة المرور" : "👤 تسجيل الدخول"}
+          {mode === "reset" ? "🔑 استعادة كلمة المرور" : mode === "otp" ? "🔐 الدخول برمز" : "👤 تسجيل الدخول"}
         </h2>
 
         <input
@@ -92,6 +111,7 @@ function LoginForm() {
           onChange={(e) => setEmail(e.target.value)}
           style={input}
           type="email"
+          disabled={mode === "otp" && otpSent}
         />
 
         {mode === "login" && (
@@ -105,7 +125,18 @@ function LoginForm() {
           />
         )}
 
-        {mode === "login" ? (
+        {mode === "otp" && otpSent && (
+          <input
+            placeholder="رمز التحقق"
+            value={otpCode}
+            onChange={(e) => setOtpCode(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleVerifyOtp()}
+            style={{ ...input, textAlign: "center", letterSpacing: "0.4em" }}
+            inputMode="numeric"
+          />
+        )}
+
+        {mode === "login" && (
           <>
             <button onClick={handleLogin} style={btnPrimary} disabled={loading}>
               {loading ? "جاري الدخول..." : "تسجيل الدخول"}
@@ -122,17 +153,34 @@ function LoginForm() {
                 نسيت كلمة المرور؟
               </button>
               <span style={{ color: "#aaa", margin: "0 8px" }}>|</span>
+              <button onClick={() => setMode("otp")} style={linkBtn}>
+                الدخول برمز
+              </button>
+              <span style={{ color: "#aaa", margin: "0 8px" }}>|</span>
               <a href="/signup" style={{ color: "#7c3aed", textDecoration: "none" }}>
-                إنشاء حساب جديد
+                إنشاء حساب
               </a>
             </div>
           </>
-        ) : (
+        )}
+
+        {mode === "reset" && (
           <>
             <button onClick={resetPassword} style={btnPrimary} disabled={loading}>
               {loading ? "جاري الإرسال..." : "إرسال رابط الاستعادة"}
             </button>
             <button onClick={() => setMode("login")} style={linkBtn}>
+              ← العودة لتسجيل الدخول
+            </button>
+          </>
+        )}
+
+        {mode === "otp" && (
+          <>
+            <button onClick={otpSent ? handleVerifyOtp : handleSendOtp} style={btnPrimary} disabled={loading}>
+              {loading ? "..." : otpSent ? "تأكيد الرمز" : "إرسال الرمز"}
+            </button>
+            <button onClick={() => { setMode("login"); setOtpSent(false); setOtpCode(""); }} style={linkBtn}>
               ← العودة لتسجيل الدخول
             </button>
           </>
