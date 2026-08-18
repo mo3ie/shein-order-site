@@ -7,6 +7,10 @@ const PRIMARY   = "#7c3aed";
 const GRADIENT  = "linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%)";
 const BG        = "transparent";
 
+// موبي كاش قيد التجربة: تظهر للأدمن فقط، أو للجميع عند ضبط
+// NEXT_PUBLIC_MOBICASH_ENABLED=true بعد تفعيل حساب البرودكشن.
+const ADMIN_EMAIL = "mo3iemohamed@gmail.com";
+
 export default function OrderPage() {
   const [cartLink,          setCartLink]          = useState("");
   const [name,              setName]              = useState("");
@@ -30,6 +34,11 @@ export default function OrderPage() {
   const [edfaliOtp,         setEdfaliOtp]         = useState("");
   const [edfaliOrderId,     setEdfaliOrderId]     = useState(null);
   const [edfaliPhone,       setEdfaliPhone]       = useState("");
+  const [mcStep,            setMcStep]            = useState(null);
+  const [mcCard,            setMcCard]            = useState("");
+  const [mcOtp,             setMcOtp]             = useState("");
+  const [mcOrderId,         setMcOrderId]         = useState(null);
+  const [isAdmin,           setIsAdmin]           = useState(false);
 
   const base      = price || 0;
   const profit    = base * 0.01;
@@ -37,11 +46,16 @@ export default function OrderPage() {
   const priceLYD  = exchangeRate ? totalUSD * exchangeRate : 0;
 
   const paymentMethods = [
-    { id: "mobicash",   name: "موبي كاش",  icon: "📱", color: "#0284c7" },
     { id: "masrefypay", name: "مصرفي",     icon: "💳", color: "#ea580c" },
     { id: "yousrpay",   name: "يسر باي",   icon: "💳", color: "#0d9488" },
     { id: "saharpay",   name: "صحارة باي", icon: "💳", color: "#ca8a04" },
   ];
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setIsAdmin(data?.user?.email === ADMIN_EMAIL);
+    });
+  }, []);
 
   useEffect(() => {
     supabase.from("settings").select("exchange_rate").eq("id", 1).single()
@@ -324,6 +338,55 @@ export default function OrderPage() {
     }
   };
 
+  // ── MobiCash (موبي كاش) — direct Wahda Bank card payment ────────────────
+  const handleMobicash = async () => {
+    const card = mcCard.replace(/\D/g, "");
+    if (card.length < 5) { alert("أدخل رقم بطاقة موبي كاش"); return; }
+    try {
+      setMcStep("sending");
+      setSending(true);
+      const imageUrl = await uploadImage();
+      const oid = await createOrder(imageUrl);
+      setOrderId(oid);
+      setMcOrderId(oid);
+      await supabase.from("payments").insert({ order_id: oid, method: "mobicash", status: "pending", amount: priceLYD });
+
+      const res = await fetch("/api/mobicash", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: oid, amountLYD: priceLYD, cardNumber: card }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "فشل إرسال رمز التحقق");
+
+      setMcStep("otp");
+      setSending(false);
+    } catch (err) {
+      alert(err.message || "خطأ في الدفع");
+      setMcStep("card");
+      setSending(false);
+    }
+  };
+
+  const handleMobicashVerify = async () => {
+    if (!mcOtp || mcOtp.length < 4) { alert("أدخل رمز التحقق"); return; }
+    try {
+      setSending(true);
+      const res = await fetch("/api/mobicash/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: mcOrderId, otp: mcOtp }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "رمز التحقق خاطئ");
+      localStorage.setItem("lastOrderId", mcOrderId);
+      window.location.href = `/success?orderId=${mcOrderId}&via=mobicash`;
+    } catch (err) {
+      alert(err.message || "رمز خاطئ، حاول مجدداً");
+      setSending(false);
+    }
+  };
+
   // ── Moamalat ─────────────────────────────────────────────────────────────
   // Lightbox must load on trendstore-ly.com (whitelisted domain) — redirect there with params
   const TRENDSTORE = "https://trendstore-ly.com";
@@ -578,11 +641,79 @@ export default function OrderPage() {
 
       {/* ── Payment Modal ── */}
       {showPayment && (
-        <div onClick={() => { if (!edfaliStep) setShowPayment(false); }} style={s.overlay}>
+        <div onClick={() => { if (!edfaliStep && !mcStep) setShowPayment(false); }} style={s.overlay}>
           <div onClick={e => e.stopPropagation()} className="pay-modal" style={s.modal}>
 
-            {/* ── Phone Input Screen ── */}
-            {edfaliStep === "phone" ? (
+            {/* ── MobiCash: card number ── */}
+            {mcStep === "card" ? (
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>📲</div>
+                <h3 style={{ fontSize: 17, fontWeight: 800, color: "#1e1b4b", margin: "0 0 6px" }}>موبي كاش — أدخل رقم بطاقتك</h3>
+                <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>
+                  سيصلك رمز تحقق على هاتفك المرتبط بالبطاقة
+                </p>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="رقم البطاقة"
+                  value={mcCard}
+                  onChange={e => setMcCard(e.target.value.replace(/[^0-9]/g, "").slice(0, 19))}
+                  style={{ ...s.input, fontSize: 20, textAlign: "center", letterSpacing: 4, fontWeight: 700, marginBottom: 16, direction: "ltr" }}
+                  autoFocus
+                />
+                <button
+                  onClick={handleMobicash}
+                  disabled={sending || mcCard.replace(/[^0-9]/g, "").length < 5}
+                  style={{ ...s.btn, background: mcCard.replace(/[^0-9]/g, "").length >= 5 ? "linear-gradient(135deg,#0284c7,#0ea5e9)" : "#e5e7eb", color: mcCard.replace(/[^0-9]/g, "").length >= 5 ? "#fff" : "#9ca3af", cursor: mcCard.replace(/[^0-9]/g, "").length >= 5 ? "pointer" : "not-allowed" }}
+                >
+                  إرسال رمز التحقق →
+                </button>
+                <button
+                  onClick={() => { setMcStep(null); setMcCard(""); }}
+                  style={{ width: "100%", marginTop: 10, padding: 10, background: "none", border: "1px solid #f3f4f6", borderRadius: 10, color: "#9ca3af", cursor: "pointer", fontSize: 13 }}
+                >
+                  رجوع
+                </button>
+              </div>
+
+            ) : mcStep === "sending" ? (
+              <div style={{ textAlign: "center", padding: "40px 0" }}>
+                <div style={{ width: 56, height: 56, borderRadius: "50%", border: "4px solid #e0f2fe", borderTopColor: "#0284c7", animation: "spin 0.8s linear infinite", margin: "0 auto 20px" }} />
+                <p style={{ color: "#6b7280", fontSize: 14 }}>⏳ جاري إرسال رمز التحقق...</p>
+              </div>
+
+            ) : mcStep === "otp" ? (
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>🔐</div>
+                <h3 style={{ fontSize: 17, fontWeight: 800, color: "#1e1b4b", margin: "0 0 6px" }}>تحقق من رمز موبي كاش</h3>
+                <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>
+                  أُرسل رمز التحقق إلى هاتفك — صالح لمدة <strong>5 دقائق</strong>
+                </p>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="أدخل الرمز"
+                  value={mcOtp}
+                  onChange={e => setMcOtp(e.target.value.replace(/[^0-9]/g, "").slice(0, 8))}
+                  style={{ ...s.input, fontSize: 28, textAlign: "center", letterSpacing: 12, fontWeight: 700, marginBottom: 16, direction: "ltr" }}
+                  autoFocus
+                />
+                <button
+                  onClick={handleMobicashVerify}
+                  disabled={sending || mcOtp.length < 4}
+                  style={{ ...s.btn, background: mcOtp.length >= 4 ? "linear-gradient(135deg,#0284c7,#0ea5e9)" : "#e5e7eb", color: mcOtp.length >= 4 ? "#fff" : "#9ca3af", cursor: mcOtp.length >= 4 ? "pointer" : "not-allowed" }}
+                >
+                  {sending ? "⏳ جاري التحقق..." : "تأكيد الدفع ✓"}
+                </button>
+                <button
+                  onClick={() => { setMcStep("card"); setMcOtp(""); setSending(false); }}
+                  style={{ width: "100%", marginTop: 10, padding: 10, background: "none", border: "1px solid #f3f4f6", borderRadius: 10, color: "#9ca3af", cursor: "pointer", fontSize: 13 }}
+                >
+                  رجوع
+                </button>
+              </div>
+
+            ) : edfaliStep === "phone" ? (
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 40, marginBottom: 8 }}>🏧</div>
                 <h3 style={{ fontSize: 17, fontWeight: 800, color: "#1e1b4b", margin: "0 0 6px" }}>ادفع لي — أدخل رقم هاتفك</h3>
@@ -708,6 +839,22 @@ export default function OrderPage() {
               <span style={{ marginRight: "auto", fontWeight: 700, fontSize: 13 }}>{priceLYD.toFixed(0)} د.ل</span>
             </button>
 
+            {/* MobiCash — hidden until NEXT_PUBLIC_MOBICASH_ENABLED=true (sandbox → production) */}
+            {(process.env.NEXT_PUBLIC_MOBICASH_ENABLED === "true" || isAdmin) && (
+            <button
+              onClick={() => setMcStep("card")}
+              disabled={sending}
+              style={{ ...s.payBtn, background: "linear-gradient(135deg,#0284c7,#0ea5e9)", color: "#fff", marginBottom: 10 }}
+            >
+              <span style={{ fontSize: 22 }}>📲</span>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>موبي كاش</div>
+                <div style={{ fontSize: 11, opacity: 0.85 }}>بطاقة مصرف الوحدة — OTP</div>
+              </div>
+              <span style={{ marginRight: "auto", fontWeight: 700, fontSize: 13 }}>{priceLYD.toFixed(0)} د.ل</span>
+            </button>
+            )}
+
             <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0 10px" }}>
               <div style={{ flex: 1, height: 1, background: "#f3f4f6" }} />
               <span style={{ fontSize: 11, color: "#d1d5db" }}>بوابات أخرى</span>
@@ -736,7 +883,7 @@ export default function OrderPage() {
               ))}
             </div>
 
-            {["mobicash", "masrefypay", "yousrpay", "saharpay"].includes(selectedMethod) && (
+            {["masrefypay", "yousrpay", "saharpay"].includes(selectedMethod) && (
               <input placeholder="💳 رقم البطاقة (7 أرقام)" value={cardNumber} onChange={e => setCardNumber(e.target.value)} style={{ ...s.input, marginBottom: 10 }} />
             )}
 
