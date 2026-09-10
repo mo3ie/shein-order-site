@@ -1,4 +1,13 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { resolveSharedCart, isSheinShareUrl } from "@/lib/resolver";
+
+export const runtime = "nodejs";
+// Vercel caps function duration well below a full resolve (~75s). Order
+// creation therefore relies on the resolver's cache: the customer verified the
+// price seconds earlier, so the same cart is still cached and comes back in a
+// few seconds. A cache miss must fail fast rather than hang until the platform
+// kills the request mid-write.
+export const maxDuration = 60;
 
 // Verify the caller is an admin/employee via Bearer token (same pattern as
 // /api/admin/employees). Returns the user or null.
@@ -97,6 +106,52 @@ export async function POST(req) {
 
     const { name, phone, cart_link, price, image_url, user_id } = body;
 
+    // The price is re-derived on the server. Before the resolver existed the
+    // client sent whatever OCR produced and it was stored verbatim, so a crafted
+    // request could set any price for any cart. The browser's number is now
+    // treated as a hint and checked against a fresh read of the real cart.
+    let verifiedPrice = null;
+    let priceSource = "unverified";
+    if (!isSheinShareUrl(cart_link)) {
+      return Response.json(
+        { success: false, message: "رابط السلة غير صالح." },
+        { status: 400 }
+      );
+    }
+    try {
+      const resolved = await resolveSharedCart(cart_link, { maxWaitMs: 35000 });
+      verifiedPrice = resolved.estimatedPrice;
+      priceSource = resolved.source;
+      console.log(
+        `[order] cart=${resolved.groupId} items=${resolved.itemCount}` +
+        ` verified=$${verifiedPrice} account=${resolved.internal.selectedAccount}` +
+        ` clientSaid=${price}`
+      );
+    } catch (e) {
+      console.error(`[order] price verification failed: ${e.code} ${e.detail || e.message}`);
+      const timedOut = e.code === "TIMEOUT";
+      return Response.json(
+        {
+          success: false,
+          code: e.code || "RESOLVER_FAILED",
+          message: timedOut
+            ? "انتهت صلاحية التحقق من السعر. اضغط \"تحقق من السلة والسعر\" مرة أخرى ثم أرسل الطلب."
+            : e.message,
+        },
+        { status: 502 }
+      );
+    }
+
+    // A client price above the verified one would undercharge nobody but us; a
+    // client price below it would let a customer pay less than the cart costs.
+    // Either way the verified figure is what gets stored.
+    const clientPrice = Number(price);
+    if (Number.isFinite(clientPrice) && Math.abs(clientPrice - verifiedPrice) > 0.01) {
+      console.warn(
+        `[order] client price ${clientPrice} != verified ${verifiedPrice} — using verified`
+      );
+    }
+
    const { data, error } = await supabaseAdmin
   .from("orders")
   .insert([
@@ -107,7 +162,10 @@ export async function POST(req) {
       image_url,
       type: "shein",
       status: "new",
-      price,
+      // Only the verified figure is stored. `price_source` is logged rather than
+      // written: adding a column to the live orders table is a schema change and
+      // is not mine to make.
+      price: verifiedPrice,
       ...(user_id ? { user_id } : {}),
     }
   ])

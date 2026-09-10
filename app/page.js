@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import Tesseract from "tesseract.js";
 
 const PRIMARY   = "#7c3aed";
 const GRADIENT  = "linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%)";
@@ -26,8 +25,6 @@ export default function OrderPage() {
   const [selectedMethod,    setSelectedMethod]    = useState(null);
   const [cardNumber,        setCardNumber]        = useState("");
   const [errors,            setErrors]            = useState({});
-  const [priceWarning,      setPriceWarning]      = useState(false);
-  const [priceCurrencyErr,  setPriceCurrencyErr]  = useState(false);
   const [orderId,           setOrderId]           = useState(null);
   const [edfaliStep,        setEdfaliStep]        = useState(null);
   const [edfaliSession,     setEdfaliSession]     = useState(null);
@@ -39,6 +36,13 @@ export default function OrderPage() {
   const [mcOtp,             setMcOtp]             = useState("");
   const [mcOrderId,         setMcOrderId]         = useState(null);
   const [isAdmin,           setIsAdmin]           = useState(false);
+  // Price now comes from the resolver service (a real SHEIN cart read on our own
+  // accounts) instead of OCR on a customer screenshot.
+  const [resolveState,      setResolveState]      = useState("idle"); // idle|checking|verified|failed
+  const [resolveError,      setResolveError]      = useState("");
+  const [itemCount,         setItemCount]         = useState(null);
+  const [resolvedLink,      setResolvedLink]      = useState("");
+  const [elapsed,           setElapsed]           = useState(0);
 
   const base      = price || 0;
   const profit    = base * 0.01;
@@ -72,128 +76,76 @@ export default function OrderPage() {
     if (!isValidSheinLink(cartLink))  errs.cartLink = "يجب أن يكون رابط سلة من موقع shein.com";
     if (!name.trim())                 errs.name     = "أدخل اسمك الكامل";
     if (!isValidLibyanPhone(phone))   errs.phone    = "رقم الهاتف غير صحيح — مثال: 0913456789";
-    if (!image)                       errs.image    = "يجب رفع صورة تحتوي على السعر المقدر";
-    if (priceCurrencyErr)             errs.price    = "العملة ليست دولار — افتح شي إن على دبي/الإمارات";
-    else if (!price)                  errs.price    = "لم يُستخرج سعر من الصورة";
+    if (resolveState !== "verified" || !price) {
+      errs.price = "اضغط \"تحقق من السلة والسعر\" أولاً";
+    } else if (resolvedLink !== cartLink.trim()) {
+      // The link changed after verification — the price on screen is stale.
+      errs.price = "تغيّر الرابط بعد التحقق — تحقق من السلة مرة أخرى";
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
 
-  // ── OCR ─────────────────────────────────────────────────────────────────
-  // Parse SHEIN "Promotion Details" OCR text into a charged price.
-  // Returns { ok:true, finalPrice, path } or { ok:false, reject:"format"|"currency" }.
-  function parseSheinPrice(text) {
-    const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+  // The screenshot is kept as an attachment for the admin, but it is no longer
+  // a price source: the price comes from the resolver reading the real cart.
+  // The Tesseract OCR pipeline that used to parse "Estimated Price" out of it
+  // has been removed rather than left dormant.
 
-    // Pull a $ amount (always 2 decimals, e.g. $59.61 / 59.61$; OCR may read $ as S).
-    // Requiring the decimals avoids matching coupon countdown timers (16 : 22 : 56).
-    const amountAt = (idx, span = 1) => {
-      for (let k = idx; k >= 0 && k <= Math.min(idx + span, lines.length - 1); k++) {
-        const L = lines[k];
-        const m = L.match(/\$\s*([\d][\d.,]*\.\d{2})/) ||
-                  L.match(/([\d][\d.,]*\.\d{2})\s*\$/) ||
-                  L.match(/\bS\s*([\d][\d.,]*\.\d{2})\b/);
-        if (m) { const v = parseFloat(m[1].replace(/,/g, "")); if (!isNaN(v) && v >= 0 && v <= 99999) return v; }
-      }
-      return null;
-    };
-
-    // Locate the breakdown labels (AR + EN), fuzzy because Arabic OCR is imperfect
-    // (التجزئة -> التجزثة).
-    let iEstimated = -1, iRetail = -1, iPromo = -1, iCoupon = -1;
-    for (let i = 0; i < lines.length; i++) {
-      const L = lines[i];
-      if (iEstimated < 0 && (/estim\w*\s*price/i.test(L) || /المقدر/.test(L)))  iEstimated = i;
-      if (iRetail    < 0 && (/retail\s*price/i.test(L) || /التجز/.test(L)))      iRetail = i;
-      if (iPromo     < 0 && (/promotions/i.test(L) || (/العروض/.test(L) && !/الترويجية|تفاصيل/.test(L)))) iPromo = i;
-      if (iCoupon    < 0 && (/coupon/i.test(L) || /كوبون/.test(L) || /قسيمة/.test(L))) iCoupon = i;
-    }
-
-    // FORMAT LOCK: must show BOTH retail and estimated price (retail first). This
-    // blocks random images that merely contain an "estimated price".
-    if (iEstimated < 0 || iRetail < 0 || iRetail >= iEstimated) return { ok: false, reject: "format" };
-
-    const estimated = amountAt(iEstimated, 1);
-    const retail    = amountAt(iRetail, 1);
-    if (estimated == null || retail == null) return { ok: false, reject: "currency" };
-
-    // Charge retail - promotions (== estimated + coupon): offers apply, coupon does
-    // NOT. Each small orange discount is sanity-checked against the total discount
-    // (retail - estimated = promotions + coupon) so a mis-OCR'd value can't be used.
-    const totalDiscount = Math.round((retail - estimated) * 100) / 100;
-    const inPanel = (idx) => idx >= iRetail && idx <= iEstimated + 1;
-    const promo   = (iPromo  >= 0 && inPanel(iPromo))  ? amountAt(iPromo, 1)  : null;
-    const coupon  = (iCoupon >= 0 && inPanel(iCoupon)) ? amountAt(iCoupon, 1) : null;
-    const sane = (x) => x != null && x > 0 && x <= totalDiscount + 0.5;
-
-    let finalPrice, path;
-    if (sane(promo))       { finalPrice = retail - Math.abs(promo);     path = "discount"; }
-    else if (sane(coupon)) { finalPrice = estimated + Math.abs(coupon); path = "discount"; }
-    else                   { finalPrice = estimated;                    path = "fallback"; }
-
-    return { ok: true, finalPrice: Math.round(finalPrice * 100) / 100, path };
-  }
-
-  // Blue-channel + upscale preprocessing. SHEIN's discount lines are small ORANGE
-  // numbers (high red / low blue) that raw OCR misses on Arabic screens; the blue
-  // channel renders both orange AND black as dark text on a light background.
-  async function preprocessBlue(file) {
-    const bitmap = await createImageBitmap(file);
-    const targetW = bitmap.width < 1100 ? 1100 : bitmap.width;
-    const targetH = Math.round(bitmap.height * targetW / bitmap.width);
-    const canvas = document.createElement("canvas");
-    canvas.width = targetW; canvas.height = targetH;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(bitmap, 0, 0, targetW, targetH);
-    const id = ctx.getImageData(0, 0, targetW, targetH);
-    const d = id.data;
-    let min = 255, max = 0;
-    for (let i = 0; i < d.length; i += 4) { const b = d[i + 2]; if (b < min) min = b; if (b > max) max = b; }
-    const range = Math.max(1, max - min);
-    for (let i = 0; i < d.length; i += 4) { const v = Math.round((d[i + 2] - min) * 255 / range); d[i] = d[i + 1] = d[i + 2] = v; }
-    ctx.putImageData(id, 0, 0);
-    return canvas;
-  }
-
-  async function handleImage(file) {
-    setLoading(true);
-    setPriceWarning(false);
-    setPriceCurrencyErr(false);
-    setPrice(null);
-
-    const opts = { workerPath: "/tesseract-worker.min.js", langPath: "/tessdata" };
-    const ocr = async (input) => (await Tesseract.recognize(input, "eng+ara", opts)).data.text;
-
-    const results = [];
-    let raw = null;
-    try { raw = parseSheinPrice(await ocr(file)); results.push(raw); } catch {}
-
-    // Only run the heavier blue-channel pass when the raw pass didn't cleanly read
-    // a discount (e.g. Arabic screens where the orange numbers are invisible to OCR).
-    if (!raw || !raw.ok || raw.path !== "discount") {
-      try { results.push(parseSheinPrice(await ocr(await preprocessBlue(file)))); } catch {}
-    }
-
-    setLoading(false);
-
-    const ok = results.filter(r => r && r.ok);
-    if (ok.length === 0) {
-      if (results.some(r => r && r.reject === "currency")) setPriceCurrencyErr(true);
-      else setPriceWarning(true);
-      setPrice(null);
+  // ── Cart verification (replaces the screenshot OCR) ──────────────────────
+  async function handleResolveCart() {
+    const link = cartLink.trim();
+    if (!isValidSheinLink(link)) {
+      setErrors(p => ({ ...p, cartLink: "يجب أن يكون رابط سلة من موقع shein.com" }));
       return;
     }
+    setResolveState("checking");
+    setResolveError("");
+    setElapsed(0);
+    setPrice(null);
+    setItemCount(null);
+    setErrors(p => ({ ...p, price: null, cartLink: null }));
 
-    // Prefer a pass that actually read a discount; if both did and they disagree,
-    // take the lower price (never overcharge the customer).
-    const withDiscount = ok.filter(r => r.path === "discount");
-    let finalPrice;
-    if (withDiscount.length === 0)      finalPrice = ok[0].finalPrice;
-    else if (withDiscount.length === 1) finalPrice = withDiscount[0].finalPrice;
-    else finalPrice = Math.min(withDiscount[0].finalPrice, withDiscount[1].finalPrice);
+    const finish = (data) => {
+      setPrice(Number(data.estimatedPrice));
+      setItemCount(data.itemCount ?? null);
+      setResolvedLink(link);
+      setResolveState("verified");
+    };
+    const fail = (msg) => { setResolveState("failed"); setResolveError(msg); };
 
-    if (finalPrice < 0.5 || finalPrice > 9999) { setPriceCurrencyErr(true); setPrice(null); return; }
-    setPrice(finalPrice);
+    try {
+      // Start the job. Reading a real cart takes minutes, so the request only
+      // kicks it off — the result is collected by polling.
+      const res  = await fetch("/api/resolve-cart", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: link }),
+      });
+      const data = await res.json();
+
+      if (!data.success) return fail(data.message || "تعذّر التحقق من السعر.");
+      if (data.status !== "pending") return finish(data);   // served from cache
+
+      const started = Date.now();
+      const LIMIT_MS = 5 * 60 * 1000;
+      for (;;) {
+        await new Promise(r => setTimeout(r, 4000));
+        setElapsed(Math.round((Date.now() - started) / 1000));
+
+        const p = await fetch(
+          `/api/resolve-cart?job=${encodeURIComponent(data.jobId)}&url=${encodeURIComponent(link)}`
+        );
+        const pd = await p.json();
+
+        if (!pd.success) return fail(pd.message || "تعذّر التحقق من السعر.");
+        if (pd.status !== "pending") return finish(pd);
+        if (Date.now() - started > LIMIT_MS) {
+          return fail("استغرق التحقق وقتاً أطول من المتوقع. حاول مرة أخرى.");
+        }
+      }
+    } catch {
+      fail("تعذّر الاتصال بخدمة التسعير. حاول مرة أخرى.");
+    }
   }
 
   // ── Upload helper ────────────────────────────────────────────────────────
@@ -473,8 +425,40 @@ export default function OrderPage() {
           />
           {errors.cartLink
             ? <p style={s.err}>⚠️ {errors.cartLink}</p>
-            : <p style={s.hint}>🔗 يُقبل فقط رابط من shein.com — روابط المتاجر الأخرى مرفوضة</p>
+            : <p style={s.hint}>🔗 الصق رابط <strong>السلة المشتركة</strong> من تطبيق شي إن (زر المشاركة داخل السلة)</p>
           }
+
+          {/* Verify the cart on our side — this is where the price comes from now. */}
+          <button
+            type="button"
+            onClick={handleResolveCart}
+            disabled={resolveState === "checking" || !cartLink.trim()}
+            style={{
+              ...s.verifyBtn,
+              opacity: (resolveState === "checking" || !cartLink.trim()) ? 0.6 : 1,
+              cursor:  (resolveState === "checking" || !cartLink.trim()) ? "not-allowed" : "pointer",
+            }}
+          >
+            {resolveState === "checking"
+              ? `⏳ جاري التحقق... ${elapsed > 0 ? elapsed + " ثانية" : ""}`
+              : "🔍 تحقق من السلة والسعر"}
+          </button>
+
+          {resolveState === "checking" && (
+            <p style={s.hint}>
+              نفتح سلتك على شي إن ونقرأ سعرها الفعلي — قد يستغرق ذلك دقيقة إلى ثلاث.
+              لا تغلق الصفحة، ولا حاجة للضغط مرة أخرى.
+            </p>
+          )}
+          {resolveState === "verified" && (
+            <div style={s.okBox}>
+              ✅ <strong>تم التحقق من السعر</strong>
+              {itemCount ? <> — {itemCount} منتج في السلة</> : null}
+            </div>
+          )}
+          {resolveState === "failed" && (
+            <div style={s.noteRed}>❌ {resolveError}</div>
+          )}
 
           {/* Name */}
           <label style={s.label}>الاسم الكامل</label>
@@ -503,7 +487,7 @@ export default function OrderPage() {
 
           {/* Image note */}
           <div style={s.noteYellow}>
-            📸 <strong>مهم:</strong> ارفع سكرين شوت من تطبيق شي إن يظهر فيه <strong>السعر المقدر (Estimated Price)</strong> بالدولار الأمريكي $ بوضوح — لا تُقبل صور بعملات أخرى.
+            📸 <strong>اختياري:</strong> يمكنك رفع سكرين شوت للسلة إن أردت — لم يعد مطلوباً، فالسعر يُقرأ آلياً من رابط السلة.
           </div>
 
           {/* Upload */}
@@ -517,14 +501,11 @@ export default function OrderPage() {
                 if (!file) return;
                 setImage(file);
                 setErrors(p => ({ ...p, image: null, price: null }));
-                setPriceWarning(false);
-                setPriceCurrencyErr(false);
-                handleImage(file);
               }}
             />
             <span style={{ fontSize: 28 }}>📷</span>
             <span style={{ fontSize: 13, color: image ? PRIMARY : "#9ca3af", fontWeight: image ? 600 : 400 }}>
-              {image ? image.name : "اضغط لرفع صورة السعر المقدر"}
+              {image ? image.name : "اضغط لرفع صورة (اختياري)"}
             </span>
           </label>
           {errors.image && <p style={s.err}>⚠️ {errors.image}</p>}
@@ -546,24 +527,9 @@ export default function OrderPage() {
             </div>
           )}
 
-          {priceCurrencyErr && !loading && (
-            <div style={s.noteRed}>
-              ❌ <strong>السعر المقدر ليس بالدولار الأمريكي ($).</strong><br /><br />
-              لتصحيح ذلك:<br />
-              ١. افتح تطبيق شي إن<br />
-              ٢. اذهب إلى <strong>الإعدادات ← الدولة / المنطقة</strong><br />
-              ٣. اختر <strong>الإمارات العربية المتحدة 🇦🇪</strong><br />
-              ٤. تأكد أن العملة أصبحت <strong>USD $</strong> ثم أعد التصوير
-            </div>
-          )}
-          {priceWarning && !loading && (
-            <div style={s.noteRed}>
-              ⚠️ لم يُعثر على <strong>"Estimated Price"</strong> في الصورة. تأكد أن السعر المقدر ظاهر بوضوح بالدولار $.
-            </div>
-          )}
           {errors.price && <p style={s.err}>⚠️ {errors.price}</p>}
           {price > 0 && !loading && (
-            <p style={{ color: "#16a34a", fontSize: 13, margin: "6px 0 0", fontWeight: 600 }}>✅ تم استخراج السعر: {price} $</p>
+            <p style={{ color: "#16a34a", fontSize: 13, margin: "6px 0 0", fontWeight: 600 }}>✅ سعر السلة: {price} $</p>
           )}
 
           {/* Price breakdown */}
@@ -968,6 +934,16 @@ const s = {
   uploadBoxErr: {
     borderColor: "#f87171",
     background: "#fff5f5",
+  },
+  verifyBtn: {
+    width: "100%", padding: "13px 16px", marginTop: 10, borderRadius: 12,
+    border: "none", background: GRADIENT, color: "#fff",
+    fontSize: 15, fontWeight: 700, fontFamily: "inherit",
+  },
+  okBox: {
+    marginTop: 10, padding: "11px 14px", borderRadius: 12,
+    background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#15803d",
+    fontSize: 13, lineHeight: 1.7,
   },
   noteBlue: {
     background: "#eff6ff",
