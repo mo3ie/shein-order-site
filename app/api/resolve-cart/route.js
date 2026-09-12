@@ -52,9 +52,9 @@ function publicPayload(result) {
 
 export async function POST(req) {
   const requestId = randomUUID().slice(0, 8);
-  let url;
+  let url, quantities;
   try {
-    ({ url } = await req.json());
+    ({ url, quantities } = await req.json());
   } catch {
     return Response.json(
       { success: false, code: "INVALID_LINK", message: "طلب غير صالح." },
@@ -84,7 +84,12 @@ export async function POST(req) {
   }
 
   try {
-    const { jobId, joined } = await startResolveJob(shareUrl);
+    // Quantities make this a different measurement of the same link: the cart
+    // is priced with them set, not with one of each.
+    const qty = Array.isArray(quantities)
+      ? quantities.filter((q) => Number(q.wanted) > 1)
+      : null;
+    const { jobId, joined } = await startResolveJob(shareUrl, { quantities: qty?.length ? qty : null });
     console.log(`[resolve ${requestId}] job=${jobId}${joined ? " (joined an existing run)" : ""}`);
     // 202: the work has started. The browser polls GET for the result — holding
     // this request open for minutes breaks on every timeout in the chain.

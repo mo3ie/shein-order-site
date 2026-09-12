@@ -54,6 +54,8 @@ export default function OrderPage() {
   const uploadedUrlsRef = useRef([]);
   const [quantities,        setQuantities]        = useState({});
   const [breakdown,         setBreakdown]         = useState(null);
+  const [exactPrice,        setExactPrice]        = useState(null);
+  const [repricing,         setRepricing]         = useState(false);
 
   // A SHEIN share link carries no quantities: three of one shirt arrive as one
   // line of one, and the same shirt in another size arrives as its own line. So
@@ -71,7 +73,9 @@ export default function OrderPage() {
   }, 0);
   const quantityChanged = cartItems.some((it, i) => Number(quantities[i] ?? 1) !== (it.quantity || 1));
 
-  const base      = (price || 0) + extrasUSD;
+  // Once SHEIN has priced the chosen quantities, that figure replaces the
+  // estimate everywhere — including the button the customer pays from.
+  const base      = exactPrice != null ? exactPrice : (price || 0) + extrasUSD;
   const profit    = base * 0.01;
   const totalUSD  = base + profit;
   const priceLYD  = exchangeRate ? totalUSD * exchangeRate : 0;
@@ -150,6 +154,67 @@ export default function OrderPage() {
     return () => { cancelled = true; };
   }, []);
 
+  /**
+   * Prices the cart again with the quantities the customer chose.
+   *
+   * Not arithmetic: the quantities are set inside SHEIN's own cart and the
+   * checkout is read again, because raising a line can cross the free-shipping
+   * threshold and change the promotion — on one test cart it did both.
+   */
+  async function handleReprice() {
+    const link = cartLink.trim();
+    if (!link || repricing) return;
+    setRepricing(true);
+    setResolveError("");
+
+    const wanted = cartItems.map((it, i) => ({
+      name: it.name,
+      shared: it.quantity || 1,
+      wanted: Number(quantities[i] ?? it.quantity ?? 1),
+    }));
+
+    try {
+      const res = await fetch("/api/resolve-cart", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: link, quantities: wanted }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setResolveError(data.message || "تعذّر قراءة السعر الجديد.");
+        return;
+      }
+      const settle = (d) => {
+        setExactPrice(Number(d.estimatedPrice));
+        setBreakdown(d.breakdown || null);
+        if (d.itemCount != null) setItemCount(d.itemCount);
+      };
+      if (data.status !== "pending") { settle(data); return; }
+
+      const started = Date.now();
+      for (;;) {
+        await new Promise(r => setTimeout(r, 4000));
+        setElapsed(Math.round((Date.now() - started) / 1000));
+        const p = await fetch(
+          `/api/resolve-cart?job=${encodeURIComponent(data.jobId)}&url=${encodeURIComponent(link)}`
+        );
+        const pd = await p.json();
+        if (!pd.success) { setResolveError(pd.message || "تعذّر قراءة السعر الجديد."); return; }
+        if (pd.queue) setQueue({ ...pd.queue, averageMs: pd.averageMs });
+        if (pd.status !== "pending") { settle(pd); return; }
+        if (Date.now() - started > 6 * 60 * 1000) {
+          setResolveError("استغرقت قراءة السعر وقتاً أطول من المتوقع. حاول مرة أخرى.");
+          return;
+        }
+      }
+    } catch {
+      setResolveError("تعذّر الاتصال بخدمة التسعير. حاول مرة أخرى.");
+    } finally {
+      setRepricing(false);
+      setQueue(null);
+    }
+  }
+
   // ── Validation ──────────────────────────────────────────────────────────
   function isValidSheinLink(url) { return /shein\.com/i.test(url.trim()); }
   function isValidLibyanPhone(p) {
@@ -164,6 +229,9 @@ export default function OrderPage() {
     if (!area.trim())                 errs.area     = "أدخل المنطقة";
     if (resolveState !== "verified" || !price) {
       errs.price = "اضغط \"تحقق من السلة والسعر\" أولاً";
+    } else if (quantityChanged && exactPrice == null) {
+      // An estimate must never be the number someone pays.
+      errs.price = "اضغط \"إعادة حساب السلة\" لتأكيد السعر النهائي بالكميات التي اخترتها";
     } else if (resolvedLink !== cartLink.trim()) {
       // The link changed after verification — the price on screen is stale.
       errs.price = "تغيّر الرابط بعد التحقق — تحقق من السلة مرة أخرى";
@@ -620,39 +688,55 @@ export default function OrderPage() {
                     : <div style={{ ...s.qtyThumb, background: "#f3f4f6" }} />}
                   <div style={s.qtyInfo}>
                     <div style={s.qtyName}>{it.name}</div>
+                    {/* The plain product price, which is the one the estimate
+                        is built on. Showing the coupon price beside it made the
+                        row disagree with the total underneath. */}
                     <div style={s.qtyMeta}>
-                      {it.variant ? it.variant + " · " : ""}
-                      <strong style={{ color: "#dc2626" }}>
-                        ${Number(it.unitSaleUsd ?? it.unitRetailUsd ?? 0).toFixed(2)}
-                      </strong>
-                      {Number(it.unitRetailUsd) > Number(it.unitSaleUsd) && (
-                        <span style={{ textDecoration: "line-through", color: "#9ca3af", marginRight: 6 }}>
-                          ${Number(it.unitRetailUsd).toFixed(2)}
-                        </span>
-                      )}
+                      {it.variant ? <span>{it.variant}</span> : null}
+                      <strong>${Number(it.unitRetailUsd ?? it.unitSaleUsd ?? 0).toFixed(2)}</strong>
                     </div>
-                    {it.offerEndsIn && (
-                      <div style={s.qtyTimer}>⏳ {it.offerEndsIn}</div>
-                    )}
                   </div>
                   <div style={s.qtyCtrl}>
                     <button
                       type="button"
                       style={s.qtyBtn}
-                      onClick={() => setQuantities(q => ({ ...q, [i]: Math.max(1, Number(q[i] ?? 1) - 1) }))}
+                      onClick={() => { setExactPrice(null); setQuantities(q => ({ ...q, [i]: Math.max(1, Number(q[i] ?? 1) - 1) })); }}
                     >−</button>
                     <span style={s.qtyVal}>{quantities[i] ?? it.quantity ?? 1}</span>
                     <button
                       type="button"
                       style={s.qtyBtn}
-                      onClick={() => setQuantities(q => ({ ...q, [i]: Math.min(20, Number(q[i] ?? 1) + 1) }))}
+                      onClick={() => { setExactPrice(null); setQuantities(q => ({ ...q, [i]: Math.min(20, Number(q[i] ?? 1) + 1) })); }}
                     >+</button>
                   </div>
                 </div>
               ))}
-              {quantityChanged && (
-                <p style={s.qtyWarn}>
-                  ⓘ السعر أعلاه تقديري للكميات الإضافية. نتحقق من السعر النهائي من شي إن قبل تأكيد طلبك.
+              {quantityChanged && !exactPrice && (
+                <>
+                  <p style={s.qtyWarn}>
+                    ⚠️ السعر الظاهر الآن بعد تعديل الكميات <strong>سعر تقديري</strong>، ولا يحسب
+                    السعر بالعروض. بعد تحديد كميتك اطلب <strong>إعادة حساب السلة</strong> ليظهر لك
+                    السعر النهائي.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleReprice}
+                    disabled={repricing}
+                    style={{ ...s.repriceBtn, opacity: repricing ? 0.6 : 1, cursor: repricing ? "not-allowed" : "pointer" }}
+                  >
+                    {repricing ? "⏳ جاري إعادة حساب السلة..." : "🔄 إعادة حساب السلة"}
+                  </button>
+                  {repricing && (
+                    <p style={s.qtyNote}>
+                      نضبط الكميات داخل سلتك على شي إن ونقرأ السعر منها — قد يستغرق ذلك دقيقتين إلى ثلاث.
+                      يمكنك إغلاق الصفحة والعودة.
+                    </p>
+                  )}
+                </>
+              )}
+              {quantityChanged && exactPrice && (
+                <p style={s.qtyOk}>
+                  ✅ هذا هو السعر النهائي من شي إن بالكميات التي اخترتها.
                 </p>
               )}
             </div>
@@ -1238,26 +1322,25 @@ const s = {
   qtyTitle: { fontWeight: 800, fontSize: 14, marginBottom: 4 },
   qtyNote: { fontSize: 12.5, color: "#6b7280", lineHeight: 1.7, margin: "0 0 10px" },
   qtyRow: {
-    display: "flex", alignItems: "center", gap: 10,
-    padding: "9px 0", borderTop: "1px solid #f3f4f6",
+    display: "flex", alignItems: "flex-start", gap: 10,
+    padding: "11px 0", borderTop: "1px solid #f3f4f6",
   },
   qtyInfo: { flex: 1, minWidth: 0 },
   qtyThumb: {
-    width: 48, height: 48, borderRadius: 8, objectFit: "cover",
+    width: 56, height: 56, borderRadius: 8, objectFit: "cover",
     flexShrink: 0, border: "1px solid #e5e7eb",
   },
-  qtyName: {
-    fontSize: 12.5, lineHeight: 1.5, overflow: "hidden",
-    display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+  qtyName: { fontSize: 12.5, lineHeight: 1.6, wordBreak: "break-word" },
+  qtyMeta: {
+    fontSize: 12, color: "#6b7280", marginTop: 4,
+    display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
   },
-  qtyMeta: { fontSize: 12, color: "#6b7280", marginTop: 2, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" },
-  qtyTimer: { fontSize: 11.5, color: "#b45309", marginTop: 3, fontWeight: 600 },
   imgRemove: {
     position: "absolute", top: -6, insetInlineEnd: -6, width: 20, height: 20,
     borderRadius: "50%", border: "none", background: "#ef4444", color: "#fff",
     fontSize: 13, lineHeight: "20px", cursor: "pointer", padding: 0, fontFamily: "inherit",
   },
-  qtyCtrl: { display: "flex", alignItems: "center", gap: 6, flexShrink: 0 },
+  qtyCtrl: { display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginTop: 2 },
   qtyBtn: {
     width: 30, height: 30, borderRadius: 8, border: "1px solid #d1d5db",
     background: "#f9fafb", fontSize: 17, lineHeight: 1, cursor: "pointer", fontFamily: "inherit",
@@ -1267,6 +1350,16 @@ const s = {
     width: "100%", marginTop: 8, padding: "11px 14px", borderRadius: 12,
     border: "1px dashed #d1d5db", background: "#fafafa", color: "#374151",
     fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+  },
+  repriceBtn: {
+    width: "100%", marginTop: 10, padding: "11px 14px", borderRadius: 12,
+    border: "none", background: "#1d4ed8", color: "#fff",
+    fontSize: 13.5, fontWeight: 700, fontFamily: "inherit",
+  },
+  qtyOk: {
+    marginTop: 10, marginBottom: 0, fontSize: 12.5, lineHeight: 1.7,
+    color: "#15803d", background: "#f0fdf4", border: "1px solid #bbf7d0",
+    borderRadius: 10, padding: "9px 11px",
   },
   qtyWarn: {
     marginTop: 10, marginBottom: 0, fontSize: 12.5, lineHeight: 1.7,
