@@ -31,6 +31,18 @@ function publicPayload(result) {
     itemCount: result.itemCount,
     source: result.source,
     checkedAt: result.checkedAt,
+    // The cart's lines, so the customer can set the quantities SHEIN's share
+    // link throws away: three of one shirt arrive as a single line of one.
+    // The screenshot is deliberately NOT sent to the browser -- it is ~300KB
+    // and only the admin needs it; the order route fetches it server-side.
+    items: (result.items || []).map((i) => ({
+      name: i.name,
+      variant: i.variant,
+      unitRetailUsd: i.unitRetailUsd,
+      unitSaleUsd: i.unitSaleUsd,
+      quantity: i.quantity ?? 1,
+    })),
+    breakdown: result.breakdown || null,
   };
 }
 

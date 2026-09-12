@@ -14,6 +14,11 @@ export default function OrderPage() {
   const [cartLink,          setCartLink]          = useState("");
   const [name,              setName]              = useState("");
   const [phone,             setPhone]             = useState("");
+  const [city,              setCity]              = useState("");
+  const [area,              setArea]              = useState("");
+  const [addressNote,       setAddressNote]       = useState("");
+  const [geo,               setGeo]               = useState(null);
+  const [geoState,          setGeoState]          = useState("idle");
   const [image,             setImage]             = useState(null);
   const [price,             setPrice]             = useState(null);
   const [exchangeRate,      setExchangeRate]      = useState(1);
@@ -44,8 +49,27 @@ export default function OrderPage() {
   const [resolvedLink,      setResolvedLink]      = useState("");
   const [elapsed,           setElapsed]           = useState(0);
   const [queue,             setQueue]             = useState(null);
+  const [cartItems,         setCartItems]         = useState([]);
+  const [quantities,        setQuantities]        = useState({});
+  const [breakdown,         setBreakdown]         = useState(null);
 
-  const base      = price || 0;
+  // A SHEIN share link carries no quantities: three of one shirt arrive as one
+  // line of one, and the same shirt in another size arrives as its own line. So
+  // the customer sets quantities here, and anything above the one SHEIN sent is
+  // added at that line's own unit price.
+  //
+  // This is an ESTIMATE shown instantly. SHEIN's promotions and shipping move
+  // with quantity in ways only SHEIN can compute, so the order route re-reads
+  // the real cart before anything is charged.
+  const extrasUSD = cartItems.reduce((sum, it, i) => {
+    const want = Number(quantities[i] ?? it.quantity ?? 1);
+    const extra = Math.max(0, want - (it.quantity || 1));
+    const unit = Number(it.unitRetailUsd ?? it.unitSaleUsd ?? 0);
+    return sum + extra * unit;
+  }, 0);
+  const quantityChanged = cartItems.some((it, i) => Number(quantities[i] ?? 1) !== (it.quantity || 1));
+
+  const base      = (price || 0) + extrasUSD;
   const profit    = base * 0.01;
   const totalUSD  = base + profit;
   const priceLYD  = exchangeRate ? totalUSD * exchangeRate : 0;
@@ -104,6 +128,9 @@ export default function OrderPage() {
           if (pd.status !== "pending") {
             try { localStorage.removeItem("trend_price_job"); } catch {}
             setQueue(null);
+            setCartItems(pd.items || []);
+            setBreakdown(pd.breakdown || null);
+            setQuantities(Object.fromEntries((pd.items || []).map((it, i) => [i, it.quantity || 1])));
             setPrice(Number(pd.estimatedPrice));
             setItemCount(pd.itemCount ?? null);
             setResolvedLink(saved.link);
@@ -131,6 +158,8 @@ export default function OrderPage() {
     if (!isValidSheinLink(cartLink))  errs.cartLink = "يجب أن يكون رابط سلة من موقع shein.com";
     if (!name.trim())                 errs.name     = "أدخل اسمك الكامل";
     if (!isValidLibyanPhone(phone))   errs.phone    = "رقم الهاتف غير صحيح — مثال: 0913456789";
+    if (!city.trim())                 errs.city     = "أدخل المدينة";
+    if (!area.trim())                 errs.area     = "أدخل المنطقة";
     if (resolveState !== "verified" || !price) {
       errs.price = "اضغط \"تحقق من السلة والسعر\" أولاً";
     } else if (resolvedLink !== cartLink.trim()) {
@@ -157,6 +186,9 @@ export default function OrderPage() {
     setResolveError("");
     setElapsed(0);
     setQueue(null);
+    setCartItems([]);
+    setQuantities({});
+    setBreakdown(null);
     setPrice(null);
     setItemCount(null);
     setErrors(p => ({ ...p, price: null, cartLink: null }));
@@ -164,6 +196,9 @@ export default function OrderPage() {
     const finish = (data) => {
       try { localStorage.removeItem("trend_price_job"); } catch {}
       setQueue(null);
+      setCartItems(data.items || []);
+      setBreakdown(data.breakdown || null);
+      setQuantities(Object.fromEntries((data.items || []).map((it, i) => [i, it.quantity || 1])));
       setPrice(Number(data.estimatedPrice));
       setItemCount(data.itemCount ?? null);
       setResolvedLink(link);
@@ -234,7 +269,18 @@ export default function OrderPage() {
     const res = await fetch("/api/order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, phone, cart_link: cartLink, price, image_url: imageUrl, user_id: user?.id }),
+      body: JSON.stringify({
+        name, phone, cart_link: cartLink, price, image_url: imageUrl, user_id: user?.id,
+        // Quantities the customer set here, because SHEIN's share link sends
+        // every line as one. The server re-reads the real cart before charging.
+        quantities: cartItems.map((it, i) => ({
+          name: it.name, variant: it.variant,
+          shared: it.quantity || 1,
+          wanted: Number(quantities[i] ?? it.quantity ?? 1),
+          unitUsd: Number(it.unitRetailUsd ?? it.unitSaleUsd ?? 0),
+        })),
+        address: { city: city.trim(), area: area.trim(), note: addressNote.trim(), geo },
+      }),
     });
     const result = await res.json();
     if (!result.success) throw new Error("فشل إنشاء الطلب");
@@ -547,6 +593,46 @@ export default function OrderPage() {
               {itemCount ? <> — {itemCount} منتج في السلة</> : null}
             </div>
           )}
+
+          {/* SHEIN's share link always reports one of each item, whatever the
+              customer actually chose, so quantities are set here. */}
+          {resolveState === "verified" && cartItems.length > 0 && (
+            <div style={s.qtyBox}>
+              <div style={s.qtyTitle}>الكميات</div>
+              <p style={s.qtyNote}>
+                رابط المشاركة من شي إن يرسل كل صنف بكمية 1 دائماً. إن كنت تريد أكثر، حدّد الكمية هنا.
+              </p>
+              {cartItems.map((it, i) => (
+                <div key={i} style={s.qtyRow}>
+                  <div style={s.qtyInfo}>
+                    <div style={s.qtyName}>{it.name}</div>
+                    <div style={s.qtyMeta}>
+                      {it.variant ? it.variant + " · " : ""}
+                      ${Number(it.unitRetailUsd ?? it.unitSaleUsd ?? 0).toFixed(2)} للقطعة
+                    </div>
+                  </div>
+                  <div style={s.qtyCtrl}>
+                    <button
+                      type="button"
+                      style={s.qtyBtn}
+                      onClick={() => setQuantities(q => ({ ...q, [i]: Math.max(1, Number(q[i] ?? 1) - 1) }))}
+                    >−</button>
+                    <span style={s.qtyVal}>{quantities[i] ?? it.quantity ?? 1}</span>
+                    <button
+                      type="button"
+                      style={s.qtyBtn}
+                      onClick={() => setQuantities(q => ({ ...q, [i]: Math.min(20, Number(q[i] ?? 1) + 1) }))}
+                    >+</button>
+                  </div>
+                </div>
+              ))}
+              {quantityChanged && (
+                <p style={s.qtyWarn}>
+                  ⓘ السعر أعلاه تقديري للكميات الإضافية. نتحقق من السعر النهائي من شي إن قبل تأكيد طلبك.
+                </p>
+              )}
+            </div>
+          )}
           {resolveState === "failed" && (
             <div style={s.noteRed}>❌ {resolveError}</div>
           )}
@@ -575,6 +661,75 @@ export default function OrderPage() {
             ? <p style={s.err}>⚠️ {errors.phone}</p>
             : <p style={s.hint}>📞 يبدأ بـ 091 أو 092 أو 093 أو 094 أو 095 — 10 أرقام</p>
           }
+
+          {/* Delivery address. Typed first, because a pin alone tells the driver
+              nothing on a street with no numbers; the map is an extra, not a
+              replacement. */}
+          <label style={s.label}>عنوان الاستلام</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              placeholder="المدينة"
+              value={city}
+              onChange={e => { setCity(e.target.value); setErrors(p => ({ ...p, city: null })); }}
+              style={{ ...s.input, ...(errors.city ? s.inputErr : {}), flex: 1 }}
+            />
+            <input
+              placeholder="المنطقة"
+              value={area}
+              onChange={e => { setArea(e.target.value); setErrors(p => ({ ...p, area: null })); }}
+              style={{ ...s.input, ...(errors.area ? s.inputErr : {}), flex: 1 }}
+            />
+          </div>
+          {(errors.city || errors.area) && <p style={s.err}>⚠️ {errors.city || errors.area}</p>}
+
+          <input
+            placeholder="أقرب نقطة دالة أو وصف إضافي (اختياري)"
+            value={addressNote}
+            onChange={e => setAddressNote(e.target.value)}
+            style={s.input}
+          />
+
+          <button
+            type="button"
+            onClick={() => {
+              if (!navigator.geolocation) { setGeoState("unsupported"); return; }
+              setGeoState("locating");
+              navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                  setGeo({
+                    lat: Number(pos.coords.latitude.toFixed(6)),
+                    lng: Number(pos.coords.longitude.toFixed(6)),
+                    accuracy: Math.round(pos.coords.accuracy),
+                  });
+                  setGeoState("ok");
+                },
+                () => setGeoState("denied"),
+                { enableHighAccuracy: true, timeout: 15000 }
+              );
+            }}
+            style={s.geoBtn}
+          >
+            {geoState === "locating" ? "⏳ جاري تحديد موقعك..."
+              : geo ? "📍 تم تحديد الموقع — اضغط للتحديث"
+              : "📍 حدّد موقعي على الخريطة"}
+          </button>
+
+          {geo && (
+            <p style={s.hint}>
+              ✅ موقع محفوظ (دقة ~{geo.accuracy} متر) —{" "}
+              <a
+                href={`https://www.google.com/maps?q=${geo.lat},${geo.lng}`}
+                target="_blank" rel="noreferrer"
+                style={{ color: PRIMARY, textDecoration: "underline" }}
+              >عرضه على الخريطة</a>
+            </p>
+          )}
+          {geoState === "denied" && (
+            <p style={s.hint}>لم نتمكن من قراءة موقعك. اكتب العنوان أعلاه ويكفي.</p>
+          )}
+          {geoState === "unsupported" && (
+            <p style={s.hint}>متصفحك لا يدعم تحديد الموقع. اكتب العنوان أعلاه ويكفي.</p>
+          )}
 
           {/* Image note */}
           <div style={s.noteYellow}>
@@ -623,33 +778,17 @@ export default function OrderPage() {
             <p style={{ color: "#16a34a", fontSize: 13, margin: "6px 0 0", fontWeight: 600 }}>✅ سعر السلة: {price} $</p>
           )}
 
-          {/* Price breakdown */}
+          {/* One number, in the currency the customer actually pays in. The
+              commission and the dollar rate are ours to know, not theirs to
+              read: showing them invited arithmetic instead of a decision. */}
           {price > 0 && (
             <div style={s.priceBox}>
-              <div style={s.priceRow}>
-                <span style={{ color: "#6b7280" }}>📦 السعر الأصلي</span>
-                <strong>{base.toFixed(2)} $</strong>
+              <div style={{ ...s.priceRow, padding: "14px 16px", background: "linear-gradient(135deg,#f0fdf4,#dcfce7)", borderRadius: 12, border: "1px solid #bbf7d0" }}>
+                <span style={{ color: "#15803d", fontWeight: 700 }}>🇱🇾 الإجمالي</span>
+                <strong style={{ fontSize: 20, color: "#15803d" }}>{priceLYD.toFixed(2)} د.ل</strong>
               </div>
-              <div style={s.priceRow}>
-                <span style={{ color: "#f97316" }}>💸 العمولة (1%)</span>
-                <strong style={{ color: "#f97316" }}>{profit.toFixed(2)} $</strong>
-              </div>
-              <hr style={{ margin: "10px 0", borderColor: "#f3f4f6", borderTop: "none" }} />
-              <div style={s.priceRow}>
-                <span style={{ color: "#2563eb" }}>💵 الإجمالي بالدولار</span>
-                <strong style={{ color: "#2563eb" }}>{totalUSD.toFixed(2)} $</strong>
-              </div>
-              <div style={s.priceRow}>
-                <span style={{ color: "#9ca3af" }}>💱 سعر الدولار</span>
-                <span style={{ color: "#9ca3af" }}>{exchangeRate} د.ل</span>
-              </div>
-              <hr style={{ margin: "10px 0", borderColor: "#f3f4f6", borderTop: "none" }} />
-              <div style={{ ...s.priceRow, padding: "12px 14px", background: "linear-gradient(135deg,#f0fdf4,#dcfce7)", borderRadius: 12, border: "1px solid #bbf7d0" }}>
-                <span style={{ color: "#15803d", fontWeight: 700 }}>🇱🇾 الإجمالي بالدينار</span>
-                <strong style={{ fontSize: 18, color: "#15803d" }}>{priceLYD.toFixed(2)} د.ل</strong>
-              </div>
-              <p style={{ fontSize: 12, color: "#facc15", margin: "8px 0 0", textAlign: "center" }}>
-                🚚 رسوم الشحن تُحدد لاحقاً حسب الوزن
+              <p style={{ fontSize: 12, color: "#6b7280", margin: "10px 0 0", textAlign: "center", lineHeight: 1.7 }}>
+                السعر شامل قيمة المنتجات ورسوم الشحن من شي إن.
               </p>
             </div>
           )}
@@ -845,7 +984,7 @@ export default function OrderPage() {
             <div style={{ textAlign: "center", marginBottom: 20 }}>
               <h3 style={{ fontSize: 18, fontWeight: 800, color: "#1e1b4b", margin: 0 }}>اختر طريقة الدفع</h3>
               <p style={{ fontSize: 13, color: "#9ca3af", margin: "4px 0 0" }}>
-                المبلغ: <strong style={{ color: PRIMARY }}>{priceLYD.toFixed(0)} د.ل</strong> أو <strong style={{ color: "#2563eb" }}>{totalUSD.toFixed(2)} $</strong>
+                المبلغ: <strong style={{ color: PRIMARY }}>{priceLYD.toFixed(0)} د.ل</strong>
               </p>
             </div>
 
@@ -1043,6 +1182,38 @@ const s = {
   },
   queuePos: { fontWeight: 700, fontSize: 14 },
   queueSub: { opacity: 0.85, fontSize: 12.5 },
+  qtyBox: {
+    marginTop: 12, padding: "12px 14px", borderRadius: 12,
+    background: "#fff", border: "1px solid #e5e7eb",
+  },
+  qtyTitle: { fontWeight: 800, fontSize: 14, marginBottom: 4 },
+  qtyNote: { fontSize: 12.5, color: "#6b7280", lineHeight: 1.7, margin: "0 0 10px" },
+  qtyRow: {
+    display: "flex", alignItems: "center", gap: 10,
+    padding: "9px 0", borderTop: "1px solid #f3f4f6",
+  },
+  qtyInfo: { flex: 1, minWidth: 0 },
+  qtyName: {
+    fontSize: 12.5, lineHeight: 1.5, overflow: "hidden",
+    display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+  },
+  qtyMeta: { fontSize: 12, color: "#6b7280", marginTop: 2 },
+  qtyCtrl: { display: "flex", alignItems: "center", gap: 6, flexShrink: 0 },
+  qtyBtn: {
+    width: 30, height: 30, borderRadius: 8, border: "1px solid #d1d5db",
+    background: "#f9fafb", fontSize: 17, lineHeight: 1, cursor: "pointer", fontFamily: "inherit",
+  },
+  qtyVal: { minWidth: 24, textAlign: "center", fontWeight: 700, fontSize: 14 },
+  geoBtn: {
+    width: "100%", marginTop: 8, padding: "11px 14px", borderRadius: 12,
+    border: "1px dashed #d1d5db", background: "#fafafa", color: "#374151",
+    fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+  },
+  qtyWarn: {
+    marginTop: 10, marginBottom: 0, fontSize: 12.5, lineHeight: 1.7,
+    color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a",
+    borderRadius: 10, padding: "9px 11px",
+  },
   noteBlue: {
     background: "#eff6ff",
     border: "1px solid #bfdbfe",

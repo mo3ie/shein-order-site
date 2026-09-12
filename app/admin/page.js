@@ -355,6 +355,53 @@ export default function Admin() {
                     </div>
                   )}
 
+                  {/* What SHEIN itself showed, so a price can be audited rather
+                      than trusted: its own lines, and a picture of the cart. */}
+                  {(order.price_breakdown || order.cart_shot_url || order.delivery_address) && (
+                    <div style={{ marginBottom: "10px", padding: "10px 12px", background: "#13131f", border: "1px solid #2a2a3a", borderRadius: "8px", fontSize: "12px", color: "#9aa0aa", lineHeight: 1.9 }}>
+                      {order.delivery_address && (
+                        <div style={{ marginBottom: 6 }}>
+                          📍 <strong style={{ color: "#ddd" }}>{order.delivery_address}</strong>
+                          {order.delivery_geo?.lat && (
+                            <>
+                              {" "}·{" "}
+                              <a
+                                href={`https://www.google.com/maps?q=${order.delivery_geo.lat},${order.delivery_geo.lng}`}
+                                target="_blank" rel="noreferrer"
+                                style={{ color: "#60a5fa" }}
+                              >على الخريطة</a>
+                            </>
+                          )}
+                        </div>
+                      )}
+                      {order.price_breakdown && (
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "2px 10px" }}>
+                          <span>Retail</span><strong style={{ color: "#ddd" }}>${Number(order.price_breakdown.retailUsd ?? 0).toFixed(2)}</strong>
+                          <span>Shipping</span><strong style={{ color: "#ddd" }}>${Number(order.price_breakdown.shippingUsd ?? 0).toFixed(2)}</strong>
+                          <span>Promotions</span><strong style={{ color: "#4ade80" }}>${Number(order.price_breakdown.promotionsUsd ?? 0).toFixed(2)}</strong>
+                          <span style={{ opacity: 0.6 }}>Coupon (غير محسوب)</span>
+                          <span style={{ opacity: 0.6 }}>${Number(order.price_breakdown.couponUsd ?? 0).toFixed(2)}</span>
+                          {Number(order.price_breakdown.extraQuantitiesUsd) > 0 && (
+                            <>
+                              <span>كميات إضافية</span>
+                              <strong style={{ color: "#fbbf24" }}>+${Number(order.price_breakdown.extraQuantitiesUsd).toFixed(2)}</strong>
+                            </>
+                          )}
+                        </div>
+                      )}
+                      {order.cart_shot_url && (
+                        <div style={{ marginTop: 8, borderRadius: 8, overflow: "hidden", border: "1px solid #1a1a2e" }}>
+                          <img
+                            src={order.cart_shot_url}
+                            style={{ width: "100%", maxHeight: "200px", objectFit: "cover", objectPosition: "top", cursor: "zoom-in", display: "block" }}
+                            onClick={() => setSelectedImage(order.cart_shot_url)}
+                            title="لقطة السلة من تطبيق شي إن — اضغط للتكبير"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Price Breakdown Toggle */}
                   <div style={{ marginBottom: "10px" }}>
                     <button

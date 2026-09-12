@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { resolveSharedCart, isSheinShareUrl } from "@/lib/resolver";
 
@@ -104,7 +105,7 @@ export async function POST(req) {
     const body = await req.json();
     console.log("BODY:", body);
 
-    const { name, phone, cart_link, price, image_url, user_id } = body;
+    const { name, phone, cart_link, price, image_url, user_id, quantities, address } = body;
 
     // The price is re-derived on the server. Before the resolver existed the
     // client sent whatever OCR produced and it was stored verbatim, so a crafted
@@ -112,6 +113,10 @@ export async function POST(req) {
     // treated as a hint and checked against a fresh read of the real cart.
     let verifiedPrice = null;
     let priceSource = "unverified";
+    let breakdown = null;
+    let cartShotBase64 = null;
+    let extraUsd = 0;
+    let cartShotUrl = null;
     if (!isSheinShareUrl(cart_link)) {
       return Response.json(
         { success: false, message: "رابط السلة غير صالح." },
@@ -119,9 +124,29 @@ export async function POST(req) {
       );
     }
     try {
-      const resolved = await resolveSharedCart(cart_link, { maxWaitMs: 35000 });
+      // The app path takes minutes; 35s was sized for the old web reader and
+      // would time out before a real cart was ever read.
+      const resolved = await resolveSharedCart(cart_link, { maxWaitMs: 4 * 60 * 1000 });
       verifiedPrice = resolved.estimatedPrice;
       priceSource = resolved.source;
+      breakdown = resolved.breakdown || null;
+      cartShotBase64 = resolved.screenshotBase64 || null;
+
+      // Quantities above the one SHEIN's share link reports are charged at that
+      // line's own unit price. This is the second half of a deliberate two-step:
+      // the browser shows an instant estimate, and this is the figure that is
+      // actually stored and charged.
+      if (Array.isArray(quantities) && quantities.length) {
+        extraUsd = quantities.reduce((sum, q) => {
+          const extra = Math.max(0, Number(q.wanted || 1) - Number(q.shared || 1));
+          const unit = Number(q.unitUsd || 0);
+          return sum + (Number.isFinite(extra * unit) ? extra * unit : 0);
+        }, 0);
+        if (extraUsd > 0) {
+          verifiedPrice = Number((verifiedPrice + extraUsd).toFixed(2));
+          console.log(`[order] extra quantities added $${extraUsd.toFixed(2)}`);
+        }
+      }
       console.log(
         `[order] cart=${resolved.groupId} items=${resolved.itemCount}` +
         ` verified=$${verifiedPrice} account=${resolved.internal.selectedAccount}` +
@@ -152,6 +177,33 @@ export async function POST(req) {
       );
     }
 
+    // Park the cart screenshot in storage so the admin can check a price against
+    // what SHEIN actually displayed. A failed upload must never fail an order.
+    if (cartShotBase64) {
+      try {
+        const bytes = Buffer.from(cartShotBase64, "base64");
+        const key = `cart-shots/${Date.now()}-${randomUUID().slice(0, 8)}.png`;
+        const { error: upErr } = await supabaseAdmin.storage
+          .from("orders-images")
+          .upload(key, bytes, { contentType: "image/png", upsert: false });
+        if (upErr) throw upErr;
+        cartShotUrl = supabaseAdmin.storage.from("orders-images").getPublicUrl(key).data.publicUrl;
+      } catch (e) {
+        console.error(`[order] cart screenshot upload failed: ${e.message}`);
+      }
+    }
+
+    // These columns are additive and may not exist on an older database, so the
+    // insert falls back to the base row rather than losing the order.
+    const extraColumns = {
+      ...(cartShotUrl ? { cart_shot_url: cartShotUrl } : {}),
+      ...(breakdown || address || extraUsd
+        ? { price_breakdown: { ...(breakdown || {}), extraQuantitiesUsd: extraUsd, quantities: quantities || [], source: priceSource } }
+        : {}),
+      ...(address ? { delivery_address: [address.city, address.area, address.note].filter(Boolean).join(" — ") } : {}),
+      ...(address?.geo ? { delivery_geo: address.geo } : {}),
+    };
+
    const { data, error } = await supabaseAdmin
   .from("orders")
   .insert([
@@ -166,6 +218,7 @@ export async function POST(req) {
       // written: adding a column to the live orders table is a schema change and
       // is not mine to make.
       price: verifiedPrice,
+      ...extraColumns,
       ...(user_id ? { user_id } : {}),
     }
   ])
