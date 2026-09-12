@@ -520,7 +520,7 @@ export default function OrderPage() {
             <div style={s.queueBox}>
               {/* Pricing runs on one device, so the line is real. Telling the
                   customer where they stand beats an unexplained spinner. */}
-              {queue && queue.ahead > 0 ? (
+              {queue && queue.ahead > 0 && !queue.running ? (
                 <>
                   <div style={s.queuePos}>
                     دورك رقم <strong>{queue.position}</strong> في الانتظار
