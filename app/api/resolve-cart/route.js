@@ -42,6 +42,9 @@ function publicPayload(result) {
       unitSaleUsd: i.unitSaleUsd,
       quantity: i.quantity ?? 1,
       offerEndsIn: i.offerEndsIn ?? null,
+      // A cropped thumbnail (~15KB) so the customer recognises the line at a
+      // glance; three near-identical shirts read the same in words.
+      image: i.imageBase64 ? `data:image/png;base64,${i.imageBase64}` : null,
     })),
     breakdown: result.breakdown || null,
   };

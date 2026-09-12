@@ -615,6 +615,9 @@ export default function OrderPage() {
               </p>
               {cartItems.map((it, i) => (
                 <div key={i} style={s.qtyRow}>
+                  {it.image
+                    ? <img src={it.image} alt="" style={s.qtyThumb} />
+                    : <div style={{ ...s.qtyThumb, background: "#f3f4f6" }} />}
                   <div style={s.qtyInfo}>
                     <div style={s.qtyName}>{it.name}</div>
                     <div style={s.qtyMeta}>
@@ -1239,6 +1242,10 @@ const s = {
     padding: "9px 0", borderTop: "1px solid #f3f4f6",
   },
   qtyInfo: { flex: 1, minWidth: 0 },
+  qtyThumb: {
+    width: 48, height: 48, borderRadius: 8, objectFit: "cover",
+    flexShrink: 0, border: "1px solid #e5e7eb",
+  },
   qtyName: {
     fontSize: 12.5, lineHeight: 1.5, overflow: "hidden",
     display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
