@@ -57,6 +57,7 @@ export default function OrderPage() {
   const [exactPrice,        setExactPrice]        = useState(null);
   const [repricing,         setRepricing]         = useState(false);
   const [openNames,         setOpenNames]         = useState({});
+  const [repriceError,      setRepriceError]      = useState("");
 
   // A SHEIN share link carries no quantities: three of one shirt arrive as one
   // line of one, and the same shirt in another size arrives as its own line. So
@@ -166,10 +167,13 @@ export default function OrderPage() {
     const link = cartLink.trim();
     if (!link || repricing) return;
     setRepricing(true);
-    setResolveError("");
+    setRepriceError("");
 
     const wanted = cartItems.map((it, i) => ({
       name: it.name,
+      // Two lines can share a title and differ only by size, so the variant is
+      // part of the identity, not decoration.
+      variant: it.variant || null,
       shared: it.quantity || 1,
       wanted: Number(quantities[i] ?? it.quantity ?? 1),
     }));
@@ -182,7 +186,7 @@ export default function OrderPage() {
       });
       const data = await res.json();
       if (!data.success) {
-        setResolveError(data.message || "تعذّر قراءة السعر الجديد.");
+        setRepriceError(data.message || "تعذّر قراءة السعر الجديد.");
         return;
       }
       const settle = (d) => {
@@ -200,16 +204,19 @@ export default function OrderPage() {
           `/api/resolve-cart?job=${encodeURIComponent(data.jobId)}&url=${encodeURIComponent(link)}`
         );
         const pd = await p.json();
-        if (!pd.success) { setResolveError(pd.message || "تعذّر قراءة السعر الجديد."); return; }
+        if (!pd.success) { setRepriceError(pd.message || "تعذّر قراءة السعر الجديد."); return; }
         if (pd.queue) setQueue({ ...pd.queue, averageMs: pd.averageMs });
         if (pd.status !== "pending") { settle(pd); return; }
-        if (Date.now() - started > 6 * 60 * 1000) {
-          setResolveError("استغرقت قراءة السعر وقتاً أطول من المتوقع. حاول مرة أخرى.");
+        // Both devices can be busy, and a link is pinned to one account so the
+        // request may wait for it. Ten minutes covers a queued run; the queue
+        // position is on screen throughout.
+        if (Date.now() - started > 10 * 60 * 1000) {
+          setRepriceError("استغرقت قراءة السعر وقتاً أطول من المتوقع. حاول مرة أخرى.");
           return;
         }
       }
     } catch {
-      setResolveError("تعذّر الاتصال بخدمة التسعير. حاول مرة أخرى.");
+      setRepriceError("تعذّر الاتصال بخدمة التسعير. حاول مرة أخرى.");
     } finally {
       setRepricing(false);
       setQueue(null);
@@ -739,16 +746,28 @@ export default function OrderPage() {
                   </button>
                   {repricing && (
                     <p style={s.qtyNote}>
-                      نضبط الكميات داخل سلتك على شي إن ونقرأ السعر منها — قد يستغرق ذلك دقيقتين إلى ثلاث.
-                      يمكنك إغلاق الصفحة والعودة.
+                      نضبط الكميات داخل سلتك على شي إن ونقرأ السعر منها — قد يستغرق ذلك دقيقتين إلى أربع.
+                      {queue?.ahead > 0 && !queue?.running
+                        ? ` أمامك ${queue.ahead} طلب في الانتظار.`
+                        : ""}
                     </p>
                   )}
+                  {repriceError && <div style={s.noteRed}>❌ {repriceError}</div>}
                 </>
               )}
               {quantityChanged && exactPrice && (
-                <p style={s.qtyOk}>
-                  ✅ هذا هو السعر النهائي من شي إن بالكميات التي اخترتها.
-                </p>
+                <div style={s.qtyOk}>
+                  ✅ <strong>هذا هو السعر النهائي من شي إن بالكميات التي اخترتها.</strong>
+                  {breakdown && (
+                    <div style={{ marginTop: 6, fontSize: 12, opacity: 0.9, lineHeight: 1.9 }}>
+                      قيمة المنتجات ${Number(breakdown.retailUsd ?? 0).toFixed(2)}
+                      {" · "}الشحن {Number(breakdown.shippingUsd ?? 0) > 0
+                        ? `$${Number(breakdown.shippingUsd).toFixed(2)}`
+                        : "مجاني"}
+                      {" · "}العروض −${Math.abs(Number(breakdown.promotionsUsd ?? 0)).toFixed(2)}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}
