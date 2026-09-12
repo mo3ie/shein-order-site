@@ -108,7 +108,13 @@ export async function GET(req) {
   try {
     const out = await pollResolveJob(jobId);
     if (out.status === "pending") {
-      return Response.json({ success: true, status: "pending", elapsedMs: out.elapsedMs });
+      return Response.json({
+        success: true,
+        status: "pending",
+        elapsedMs: out.elapsedMs,
+        queue: out.queue || null,
+        averageMs: out.averageMs ?? null,
+      });
     }
     logResolve(requestId, out.groupId, out);
     const payload = publicPayload(out);

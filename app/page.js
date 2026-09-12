@@ -43,6 +43,7 @@ export default function OrderPage() {
   const [itemCount,         setItemCount]         = useState(null);
   const [resolvedLink,      setResolvedLink]      = useState("");
   const [elapsed,           setElapsed]           = useState(0);
+  const [queue,             setQueue]             = useState(null);
 
   const base      = price || 0;
   const profit    = base * 0.01;
@@ -64,6 +65,60 @@ export default function OrderPage() {
   useEffect(() => {
     supabase.from("settings").select("exchange_rate").eq("id", 1).single()
       .then(({ data }) => { if (data) setExchangeRate(Number(data.exchange_rate)); });
+  }, []);
+
+  // A price check runs on our server, not in this tab. If the customer closed
+  // the page, lost connection, or came back later, pick the same job up again
+  // instead of starting a second run against the same SHEIN cart.
+  useEffect(() => {
+    let cancelled = false;
+    let saved;
+    try { saved = JSON.parse(localStorage.getItem("trend_price_job") || "null"); } catch { saved = null; }
+    // Jobs and their results do not outlive the resolver's 15-minute window.
+    if (!saved?.jobId || !saved?.link || Date.now() - (saved.at || 0) > 15 * 60 * 1000) {
+      try { localStorage.removeItem("trend_price_job"); } catch {}
+      return;
+    }
+
+    setCartLink(saved.link);
+    setResolveState("checking");
+    const started = saved.at;
+
+    (async () => {
+      for (;;) {
+        if (cancelled) return;
+        try {
+          const r = await fetch(
+            `/api/resolve-cart?job=${encodeURIComponent(saved.jobId)}&url=${encodeURIComponent(saved.link)}`
+          );
+          const pd = await r.json();
+          if (cancelled) return;
+
+          if (!pd.success) {
+            try { localStorage.removeItem("trend_price_job"); } catch {}
+            setResolveState("failed");
+            setResolveError(pd.message || "تعذّر التحقق من السعر.");
+            return;
+          }
+          if (pd.queue) setQueue({ ...pd.queue, averageMs: pd.averageMs });
+          if (pd.status !== "pending") {
+            try { localStorage.removeItem("trend_price_job"); } catch {}
+            setQueue(null);
+            setPrice(Number(pd.estimatedPrice));
+            setItemCount(pd.itemCount ?? null);
+            setResolvedLink(saved.link);
+            setResolveState("verified");
+            return;
+          }
+          setElapsed(Math.round((Date.now() - started) / 1000));
+        } catch {
+          // A dropped connection is not a failed job; keep polling.
+        }
+        await new Promise((r) => setTimeout(r, 4000));
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, []);
 
   // ── Validation ──────────────────────────────────────────────────────────
@@ -101,17 +156,25 @@ export default function OrderPage() {
     setResolveState("checking");
     setResolveError("");
     setElapsed(0);
+    setQueue(null);
     setPrice(null);
     setItemCount(null);
     setErrors(p => ({ ...p, price: null, cartLink: null }));
 
     const finish = (data) => {
+      try { localStorage.removeItem("trend_price_job"); } catch {}
+      setQueue(null);
       setPrice(Number(data.estimatedPrice));
       setItemCount(data.itemCount ?? null);
       setResolvedLink(link);
       setResolveState("verified");
     };
-    const fail = (msg) => { setResolveState("failed"); setResolveError(msg); };
+    const fail = (msg) => {
+      try { localStorage.removeItem("trend_price_job"); } catch {}
+      setQueue(null);
+      setResolveState("failed");
+      setResolveError(msg);
+    };
 
     try {
       // Start the job. Reading a real cart takes minutes, so the request only
@@ -126,6 +189,14 @@ export default function OrderPage() {
       if (!data.success) return fail(data.message || "تعذّر التحقق من السعر.");
       if (data.status !== "pending") return finish(data);   // served from cache
 
+      // Remember the job. The measurement runs on the server, not in this tab,
+      // so a closed page or a dropped connection must not lose it: reopening
+      // rejoins the same run instead of starting a second one.
+      try {
+        localStorage.setItem("trend_price_job",
+          JSON.stringify({ jobId: data.jobId, link, at: Date.now() }));
+      } catch {}
+
       const started = Date.now();
       const LIMIT_MS = 5 * 60 * 1000;
       for (;;) {
@@ -138,6 +209,7 @@ export default function OrderPage() {
         const pd = await p.json();
 
         if (!pd.success) return fail(pd.message || "تعذّر التحقق من السعر.");
+        if (pd.queue) setQueue({ ...pd.queue, averageMs: pd.averageMs });
         if (pd.status !== "pending") return finish(pd);
         if (Date.now() - started > LIMIT_MS) {
           return fail("استغرق التحقق وقتاً أطول من المتوقع. حاول مرة أخرى.");
@@ -445,10 +517,29 @@ export default function OrderPage() {
           </button>
 
           {resolveState === "checking" && (
-            <p style={s.hint}>
-              نفتح سلتك على شي إن ونقرأ سعرها الفعلي — قد يستغرق ذلك دقيقة إلى ثلاث.
-              لا تغلق الصفحة، ولا حاجة للضغط مرة أخرى.
-            </p>
+            <div style={s.queueBox}>
+              {/* Pricing runs on one device, so the line is real. Telling the
+                  customer where they stand beats an unexplained spinner. */}
+              {queue && queue.ahead > 0 ? (
+                <>
+                  <div style={s.queuePos}>
+                    دورك رقم <strong>{queue.position}</strong> في الانتظار
+                  </div>
+                  <div style={s.queueSub}>
+                    {queue.ahead === 1 ? "أمامك طلب واحد" : `أمامك ${queue.ahead} طلبات`}
+                    {queue.etaMs ? ` — الوقت المتوقع ${Math.max(1, Math.round(queue.etaMs / 60000))} دقيقة تقريباً` : ""}
+                  </div>
+                </>
+              ) : (
+                <div style={s.queuePos}>
+                  ⏳ نقرأ سعر سلتك الآن من تطبيق شي إن
+                  {queue?.averageMs ? ` — عادةً ${Math.round(queue.averageMs / 1000)} ثانية` : ""}
+                </div>
+              )}
+              <div style={s.queueSub}>
+                يمكنك إغلاق الصفحة — العملية تكمل على خادمنا، وتستأنف من حيث توقفت عند رجوعك.
+              </div>
+            </div>
           )}
           {resolveState === "verified" && (
             <div style={s.okBox}>
@@ -945,6 +1036,13 @@ const s = {
     background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#15803d",
     fontSize: 13, lineHeight: 1.7,
   },
+  queueBox: {
+    marginTop: 10, padding: "12px 14px", borderRadius: 12,
+    background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1d4ed8",
+    fontSize: 13, lineHeight: 1.8,
+  },
+  queuePos: { fontWeight: 700, fontSize: 14 },
+  queueSub: { opacity: 0.85, fontSize: 12.5 },
   noteBlue: {
     background: "#eff6ff",
     border: "1px solid #bfdbfe",
