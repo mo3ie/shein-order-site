@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 const PRIMARY   = "#7c3aed";
@@ -19,7 +19,6 @@ export default function OrderPage() {
   const [addressNote,       setAddressNote]       = useState("");
   const [geo,               setGeo]               = useState(null);
   const [geoState,          setGeoState]          = useState("idle");
-  const [image,             setImage]             = useState(null);
   const [price,             setPrice]             = useState(null);
   const [exchangeRate,      setExchangeRate]      = useState(1);
   const [loading,           setLoading]           = useState(false);
@@ -50,6 +49,9 @@ export default function OrderPage() {
   const [elapsed,           setElapsed]           = useState(0);
   const [queue,             setQueue]             = useState(null);
   const [cartItems,         setCartItems]         = useState([]);
+  const [images,            setImages]            = useState([]);
+  const [orderNote,         setOrderNote]         = useState("");
+  const uploadedUrlsRef = useRef([]);
   const [quantities,        setQuantities]        = useState({});
   const [breakdown,         setBreakdown]         = useState(null);
 
@@ -257,11 +259,18 @@ export default function OrderPage() {
 
   // ── Upload helper ────────────────────────────────────────────────────────
   async function uploadImage() {
-    const fileName = `${Date.now()}-${image.name}`;
-    const { error } = await supabase.storage.from("orders-images").upload(`public/${fileName}`, image);
-    if (error) throw new Error("فشل رفع الصورة");
-    const { data } = supabase.storage.from("orders-images").getPublicUrl(`public/${fileName}`);
-    return data.publicUrl;
+    // Every attached photo goes up; the first is the order's headline image and
+    // the rest ride along in the note so nothing the customer sent is lost.
+    if (!images.length) return null;
+    const urls = [];
+    for (const file of images) {
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${file.name}`;
+      const { error } = await supabase.storage.from("orders-images").upload(`public/${fileName}`, file);
+      if (error) throw new Error("فشل رفع الصورة");
+      urls.push(supabase.storage.from("orders-images").getPublicUrl(`public/${fileName}`).data.publicUrl);
+    }
+    uploadedUrlsRef.current = urls;
+    return urls[0];
   }
 
   async function createOrder(imageUrl) {
@@ -280,6 +289,8 @@ export default function OrderPage() {
           unitUsd: Number(it.unitRetailUsd ?? it.unitSaleUsd ?? 0),
         })),
         address: { city: city.trim(), area: area.trim(), note: addressNote.trim(), geo },
+        note: orderNote.trim(),
+        images: uploadedUrlsRef.current,
       }),
     });
     const result = await res.json();
@@ -608,8 +619,18 @@ export default function OrderPage() {
                     <div style={s.qtyName}>{it.name}</div>
                     <div style={s.qtyMeta}>
                       {it.variant ? it.variant + " · " : ""}
-                      ${Number(it.unitRetailUsd ?? it.unitSaleUsd ?? 0).toFixed(2)} للقطعة
+                      <strong style={{ color: "#dc2626" }}>
+                        ${Number(it.unitSaleUsd ?? it.unitRetailUsd ?? 0).toFixed(2)}
+                      </strong>
+                      {Number(it.unitRetailUsd) > Number(it.unitSaleUsd) && (
+                        <span style={{ textDecoration: "line-through", color: "#9ca3af", marginRight: 6 }}>
+                          ${Number(it.unitRetailUsd).toFixed(2)}
+                        </span>
+                      )}
                     </div>
+                    {it.offerEndsIn && (
+                      <div style={s.qtyTimer}>⏳ {it.offerEndsIn}</div>
+                    )}
                   </div>
                   <div style={s.qtyCtrl}>
                     <button
@@ -731,38 +752,59 @@ export default function OrderPage() {
             <p style={s.hint}>متصفحك لا يدعم تحديد الموقع. اكتب العنوان أعلاه ويكفي.</p>
           )}
 
-          {/* Image note */}
-          <div style={s.noteYellow}>
-            📸 <strong>اختياري:</strong> يمكنك رفع سكرين شوت للسلة إن أردت — لم يعد مطلوباً، فالسعر يُقرأ آلياً من رابط السلة.
-          </div>
+          {/* One box: a note the customer writes, and as many reference photos
+              as they need. Replaces the old single-screenshot upload, which
+              stopped being useful once the price came from the cart link. */}
+          <label style={s.label}>ملاحظات وصور (اختياري)</label>
+          <textarea
+            placeholder="اكتب أي ملاحظة تخص طلبك..."
+            value={orderNote}
+            onChange={e => setOrderNote(e.target.value)}
+            rows={3}
+            style={{ ...s.input, resize: "vertical", minHeight: 70, lineHeight: 1.7 }}
+          />
+          <p style={s.hint}>
+            إن كان لديك منتج تريد تعديله أو اختياره بشكل معيّن، أرسل صورته مع الكتابة
+            أو الشكل أو الإضافة التي تريدها بوضوح.
+          </p>
 
-          {/* Upload */}
-          <label style={{ ...s.uploadBox, ...(errors.image ? s.uploadBoxErr : {}) }}>
+          <label style={s.uploadBox}>
             <input
               type="file"
               accept="image/*"
+              multiple
               style={{ display: "none" }}
               onChange={e => {
-                const file = e.target.files[0];
-                if (!file) return;
-                setImage(file);
+                const picked = Array.from(e.target.files || []);
+                if (!picked.length) return;
+                setImages(prev => [...prev, ...picked].slice(0, 6));
                 setErrors(p => ({ ...p, image: null, price: null }));
               }}
             />
-            <span style={{ fontSize: 28 }}>📷</span>
-            <span style={{ fontSize: 13, color: image ? PRIMARY : "#9ca3af", fontWeight: image ? 600 : 400 }}>
-              {image ? image.name : "اضغط لرفع صورة (اختياري)"}
+            <span style={{ fontSize: 26 }}>📷</span>
+            <span style={{ fontSize: 13, color: images.length ? PRIMARY : "#9ca3af", fontWeight: images.length ? 600 : 400 }}>
+              {images.length ? `${images.length} صورة مرفقة — أضف المزيد` : "إضافة صور (حتى 6)"}
             </span>
           </label>
-          {errors.image && <p style={s.err}>⚠️ {errors.image}</p>}
 
-          {/* Preview thumbnail */}
-          {image && (
-            <img
-              src={URL.createObjectURL(image)}
-              onClick={() => setPreview(URL.createObjectURL(image))}
-              style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 10, marginTop: 10, cursor: "pointer", border: "2px solid #ede9fe" }}
-            />
+          {images.length > 0 && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+              {images.map((f, i) => (
+                <div key={i} style={{ position: "relative" }}>
+                  <img
+                    src={URL.createObjectURL(f)}
+                    onClick={() => setPreview(URL.createObjectURL(f))}
+                    style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 10, cursor: "pointer", border: "2px solid #ede9fe" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setImages(prev => prev.filter((_, k) => k !== i))}
+                    style={s.imgRemove}
+                    aria-label="حذف الصورة"
+                  >×</button>
+                </div>
+              ))}
+            </div>
           )}
 
           {/* OCR status */}
@@ -788,7 +830,11 @@ export default function OrderPage() {
                 <strong style={{ fontSize: 20, color: "#15803d" }}>{priceLYD.toFixed(2)} د.ل</strong>
               </div>
               <p style={{ fontSize: 12, color: "#6b7280", margin: "10px 0 0", textAlign: "center", lineHeight: 1.7 }}>
-                السعر شامل قيمة المنتجات ورسوم الشحن من شي إن.
+                السعر شامل قيمة المنتجات اليوم بسعر المصرف. الأسعار غير ثابتة نظراً لتغيّر
+                العروض وسعر صرف الدينار.
+              </p>
+              <p style={{ fontSize: 12, color: "#b45309", margin: "6px 0 0", textAlign: "center" }}>
+                🚚 رسوم الشحن إلى ليبيا تُحسب لاحقاً
               </p>
             </div>
           )}
@@ -1197,7 +1243,13 @@ const s = {
     fontSize: 12.5, lineHeight: 1.5, overflow: "hidden",
     display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
   },
-  qtyMeta: { fontSize: 12, color: "#6b7280", marginTop: 2 },
+  qtyMeta: { fontSize: 12, color: "#6b7280", marginTop: 2, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" },
+  qtyTimer: { fontSize: 11.5, color: "#b45309", marginTop: 3, fontWeight: 600 },
+  imgRemove: {
+    position: "absolute", top: -6, insetInlineEnd: -6, width: 20, height: 20,
+    borderRadius: "50%", border: "none", background: "#ef4444", color: "#fff",
+    fontSize: 13, lineHeight: "20px", cursor: "pointer", padding: 0, fontFamily: "inherit",
+  },
   qtyCtrl: { display: "flex", alignItems: "center", gap: 6, flexShrink: 0 },
   qtyBtn: {
     width: 30, height: 30, borderRadius: 8, border: "1px solid #d1d5db",

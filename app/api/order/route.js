@@ -105,7 +105,7 @@ export async function POST(req) {
     const body = await req.json();
     console.log("BODY:", body);
 
-    const { name, phone, cart_link, price, image_url, user_id, quantities, address } = body;
+    const { name, phone, cart_link, price, image_url, user_id, quantities, address, note, images } = body;
 
     // The price is re-derived on the server. Before the resolver existed the
     // client sent whatever OCR produced and it was stored verbatim, so a crafted
@@ -126,7 +126,14 @@ export async function POST(req) {
     try {
       // The app path takes minutes; 35s was sized for the old web reader and
       // would time out before a real cart was ever read.
-      const resolved = await resolveSharedCart(cart_link, { maxWaitMs: 4 * 60 * 1000 });
+      // Quantities go to the resolver, which sets them in SHEIN's own cart and
+      // re-reads the checkout. SHEIN recomputes promotions and the free-shipping
+      // threshold itself, which no arithmetic here could do: taking one line
+      // from 1 to 3 on the test cart made shipping free and grew the promotion.
+      const resolved = await resolveSharedCart(cart_link, {
+        maxWaitMs: 6 * 60 * 1000,
+        quantities: Array.isArray(quantities) ? quantities : null,
+      });
       verifiedPrice = resolved.estimatedPrice;
       priceSource = resolved.source;
       breakdown = resolved.breakdown || null;
@@ -136,16 +143,13 @@ export async function POST(req) {
       // line's own unit price. This is the second half of a deliberate two-step:
       // the browser shows an instant estimate, and this is the figure that is
       // actually stored and charged.
-      if (Array.isArray(quantities) && quantities.length) {
-        extraUsd = quantities.reduce((sum, q) => {
-          const extra = Math.max(0, Number(q.wanted || 1) - Number(q.shared || 1));
-          const unit = Number(q.unitUsd || 0);
-          return sum + (Number.isFinite(extra * unit) ? extra * unit : 0);
-        }, 0);
-        if (extraUsd > 0) {
-          verifiedPrice = Number((verifiedPrice + extraUsd).toFixed(2));
-          console.log(`[order] extra quantities added $${extraUsd.toFixed(2)}`);
-        }
+      // `verifiedPrice` already reflects the requested quantities, because the
+      // cart was priced with them set. The browser's estimate is only compared
+      // against it, never added to it.
+      if (Array.isArray(quantities) && quantities.some((q) => Number(q.wanted) > 1)) {
+        console.log(`[order] priced with quantities: ` +
+          quantities.filter((q) => Number(q.wanted) > 1)
+            .map((q) => `${String(q.name).slice(0, 20)}x${q.wanted}`).join(', '));
       }
       console.log(
         `[order] cart=${resolved.groupId} items=${resolved.itemCount}` +
@@ -198,7 +202,7 @@ export async function POST(req) {
     const extraColumns = {
       ...(cartShotUrl ? { cart_shot_url: cartShotUrl } : {}),
       ...(breakdown || address || extraUsd
-        ? { price_breakdown: { ...(breakdown || {}), extraQuantitiesUsd: extraUsd, quantities: quantities || [], source: priceSource } }
+        ? { price_breakdown: { ...(breakdown || {}), quantities: quantities || [], note: note || null, images: images || [], source: priceSource } }
         : {}),
       ...(address ? { delivery_address: [address.city, address.area, address.note].filter(Boolean).join(" — ") } : {}),
       ...(address?.geo ? { delivery_geo: address.geo } : {}),

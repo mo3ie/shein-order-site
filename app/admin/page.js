@@ -374,6 +374,32 @@ export default function Admin() {
                           )}
                         </div>
                       )}
+                      {order.price_breakdown?.note && (
+                        <div style={{ marginBottom: 6, padding: "6px 8px", background: "#1a1a2e", borderRadius: 6, color: "#ddd" }}>
+                          📝 {order.price_breakdown.note}
+                        </div>
+                      )}
+                      {Array.isArray(order.price_breakdown?.images) && order.price_breakdown.images.length > 1 && (
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+                          {order.price_breakdown.images.map((u, k) => (
+                            <img
+                              key={k}
+                              src={u}
+                              onClick={() => setSelectedImage(u)}
+                              style={{ width: 54, height: 54, objectFit: "cover", borderRadius: 6, cursor: "zoom-in", border: "1px solid #2a2a3a" }}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      {Array.isArray(order.price_breakdown?.quantities)
+                        && order.price_breakdown.quantities.some((q) => Number(q.wanted) > 1) && (
+                        <div style={{ marginBottom: 6, color: "#fbbf24" }}>
+                          🔢 {order.price_breakdown.quantities
+                                .filter((q) => Number(q.wanted) > 1)
+                                .map((q) => `${String(q.name).slice(0, 22)} × ${q.wanted}`)
+                                .join(" · ")}
+                        </div>
+                      )}
                       {order.price_breakdown && (
                         <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "2px 10px" }}>
                           <span>Retail</span><strong style={{ color: "#ddd" }}>${Number(order.price_breakdown.retailUsd ?? 0).toFixed(2)}</strong>
@@ -381,12 +407,7 @@ export default function Admin() {
                           <span>Promotions</span><strong style={{ color: "#4ade80" }}>${Number(order.price_breakdown.promotionsUsd ?? 0).toFixed(2)}</strong>
                           <span style={{ opacity: 0.6 }}>Coupon (غير محسوب)</span>
                           <span style={{ opacity: 0.6 }}>${Number(order.price_breakdown.couponUsd ?? 0).toFixed(2)}</span>
-                          {Number(order.price_breakdown.extraQuantitiesUsd) > 0 && (
-                            <>
-                              <span>كميات إضافية</span>
-                              <strong style={{ color: "#fbbf24" }}>+${Number(order.price_breakdown.extraQuantitiesUsd).toFixed(2)}</strong>
-                            </>
-                          )}
+
                         </div>
                       )}
                       {order.cart_shot_url && (

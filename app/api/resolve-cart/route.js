@@ -41,6 +41,7 @@ function publicPayload(result) {
       unitRetailUsd: i.unitRetailUsd,
       unitSaleUsd: i.unitSaleUsd,
       quantity: i.quantity ?? 1,
+      offerEndsIn: i.offerEndsIn ?? null,
     })),
     breakdown: result.breakdown || null,
   };
