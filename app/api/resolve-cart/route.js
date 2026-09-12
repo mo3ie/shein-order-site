@@ -77,7 +77,10 @@ export async function POST(req) {
     );
   }
 
-  const cached = cacheGet(shareUrl);
+  // A cart priced with quantities set is a different measurement from the same
+  // link priced one-of-each, so it must never be answered from the plain cache.
+  const wantsQuantities = Array.isArray(quantities) && quantities.some((q) => Number(q.wanted) > 1);
+  const cached = wantsQuantities ? null : cacheGet(shareUrl);
   if (cached) {
     console.log(`[resolve ${requestId}] served from cache`);
     return Response.json({ success: true, ...cached, cached: true });
@@ -139,7 +142,11 @@ export async function GET(req) {
     }
     logResolve(requestId, out.groupId, out);
     const payload = publicPayload(out);
-    if (shareUrl) recent.set(shareUrl, { at: Date.now(), result: payload });
+    // Only a one-of-each result is cached against the bare link; a quantity
+    // price belongs to one customer's choice, not to the link itself.
+    if (shareUrl && !(out.quantitiesApplied || []).length) {
+      recent.set(shareUrl, { at: Date.now(), result: payload });
+    }
     return Response.json({ success: true, ...payload });
   } catch (e) {
     const code = e instanceof ResolverError ? e.code : "RESOLVER_FAILED";
