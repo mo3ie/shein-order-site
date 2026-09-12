@@ -56,6 +56,7 @@ export default function OrderPage() {
   const [breakdown,         setBreakdown]         = useState(null);
   const [exactPrice,        setExactPrice]        = useState(null);
   const [repricing,         setRepricing]         = useState(false);
+  const [openNames,         setOpenNames]         = useState({});
 
   // A SHEIN share link carries no quantities: three of one shirt arrive as one
   // line of one, and the same shirt in another size arrives as its own line. So
@@ -686,28 +687,38 @@ export default function OrderPage() {
                   {it.image
                     ? <img src={it.image} alt="" style={s.qtyThumb} />
                     : <div style={{ ...s.qtyThumb, background: "#f3f4f6" }} />}
+
+                  {/* Titles from SHEIN run to 160 characters. Shown in full they
+                      pushed one word per line on a phone and buried the price,
+                      so the name is clamped to two lines and opens on tap. */}
                   <div style={s.qtyInfo}>
-                    <div style={s.qtyName}>{it.name}</div>
-                    {/* The plain product price, which is the one the estimate
-                        is built on. Showing the coupon price beside it made the
-                        row disagree with the total underneath. */}
+                    <div
+                      onClick={() => setOpenNames(o => ({ ...o, [i]: !o[i] }))}
+                      style={openNames[i] ? s.qtyNameFull : s.qtyName}
+                      title="اضغط لعرض الاسم كاملاً"
+                    >
+                      {it.name}
+                    </div>
                     <div style={s.qtyMeta}>
-                      {it.variant ? <span>{it.variant}</span> : null}
-                      <strong>${Number(it.unitRetailUsd ?? it.unitSaleUsd ?? 0).toFixed(2)}</strong>
+                      {it.variant ? <span style={s.qtyVariant}>{it.variant}</span> : null}
+                      <strong style={{ whiteSpace: "nowrap" }}>
+                        ${Number(it.unitRetailUsd ?? it.unitSaleUsd ?? 0).toFixed(2)}
+                      </strong>
                     </div>
                   </div>
+
                   <div style={s.qtyCtrl}>
-                    <button
-                      type="button"
-                      style={s.qtyBtn}
-                      onClick={() => { setExactPrice(null); setQuantities(q => ({ ...q, [i]: Math.max(1, Number(q[i] ?? 1) - 1) })); }}
-                    >−</button>
-                    <span style={s.qtyVal}>{quantities[i] ?? it.quantity ?? 1}</span>
                     <button
                       type="button"
                       style={s.qtyBtn}
                       onClick={() => { setExactPrice(null); setQuantities(q => ({ ...q, [i]: Math.min(20, Number(q[i] ?? 1) + 1) })); }}
                     >+</button>
+                    <span style={s.qtyVal}>{quantities[i] ?? it.quantity ?? 1}</span>
+                    <button
+                      type="button"
+                      style={s.qtyBtn}
+                      onClick={() => { setExactPrice(null); setQuantities(q => ({ ...q, [i]: Math.max(1, Number(q[i] ?? 1) - 1) })); }}
+                    >−</button>
                   </div>
                 </div>
               ))}
@@ -903,10 +914,6 @@ export default function OrderPage() {
           )}
 
           {errors.price && <p style={s.err}>⚠️ {errors.price}</p>}
-          {price > 0 && !loading && (
-            <p style={{ color: "#16a34a", fontSize: 13, margin: "6px 0 0", fontWeight: 600 }}>✅ سعر السلة: {price} $</p>
-          )}
-
           {/* One number, in the currency the customer actually pays in. The
               commission and the dollar rate are ours to know, not theirs to
               read: showing them invited arithmetic instead of a decision. */}
@@ -1325,12 +1332,24 @@ const s = {
     display: "flex", alignItems: "flex-start", gap: 10,
     padding: "11px 0", borderTop: "1px solid #f3f4f6",
   },
-  qtyInfo: { flex: 1, minWidth: 0 },
+  // A phone gives this row about 300px; the picture and the stepper are fixed,
+  // so the text column has to be free to shrink or the title wraps one word
+  // per line. minWidth:0 is what actually allows that inside a flex row.
+  qtyInfo: { flex: "1 1 auto", minWidth: 0 },
   qtyThumb: {
-    width: 56, height: 56, borderRadius: 8, objectFit: "cover",
+    width: 52, height: 52, borderRadius: 8, objectFit: "cover",
     flexShrink: 0, border: "1px solid #e5e7eb",
   },
-  qtyName: { fontSize: 12.5, lineHeight: 1.6, wordBreak: "break-word" },
+  qtyName: {
+    fontSize: 12.5, lineHeight: 1.55, cursor: "pointer",
+    overflow: "hidden", display: "-webkit-box",
+    WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+  },
+  qtyNameFull: { fontSize: 12.5, lineHeight: 1.55, cursor: "pointer" },
+  qtyVariant: {
+    background: "#f3f4f6", borderRadius: 6, padding: "1px 7px",
+    fontSize: 11.5, whiteSpace: "nowrap",
+  },
   qtyMeta: {
     fontSize: 12, color: "#6b7280", marginTop: 4,
     display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
@@ -1342,10 +1361,11 @@ const s = {
   },
   qtyCtrl: { display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginTop: 2 },
   qtyBtn: {
-    width: 30, height: 30, borderRadius: 8, border: "1px solid #d1d5db",
-    background: "#f9fafb", fontSize: 17, lineHeight: 1, cursor: "pointer", fontFamily: "inherit",
+    width: 28, height: 28, borderRadius: 8, border: "1px solid #d1d5db",
+    background: "#f9fafb", fontSize: 16, lineHeight: 1, cursor: "pointer",
+    fontFamily: "inherit", padding: 0, flexShrink: 0,
   },
-  qtyVal: { minWidth: 24, textAlign: "center", fontWeight: 700, fontSize: 14 },
+  qtyVal: { minWidth: 20, textAlign: "center", fontWeight: 700, fontSize: 14 },
   geoBtn: {
     width: "100%", marginTop: 8, padding: "11px 14px", borderRadius: 12,
     border: "1px dashed #d1d5db", background: "#fafafa", color: "#374151",
