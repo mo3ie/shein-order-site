@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { useLang } from "@/lib/i18n";
+import { useLang, useIsDesktop } from "@/lib/i18n";
+import TopBar from "@/app/components/TopBar";
 
 const PRIMARY   = "#7c3aed";
 const GRAD_HEAD = "linear-gradient(150deg,#7c3aed 0%,#5b4bf5 45%,#3b82f6 100%)";
@@ -33,6 +34,7 @@ const METHOD = {
  */
 export default function WalletPage() {
   const { lang, setLang, t, dir } = useLang();
+  const isDesktop = useIsDesktop();
   const [user,    setUser]    = useState(undefined);
   const [balance, setBalance] = useState(0);
   const [txs,     setTxs]     = useState([]);
@@ -57,6 +59,8 @@ export default function WalletPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: PAGE, color: INK, direction: dir, paddingBottom: 96 }}>
+      {isDesktop && <TopBar active="wallet" lang={lang} setLang={setLang} t={t} user={user} />}
+
       <div className="form-inner" style={{ maxWidth: 480, margin: "0 auto" }}>
 
         {/* ── الترويسة ── */}

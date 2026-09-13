@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { useLang } from "@/lib/i18n";
+import { useLang, useIsDesktop } from "@/lib/i18n";
+import TopBar from "@/app/components/TopBar";
 import { useRouter } from "next/navigation";
 import AddressManager from "@/components/AddressManager";
 
@@ -127,6 +128,7 @@ function OrderCard({ order }) {
 
 export default function AccountPage() {
   const { lang, setLang, t, dir } = useLang();
+  const isDesktop = useIsDesktop();
   const router  = useRouter();
   const [user,    setUser]    = useState(null);
   const [orders,  setOrders]  = useState([]);
@@ -225,6 +227,8 @@ export default function AccountPage() {
   return (
     <div style={{ minHeight: "100vh", background: PAGE, color: INK, direction: dir, paddingBottom: 96 }}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes spin{to{transform:rotate(360deg)}}`}</style>
+
+      {isDesktop && <TopBar active="account" lang={lang} setLang={setLang} t={t} user={user} />}
 
       <div className="form-inner" style={{ maxWidth: 480, margin: "0 auto" }}>
 

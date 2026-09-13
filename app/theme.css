@@ -113,6 +113,8 @@ input::placeholder, textarea::placeholder { color: var(--t-faint); }
     gap: 32px; padding: 32px 56px; align-items: start;
     max-width: 1440px; margin: 0 auto;
   }
+  /* الشاشات الأخرى تتّسع قليلاً بدل شريط 480 في وسط شاشة عريضة */
+  .form-inner { max-width: 760px !important; }
   /* شريط الإجراء والتنقّل السفليان للهاتف وحده */
   .action-bar, .bottom-nav { display: none !important; }
 }

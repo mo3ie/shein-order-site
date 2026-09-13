@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { useLang } from "@/lib/i18n";
+import { useLang, useIsDesktop } from "@/lib/i18n";
+import TopBar from "@/app/components/TopBar";
 
 const GRAD   = "linear-gradient(135deg,#7c3aed,#3b82f6)";
 const PURPLE = "#7c3aed";
@@ -189,6 +190,7 @@ function OrderCard({ order }) {
 // ── الصفحة الرئيسية ──────────────────────────────────────────────────────────
 export default function MyOrdersPage() {
   const { lang, setLang, t, dir } = useLang();
+  const isDesktop = useIsDesktop();
   const [user,    setUser]    = useState(undefined); // undefined = loading
   const [orders,  setOrders]  = useState([]);
   const [loading, setLoading] = useState(false);
@@ -256,6 +258,8 @@ export default function MyOrdersPage() {
   return (
     <div style={{ minHeight: "100vh", background: PAGE, color: INK, direction: dir, paddingBottom: 96 }}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
+
+      {isDesktop && <TopBar active="orders" lang={lang} setLang={setLang} t={t} user={user} />}
 
       <div className="form-inner" style={{ maxWidth: 480, margin: "0 auto" }}>
 
