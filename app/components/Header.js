@@ -22,14 +22,14 @@ export default function Header() {
   };
 
   if (pathname.startsWith("/admin")) return null;
-  // صفحة الطلب ترسم ترويستها داخل التدرّج (الإجمالي يعيش فيها)، وشريط التنقّل
-  // السفلي يغني عن روابط الأعلى — فترويسة ثانية هنا تكرار لا أكثر.
-  if (pathname === "/") return null;
+  // شاشات التطبيق الأربع ترسم ترويستها داخل التدرّج (الإجمالي أو الرصيد يعيش
+  // فيها)، وشريط التنقّل السفلي يغني عن روابط الأعلى — فترويسة ثانية تكرار.
+  if (["/", "/my-orders", "/account", "/wallet"].includes(pathname)) return null;
 
   return (
     <header style={{
-      background: "#fff",
-      borderBottom: "1px solid #ebebeb",
+      background: "var(--t-card)",
+      borderBottom: "1px solid var(--t-line)",
       padding: "0 24px",
       height: "60px",
       display: "flex",
@@ -50,8 +50,8 @@ export default function Header() {
         }}>
           TREND
         </span>
-        <div style={{ width: "1px", height: "20px", background: "#e0e0e0" }} />
-        <span style={{ fontSize: "13px", color: "#666", fontWeight: "500" }}>
+        <div style={{ width: "1px", height: "20px", background: "var(--t-line)" }} />
+        <span style={{ fontSize: "13px", color: "var(--t-muted)", fontWeight: "500" }}>
           خدمة طلب شي إن
         </span>
       </a>
@@ -65,12 +65,12 @@ export default function Header() {
               gap: "7px",
               padding: "7px 14px",
               borderRadius: "8px",
-              background: "#f5f5f5",
-              color: "#333",
+              background: "var(--t-chip)",
+              color: "var(--t-ink)",
               textDecoration: "none",
               fontSize: "13px",
               fontWeight: "500",
-              border: "1px solid #ebebeb",
+              border: "1px solid var(--t-line)",
             }}>
               <img
                 src={user.user_metadata?.avatar_url || "/avatar.png"}
@@ -83,9 +83,9 @@ export default function Header() {
             <button onClick={logout} style={{
               padding: "7px 14px",
               borderRadius: "8px",
-              background: "#fff",
-              color: "#e53e3e",
-              border: "1px solid #fecaca",
+              background: "var(--t-card)",
+              color: "var(--t-red-ink)",
+              border: "1px solid var(--t-red-line)",
               fontSize: "13px",
               fontWeight: "500",
               cursor: "pointer",
@@ -98,20 +98,20 @@ export default function Header() {
             <a href="/my-orders" style={{
               padding: "7px 14px",
               borderRadius: "8px",
-              background: "#f5f5f5",
-              color: "#333",
+              background: "var(--t-chip)",
+              color: "var(--t-ink)",
               textDecoration: "none",
               fontSize: "13px",
               fontWeight: "500",
-              border: "1px solid #ebebeb",
+              border: "1px solid var(--t-line)",
             }}>
               📦 طلباتي
             </a>
             <a href="/login" style={{
               padding: "7px 14px",
               borderRadius: "8px",
-              background: "#111",
-              color: "#fff",
+              background: "var(--t-solid)",
+              color: "var(--t-on-solid)",
               textDecoration: "none",
               fontSize: "13px",
               fontWeight: "500",

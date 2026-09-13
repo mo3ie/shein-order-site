@@ -75,7 +75,7 @@ function LoginPrompt({ onLogin }) {
   };
 
   return (
-    <div style={{ minHeight: "calc(100vh - 60px)", background: PAGE, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px", direction: dir }}>
+    <div style={{ minHeight: "100vh", background: PAGE, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px", direction: dir }}>
       <div style={{ width: "100%", maxWidth: 380 }}>
 
         {/* أيقونة */}

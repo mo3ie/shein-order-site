@@ -62,7 +62,7 @@ export default function SignupPage() {
       <main style={mainStyle}>
         <div style={card}>
           <div style={{ textAlign: "center", fontSize: 48, marginBottom: 16 }}>📧</div>
-          <h2 style={{ textAlign: "center", marginBottom: 8, color: "#111" }}>تحقق من بريدك</h2>
+          <h2 style={{ textAlign: "center", marginBottom: 8, color: "var(--t-ink)" }}>تحقق من بريدك</h2>
           <p style={{ textAlign: "center", color: "#666", fontSize: 14, lineHeight: 1.6 }}>
             أرسلنا لك رابط تأكيد على <strong>{email}</strong>
             <br />افتح الرابط لتفعيل حسابك
@@ -78,7 +78,7 @@ export default function SignupPage() {
   return (
     <main style={mainStyle}>
       <div style={card}>
-        <h2 style={{ textAlign: "center", marginBottom: 20, color: "#111", fontWeight: 800 }}>
+        <h2 style={{ textAlign: "center", marginBottom: 20, color: "var(--t-ink)", fontWeight: 800 }}>
           إنشاء حساب جديد
         </h2>
 
@@ -141,7 +141,7 @@ export default function SignupPage() {
 }
 
 const mainStyle = {
-  minHeight: "calc(100vh - 60px)",
+  minHeight: "100vh",
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
@@ -150,7 +150,7 @@ const mainStyle = {
 };
 
 const card = {
-  background: "#fff",
+  background: "var(--t-card)",
   padding: "32px",
   color: "#2c2c2c",
   borderRadius: "16px",
@@ -167,8 +167,8 @@ const input = {
   border: "1px solid #e0e0e0",
   outline: "none",
   fontSize: "14px",
-  color: "#111",
-  background: "#fff",
+  color: "var(--t-ink)",
+  background: "var(--t-card)",
   boxSizing: "border-box",
 };
 
@@ -188,7 +188,7 @@ const btnGoogle = {
   width: "100%",
   padding: "11px",
   borderRadius: "10px",
-  background: "#fff",
+  background: "var(--t-card)",
   color: "#333",
   border: "1px solid #ddd",
   cursor: "pointer",

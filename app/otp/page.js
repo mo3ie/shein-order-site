@@ -46,7 +46,7 @@ const main = {
 };
 
 const card = {
-  background: "#fff",
+  background: "var(--t-card)",
   padding: "25px",
   borderRadius: "12px",
   width: "300px",

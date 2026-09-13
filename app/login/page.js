@@ -191,7 +191,7 @@ function LoginForm() {
 }
 
 const mainStyle = {
-  minHeight: "calc(100vh - 60px)",
+  minHeight: "100vh",
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
@@ -200,7 +200,7 @@ const mainStyle = {
 };
 
 const card = {
-  background: "#fff",
+  background: "var(--t-card)",
   padding: "32px",
   color: "#2c2c2c",
   borderRadius: "16px",
@@ -217,8 +217,8 @@ const input = {
   border: "1px solid #e0e0e0",
   outline: "none",
   fontSize: "14px",
-  color: "#111",
-  background: "#fff",
+  color: "var(--t-ink)",
+  background: "var(--t-card)",
   boxSizing: "border-box",
 };
 
@@ -239,7 +239,7 @@ const btnGoogle = {
   width: "100%",
   padding: "11px",
   borderRadius: "10px",
-  background: "#fff",
+  background: "var(--t-card)",
   color: "#333",
   border: "1px solid #ddd",
   cursor: "pointer",

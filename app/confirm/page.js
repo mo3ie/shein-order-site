@@ -194,7 +194,7 @@ const mainStyle = {
 
 const card = {
   width: "400px",
-  background: "#fff",
+  background: "var(--t-card)",
   padding: "20px",
   direction: "rtl",
   color:"#000",
@@ -202,7 +202,7 @@ const card = {
 };
 
 const box = {
-  background: "#f3f4f6",
+  background: "var(--t-line)",
   padding: "10px",
   color:"#000",
   direction: "rtl",
@@ -224,7 +224,7 @@ const btn = {
   width: "100%",
   padding: "12px",
   marginTop: "10px",
-  background: "#e5e7eb",
+  background: "var(--t-line)",
   border: "none",
   color:"#000",
   borderRadius: "10px",

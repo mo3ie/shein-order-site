@@ -6,6 +6,14 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 const GRAD = "linear-gradient(135deg,#7c3aed,#3b82f6)";
+const GRAD_HEAD = "linear-gradient(150deg,#7c3aed 0%,#5b4bf5 45%,#3b82f6 100%)";
+const PAGE  = "var(--t-page)";
+const CARD  = "var(--t-card)";
+const INK   = "var(--t-ink)";
+const MUTED = "var(--t-muted)";
+const FAINT = "var(--t-faint)";
+const LINE  = "var(--t-line)";
+const CHIP  = "var(--t-chip)";
 
 function SuccessContent() {
   const params  = useSearchParams();
@@ -137,37 +145,37 @@ function SuccessContent() {
   const alreadyLinked = orderData?.user_id;
 
   return (
-    <div style={{ minHeight: "calc(100vh - 60px)", background: "transparent", display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 16px", direction: "rtl" }}>
+    <div style={{ minHeight: "100vh", background: PAGE, color: INK, display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 16px", direction: "rtl" }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes pop{0%{transform:scale(0.8);opacity:0}100%{transform:scale(1);opacity:1}}`}</style>
 
       <div style={{ width: "100%", maxWidth: 460, display: "flex", flexDirection: "column", gap: 16 }}>
 
         {/* ── بطاقة الحالة ── */}
-        <div style={{ background: "#fff", borderRadius: 24, padding: "36px 28px", boxShadow: "0 8px 40px rgba(124,58,237,0.10)", border: "1px solid #ede9fe", textAlign: "center", animation: "pop 0.3s ease" }}>
+        <div style={{ background: CARD, borderRadius: 22, padding: "34px 24px", boxShadow: "0 2px 10px rgba(22,19,31,0.05)", textAlign: "center", animation: "pop 0.3s ease" }}>
 
           {/* أيقونة */}
           {isLoading ? (
-            <div style={{ width: 64, height: 64, borderRadius: "50%", border: "4px solid #ede9fe", borderTopColor: "#7c3aed", animation: "spin 0.8s linear infinite", margin: "0 auto 20px" }} />
+            <div style={{ width: 64, height: 64, borderRadius: "50%", border: `4px solid ${LINE}`, borderTopColor: "#7c3aed", animation: "spin 0.8s linear infinite", margin: "0 auto 20px" }} />
           ) : isPaid ? (
             <div style={{ width: 72, height: 72, borderRadius: "50%", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: 32, color: "#fff", boxShadow: "0 8px 24px rgba(124,58,237,0.4)" }}>✓</div>
           ) : (
-            <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#fffbeb", border: "2px solid #fde68a", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: 32 }}>⏳</div>
+            <div style={{ width: 72, height: 72, borderRadius: "50%", background: "var(--t-amber-bg)", border: "2px solid var(--t-amber-line)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: 32 }}>⏳</div>
           )}
 
-          <h2 style={{ fontSize: 22, fontWeight: 800, color: isLoading ? "#9ca3af" : isPaid ? "#7c3aed" : "#d97706", marginBottom: 6 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: isLoading ? FAINT : isPaid ? "#7c3aed" : "var(--t-amber-ink)", marginBottom: 6 }}>
             {isLoading ? "جاري التحقق..." : isPaid ? "تم الدفع بنجاح! 🎉" : "في انتظار تأكيد الدفع"}
           </h2>
-          <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 0 }}>
+          <p style={{ fontSize: 13, color: FAINT, marginBottom: 0 }}>
             {isLoading ? "نتحقق من حالة دفعك..." : isPaid ? "شكراً! تم استلام طلبك وسيتم معالجته قريباً" : "إذا اكتمل دفعك، يظهر التأكيد خلال لحظات تلقائياً"}
           </p>
         </div>
 
         {/* ── رقم الطلب ── */}
         {orderId && (
-          <div style={{ background: "#fff", borderRadius: 18, padding: "20px 24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)", border: "1px solid #f3f4f6" }}>
-            <p style={{ fontSize: 12, color: "#9ca3af", marginBottom: 10, fontWeight: 600 }}>رقم الطلب</p>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#f9fafb", borderRadius: 12, padding: "12px 14px" }}>
-              <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: "#1e1b4b", wordBreak: "break-all", fontFamily: "monospace" }}>
+          <div style={{ background: CARD, borderRadius: 18, padding: "18px 20px", boxShadow: "0 2px 10px rgba(22,19,31,0.05)" }}>
+            <p style={{ fontSize: 12, color: FAINT, marginBottom: 10, fontWeight: 600 }}>رقم الطلب</p>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, background: CHIP, borderRadius: 12, padding: "12px 14px" }}>
+              <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: INK, wordBreak: "break-all", fontFamily: "monospace" }}>
                 {orderId}
               </span>
               <button
@@ -176,7 +184,7 @@ function SuccessContent() {
                   padding: "7px 16px",
                   borderRadius: 10,
                   border: "none",
-                  background: copied ? "#16a34a" : GRAD,
+                  background: copied ? "#15803d" : GRAD,
                   color: "#fff",
                   cursor: "pointer",
                   fontSize: 12,
@@ -189,7 +197,7 @@ function SuccessContent() {
                 {copied ? "✓ تم النسخ" : "نسخ"}
               </button>
             </div>
-            <p style={{ fontSize: 11, color: "#d1d5db", marginTop: 8, textAlign: "center" }}>
+            <p style={{ fontSize: 11, color: FAINT, marginTop: 8, textAlign: "center" }}>
               ⚠️ احتفظ بهذا الرقم لمتابعة طلبك في أي وقت
             </p>
           </div>
@@ -197,11 +205,11 @@ function SuccessContent() {
 
         {/* ── ربط الطلب بالحساب ── */}
         {orderId && isPaid && !alreadyLinked && (
-          <div style={{ background: "#faf5ff", border: "1px solid #e9d5ff", borderRadius: 18, padding: "20px 24px" }}>
+          <div style={{ background: CARD, border: "1.5px solid var(--t-accent-line)", borderRadius: 18, padding: "18px 20px" }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 14 }}>
               <span style={{ fontSize: 28, lineHeight: 1 }}>👤</span>
               <div>
-                <p style={{ fontWeight: 700, fontSize: 14, color: "#1e1b4b", marginBottom: 4 }}>
+                <p style={{ fontWeight: 700, fontSize: 14, color: INK, marginBottom: 4 }}>
                   {user ? "أضف هذا الطلب لحسابك" : "سجّل دخولك لمتابعة طلبك"}
                 </p>
                 <p style={{ fontSize: 12, color: "#7c3aed" }}>
@@ -213,12 +221,12 @@ function SuccessContent() {
             </div>
 
             {claimed ? (
-              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 12, padding: "12px 16px", textAlign: "center", color: "#16a34a", fontWeight: 700, fontSize: 14 }}>
+              <div style={{ background: "var(--t-green-bg)", border: "1px solid var(--t-green-line)", borderRadius: 12, padding: "12px 16px", textAlign: "center", color: "var(--t-green-ink)", fontWeight: 700, fontSize: 14 }}>
                 ✅ تم إضافة الطلب لحسابك بنجاح
               </div>
             ) : (
               <>
-                {claimErr && <p style={{ color: "#ef4444", fontSize: 12, marginBottom: 8 }}>⚠️ {claimErr}</p>}
+                {claimErr && <p style={{ color: "var(--t-red-ink)", fontSize: 12, marginBottom: 8 }}>⚠️ {claimErr}</p>}
                 <button
                   onClick={handleClaim}
                   disabled={claiming}
@@ -239,7 +247,7 @@ function SuccessContent() {
           >
             🔍 تتبع الطلب
           </button>
-          <a href="/" style={{ display: "block", padding: 13, background: "#fff", color: "#6b7280", border: "1px solid #f3f4f6", borderRadius: 14, textDecoration: "none", fontWeight: 600, fontSize: 14, textAlign: "center" }}>
+          <a href="/" style={{ display: "block", padding: 13, background: CARD, color: MUTED, border: `1.5px solid ${LINE}`, borderRadius: 14, textDecoration: "none", fontWeight: 600, fontSize: 14, textAlign: "center" }}>
             طلب جديد
           </a>
         </div>
