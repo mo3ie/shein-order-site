@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useLang } from "@/lib/i18n";
 
 const PRIMARY   = "#7c3aed";
 const GRADIENT  = "linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%)";
@@ -87,7 +88,7 @@ export default function OrderPage() {
   // الرحلة ثلاث شاشات في واجهة واحدة، لا نموذج واحد طويل:
   // الرابط والانتظار ← السلة والكميات ← بياناتك، ثم ورقة الدفع.
   const [stage,             setStage]             = useState("link"); // link|cart|details
-  const [lang,              setLang]              = useState("ar");
+  const { lang, setLang, t, dir } = useLang();
 
   // A SHEIN share link carries no quantities: three of one shirt arrive as one
   // line of one, and the same shirt in another size arrives as its own line. So
@@ -659,13 +660,13 @@ export default function OrderPage() {
           <button
             type="button"
             onClick={() => setStage(stage === "details" ? "cart" : "link")}
-            aria-label="رجوع"
+            aria-label={t("رجوع")}
             style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.2)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
           </button>
         )}
-        <span style={{ fontWeight: 900, fontSize: 18 }}>ترند · شي إن</span>
+        <span style={{ fontWeight: 900, fontSize: 18 }}>{t("ترند · شي إن")}</span>
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <button
@@ -686,7 +687,7 @@ export default function OrderPage() {
   );
 
   return (
-    <main className="form-main" style={{ minHeight: "100vh", background: PAGE, color: INK, direction: "rtl", paddingBottom: 168 }}>
+    <main className="form-main" style={{ minHeight: "100vh", background: PAGE, color: INK, direction: dir, paddingBottom: 168 }}>
 
       <style>{`
         @keyframes zoomIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -706,24 +707,20 @@ export default function OrderPage() {
 
           {stage === "link" ? (
             <div style={{ marginTop: 20, position: "relative" }}>
-              <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.5px", lineHeight: 1.4 }}>
-                اطلب من شي إن<br />وادفع بالدينار
-              </div>
-              <div style={{ fontSize: 12.5, opacity: 0.82, marginTop: 6, lineHeight: 1.8 }}>
-                الصق رابط سلتك المشتركة، ونقرأ سعرها الحقيقي من تطبيق شي إن نفسه.
-              </div>
+              <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.5px", lineHeight: 1.4 }}>{t("اطلب من شي إن")}<br />{t("وادفع بالدينار")}</div>
+              <div style={{ fontSize: 12.5, opacity: 0.82, marginTop: 6, lineHeight: 1.8 }}>{t("الصق رابط سلتك المشتركة، ونقرأ سعرها الحقيقي من تطبيق شي إن نفسه.")}</div>
             </div>
           ) : (
             <div style={{ marginTop: 22, position: "relative" }}>
-              <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>الإجمالي المستحق</div>
+              <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>{t("الإجمالي المستحق")}</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
                 <span style={{ fontSize: 40, fontWeight: 900, letterSpacing: "-1.5px", lineHeight: 1 }}>
                   {priceLYD.toLocaleString("en-US", { maximumFractionDigits: 0 })}
                 </span>
-                <span style={{ fontSize: 15, fontWeight: 700, opacity: 0.85 }}>د.ل</span>
+                <span style={{ fontSize: 15, fontWeight: 700, opacity: 0.85 }}>{t("د.ل")}</span>
               </div>
               <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
-                {itemCount ? <span style={hChip}>{itemCount} أصناف</span> : null}
+                {itemCount ? <span style={hChip}>{itemCount} {t("صنف")}</span> : null}
                 <span style={hChip}>{exactPrice != null ? "سعر نهائي من شي إن" : "الشحن إلى ليبيا لاحقاً"}</span>
                 {savedLyd > 1 && (
                   <span style={{ ...hChip, background: "rgba(52,211,153,0.25)" }}>
@@ -742,7 +739,7 @@ export default function OrderPage() {
           {stage === "link" && (<>
 
             <div style={s.card}>
-              <div style={{ fontSize: 12.5, fontWeight: 800, marginBottom: 9 }}>رابط السلة المشتركة</div>
+              <div style={{ fontSize: 12.5, fontWeight: 800, marginBottom: 9 }}>{t("رابط السلة المشتركة")}</div>
               <input
                 placeholder="onelink.shein.com/..."
                 value={cartLink}
@@ -755,11 +752,9 @@ export default function OrderPage() {
               />
               {errors.cartLink
                 ? <p style={{ ...s.err, margin: "8px 0 0" }}>{errors.cartLink}</p>
-                : <div style={{ fontSize: 11, color: FAINT, lineHeight: 1.85, marginTop: 9 }}>
-                    من داخل تطبيق شي إن: افتح سلتك ← زر المشاركة ← انسخ الرابط.
-                  </div>}
+                : <div style={{ fontSize: 11, color: FAINT, lineHeight: 1.85, marginTop: 9 }}>{t("من داخل تطبيق شي إن: افتح سلتك ← زر المشاركة ← انسخ الرابط.")}</div>}
               <div style={{ ...s.noteBlue, marginBottom: 0, marginTop: 11, fontSize: 11.5 }}>
-                يجب أن يكون متجر شي إن موجّهاً إلى <strong>الإمارات (دبي)</strong> حتى تُقرأ الأسعار بالدولار بشكل صحيح.
+                {t("يجب أن يكون متجر شي إن موجّهاً إلى")} <strong>{t("الإمارات (دبي)")}</strong> {t("حتى تُقرأ الأسعار بالدولار بشكل صحيح.")}
               </div>
             </div>
 
@@ -768,7 +763,7 @@ export default function OrderPage() {
               <div style={{ ...s.card, padding: "17px 16px", animation: "riseIn 0.25s ease" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 13 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: PRIMARY, animation: "pulse 1.4s ease-in-out infinite" }} />
-                  <div style={{ fontSize: 13.5, fontWeight: 800 }}>نقرأ سعر سلتك الآن</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 800 }}>{t("نقرأ سعر سلتك الآن")}</div>
                 </div>
                 <div style={{ height: 5, background: "var(--t-track)", borderRadius: 4, overflow: "hidden", position: "relative" }}>
                   <div style={{ position: "absolute", insetBlock: 0, width: "45%", borderRadius: 4, background: GRAD_HEAD, animation: "sweep 1.7s ease-in-out infinite" }} />
@@ -776,20 +771,18 @@ export default function OrderPage() {
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 13 }}>
                   <span style={{ fontSize: 12, color: MUTED }}>
                     {queue && queue.ahead > 0 && !queue.running
-                      ? <>دورك <strong style={{ color: PRIMARY }}>{queue.position}</strong> — أمامك {queue.ahead}</>
-                      : <>دورك <strong style={{ color: PRIMARY }}>١</strong> — تُقاس الآن</>}
+                      ? <>{t("دورك")} <strong style={{ color: PRIMARY }}>{queue.position}</strong> — {t("أمامك")} {queue.ahead}</>
+                      : <>{t("دورك")} <strong style={{ color: PRIMARY }}>{lang === "en" ? "1" : "١"}</strong> — {t("تُقاس الآن")}</>}
                   </span>
                   <span style={{ fontSize: 12, color: FAINT }}>
                     {queue?.etaMs
-                      ? `~${Math.max(1, Math.round(queue.etaMs / 60000))} دقيقة`
+                      ? `~${Math.max(1, Math.round(queue.etaMs / 60000))} ${t("دقيقة")}`
                       : queue?.averageMs
-                        ? `~${Math.round(queue.averageMs / 1000)} ثانية`
-                        : elapsed > 0 ? `${elapsed} ثانية` : "~٥٠ ثانية"}
+                        ? `~${Math.round(queue.averageMs / 1000)} ${t("ثانية")}`
+                        : elapsed > 0 ? `${elapsed} ${t("ثانية")}` : t("~٥٠ ثانية")}
                   </span>
                 </div>
-                <div style={{ fontSize: 11, color: FAINT, lineHeight: 1.9, marginTop: 9 }}>
-                  يمكنك إغلاق الصفحة — العملية تُكمل على خادمنا وتستأنف عند رجوعك.
-                </div>
+                <div style={{ fontSize: 11, color: FAINT, lineHeight: 1.9, marginTop: 9 }}>{t("يمكنك إغلاق الصفحة — العملية تُكمل على خادمنا وتستأنف عند رجوعك.")}</div>
               </div>
             )}
 
@@ -802,28 +795,28 @@ export default function OrderPage() {
                   "نفتح سلتك داخل تطبيق شي إن ونقرأ السعر كما تدفعه ترند تمامًا.",
                   "تحدّد الكميات التي تريدها — رابط شي إن يرسل كل صنف بكمية واحدة دائمًا.",
                   "تدفع بالدينار الليبي من محفظتك أو من بوابتك المفضّلة.",
-                ].map((t, i) => (
+                ].map((step, i) => (
                   <div key={i} style={{ display: "flex", gap: 11, alignItems: "flex-start" }}>
                     <div style={{ width: 26, height: 26, borderRadius: 9, background: LINE, color: PRIMARY, fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      {["١", "٢", "٣"][i]}
+                      {lang === "en" ? i + 1 : ["١", "٢", "٣"][i]}
                     </div>
-                    <div style={{ fontSize: 12, lineHeight: 1.75, color: MUTED, paddingTop: 3 }}>{t}</div>
+                    <div style={{ fontSize: 12, lineHeight: 1.75, color: MUTED, paddingTop: 3 }}>{t(step)}</div>
                   </div>
                 ))}
               </div>
             )}
 
             <div style={{ ...s.card, padding: "15px 16px" }}>
-              <div style={{ fontSize: 12.5, fontWeight: 800, marginBottom: 10 }}>تتبّع طلباً سابقاً</div>
+              <div style={{ fontSize: 12.5, fontWeight: 800, marginBottom: 10 }}>{t("تتبّع طلباً سابقاً")}</div>
               <div style={{ display: "flex", gap: 8 }}>
                 <input
-                  placeholder="رقم الطلب"
+                  placeholder={t("رقم الطلب")}
                   value={trackId}
                   onChange={e => setTrackId(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && handleTrack()}
                   style={{ ...s.input, marginBottom: 0, flex: 1 }}
                 />
-                <button onClick={handleTrack} style={{ ...s.btn, width: "auto", padding: "0 22px", boxShadow: "none" }}>بحث</button>
+                <button onClick={handleTrack} style={{ ...s.btn, width: "auto", padding: "0 22px", boxShadow: "none" }}>{t("بحث")}</button>
               </div>
             </div>
           </>)}
@@ -832,8 +825,8 @@ export default function OrderPage() {
           {stage === "cart" && (<>
 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 14, fontWeight: 800 }}>سلتك</span>
-              <span style={{ fontSize: 11.5, color: MUTED }}>عدّل الكميات ثم أعد الحساب</span>
+              <span style={{ fontSize: 14, fontWeight: 800 }}>{t("سلتك")}</span>
+              <span style={{ fontSize: 11.5, color: MUTED }}>{t("عدّل الكميات ثم أعد الحساب")}</span>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
@@ -846,7 +839,7 @@ export default function OrderPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       onClick={() => setOpenNames(o => ({ ...o, [i]: !o[i] }))}
-                      title="اضغط لعرض الاسم كاملاً"
+                      title={t("اضغط لعرض الاسم كاملاً")}
                       style={openNames[i] ? s.qtyNameFull : s.qtyName}
                     >
                       {it.name}
@@ -858,7 +851,7 @@ export default function OrderPage() {
                       </span>
                       {it.offerEndsIn ? (
                         <span style={{ fontSize: 10.5, color: "var(--t-red-ink)", fontWeight: 700 }}>
-                          ينتهي العرض خلال {it.offerEndsIn}
+                          {t("ينتهي العرض خلال")} {it.offerEndsIn}
                         </span>
                       ) : null}
                     </div>
@@ -885,8 +878,7 @@ export default function OrderPage() {
             {quantityChanged && exactPrice == null && (
               <div style={{ background: CARD, border: "1.5px solid var(--t-accent-line)", borderRadius: 16, padding: "13px 15px" }}>
                 <div style={{ fontSize: 12, lineHeight: 1.85, color: MUTED }}>
-                  السعر أعلاه <strong style={{ color: PRIMARY }}>تقديري</strong> بعد تعديل الكميات. اطلب إعادة الحساب
-                  ليقرأ الموقع السعر النهائي من شي إن.
+                  {t("السعر أعلاه")} <strong style={{ color: PRIMARY }}>{t("تقديري")}</strong> {t("بعد تعديل الكميات. اطلب إعادة الحساب ليقرأ الموقع السعر النهائي من شي إن.")}
                 </div>
                 <button
                   type="button"
@@ -897,43 +889,39 @@ export default function OrderPage() {
                   {repricing ? "جاري إعادة حساب السلة..." : "إعادة حساب السلة"}
                 </button>
                 {repricing && (
-                  <p style={{ fontSize: 11, color: FAINT, lineHeight: 1.9, margin: "9px 0 0" }}>
-                    نضبط الكميات داخل سلتك على شي إن ونقرأ السعر منها — قد يستغرق ذلك دقيقتين إلى أربع.
-                  </p>
+                  <p style={{ fontSize: 11, color: FAINT, lineHeight: 1.9, margin: "9px 0 0" }}>{t("نضبط الكميات داخل سلتك على شي إن ونقرأ السعر منها — قد يستغرق ذلك دقيقتين إلى أربع.")}</p>
                 )}
                 {repriceError && <div style={{ ...s.noteRed, marginBottom: 0 }}>{repriceError}</div>}
               </div>
             )}
 
             {quantityChanged && exactPrice != null && (
-              <div style={s.qtyOk}>هذا هو السعر النهائي من شي إن بالكميات التي اخترتها.</div>
+              <div style={s.qtyOk}>{t("هذا هو السعر النهائي من شي إن بالكميات التي اخترتها.")}</div>
             )}
 
             <button
               type="button"
               onClick={() => { setStage("link"); setResolveState("idle"); setCartItems([]); setPrice(null); setExactPrice(null); setQuantities({}); }}
               style={{ ...s.ghostBtn, marginTop: 0 }}
-            >
-              سلة أخرى
-            </button>
+            >{t("سلة أخرى")}</button>
           </>)}
 
           {/* ────────── ٣ · بياناتك ────────── */}
           {stage === "details" && (<>
 
             <div style={s.card}>
-              <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 13 }}>بياناتك</div>
+              <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 13 }}>{t("بياناتك")}</div>
 
-              <label style={s.label}>الاسم الكامل</label>
+              <label style={s.label}>{t("الاسم الكامل")}</label>
               <input
-                placeholder="أدخل اسمك الكامل"
+                placeholder={t("أدخل اسمك الكامل")}
                 value={name}
                 onChange={e => { setName(e.target.value); setErrors(p => ({ ...p, name: null })); }}
                 style={{ ...s.input, ...(errors.name ? s.inputErr : {}) }}
               />
               {errors.name && <p style={s.err}>{errors.name}</p>}
 
-              <label style={s.label}>رقم الهاتف الليبي</label>
+              <label style={s.label}>{t("رقم الهاتف الليبي")}</label>
               <input
                 placeholder="0913456789"
                 value={phone}
@@ -944,24 +932,24 @@ export default function OrderPage() {
               />
               {errors.phone
                 ? <p style={s.err}>{errors.phone}</p>
-                : <p style={s.hint}>يبدأ بـ 091 أو 092 أو 093 أو 094 أو 095 — 10 أرقام</p>}
+                : <p style={s.hint}>{t("يبدأ بـ 091 أو 092 أو 093 أو 094 أو 095 — 10 أرقام")}</p>}
             </div>
 
             <div style={s.card}>
               <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 13 }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 10-14 0c0 5.5 7 11 7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
-                <span style={{ fontSize: 14, fontWeight: 800 }}>عنوان الاستلام</span>
+                <span style={{ fontSize: 14, fontWeight: 800 }}>{t("عنوان الاستلام")}</span>
               </div>
 
               <div style={{ display: "flex", gap: 8 }}>
                 <input
-                  placeholder="المدينة"
+                  placeholder={t("المدينة")}
                   value={city}
                   onChange={e => { setCity(e.target.value); setErrors(p => ({ ...p, city: null })); }}
                   style={{ ...s.input, ...(errors.city ? s.inputErr : {}), flex: 1 }}
                 />
                 <input
-                  placeholder="المنطقة"
+                  placeholder={t("المنطقة")}
                   value={area}
                   onChange={e => { setArea(e.target.value); setErrors(p => ({ ...p, area: null })); }}
                   style={{ ...s.input, ...(errors.area ? s.inputErr : {}), flex: 1 }}
@@ -970,7 +958,7 @@ export default function OrderPage() {
               {(errors.city || errors.area) && <p style={s.err}>{errors.city || errors.area}</p>}
 
               <input
-                placeholder="أقرب نقطة دالة أو وصف إضافي (اختياري)"
+                placeholder={t("أقرب نقطة دالة أو وصف إضافي (اختياري)")}
                 value={addressNote}
                 onChange={e => setAddressNote(e.target.value)}
                 style={s.input}
@@ -1004,27 +992,23 @@ export default function OrderPage() {
               {geo && (
                 <p style={{ ...s.hint, margin: "8px 0 0" }}>
                   موقع محفوظ (دقة ~{geo.accuracy} متر) —{" "}
-                  <a href={`https://www.google.com/maps?q=${geo.lat},${geo.lng}`} target="_blank" rel="noreferrer" style={{ color: PRIMARY, textDecoration: "underline" }}>
-                    عرضه على الخريطة
-                  </a>
+                  <a href={`https://www.google.com/maps?q=${geo.lat},${geo.lng}`} target="_blank" rel="noreferrer" style={{ color: PRIMARY, textDecoration: "underline" }}>{t("عرضه على الخريطة")}</a>
                 </p>
               )}
-              {geoState === "denied" && <p style={{ ...s.hint, margin: "8px 0 0" }}>لم نتمكن من قراءة موقعك. اكتب العنوان أعلاه ويكفي.</p>}
-              {geoState === "unsupported" && <p style={{ ...s.hint, margin: "8px 0 0" }}>متصفحك لا يدعم تحديد الموقع. اكتب العنوان أعلاه ويكفي.</p>}
+              {geoState === "denied" && <p style={{ ...s.hint, margin: "8px 0 0" }}>{t("لم نتمكن من قراءة موقعك. اكتب العنوان أعلاه ويكفي.")}</p>}
+              {geoState === "unsupported" && <p style={{ ...s.hint, margin: "8px 0 0" }}>{t("متصفحك لا يدعم تحديد الموقع. اكتب العنوان أعلاه ويكفي.")}</p>}
             </div>
 
             <div style={s.card}>
-              <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 13 }}>ملاحظات وصور (اختياري)</div>
+              <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 13 }}>{t("ملاحظات وصور (اختياري)")}</div>
               <textarea
-                placeholder="اكتب أي ملاحظة تخص طلبك..."
+                placeholder={t("اكتب أي ملاحظة تخص طلبك...")}
                 value={orderNote}
                 onChange={e => setOrderNote(e.target.value)}
                 rows={3}
                 style={{ ...s.input, resize: "vertical", minHeight: 70, lineHeight: 1.7 }}
               />
-              <p style={{ ...s.hint, margin: "-6px 0 10px" }}>
-                إن كان لديك منتج تريد تعديله أو اختياره بشكل معيّن، أرسل صورته مع الشرح الذي تريده.
-              </p>
+              <p style={{ ...s.hint, margin: "-6px 0 10px" }}>{t("إن كان لديك منتج تريد تعديله أو اختياره بشكل معيّن، أرسل صورته مع الشرح الذي تريده.")}</p>
 
               <label style={s.uploadBox}>
                 <input
@@ -1051,7 +1035,7 @@ export default function OrderPage() {
                         onClick={() => setPreview(URL.createObjectURL(f))}
                         style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 12, cursor: "pointer", border: `1.5px solid ${LINE}` }}
                       />
-                      <button type="button" onClick={() => setImages(prev => prev.filter((_, k) => k !== i))} style={s.imgRemove} aria-label="حذف الصورة">×</button>
+                      <button type="button" onClick={() => setImages(prev => prev.filter((_, k) => k !== i))} style={s.imgRemove} aria-label={t("حذف الصورة")}>×</button>
                     </div>
                   ))}
                 </div>
@@ -1068,7 +1052,7 @@ export default function OrderPage() {
               </div>
               <div style={{ textAlign: "left" }}>
                 <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-0.8px", lineHeight: 1 }}>{priceLYD.toFixed(0)}</div>
-                <div style={{ fontSize: 11, color: MUTED }}>د.ل</div>
+                <div style={{ fontSize: 11, color: MUTED }}>{t("د.ل")}</div>
               </div>
             </div>
 
@@ -1095,7 +1079,7 @@ export default function OrderPage() {
               }}
             >
               {resolveState === "checking"
-                ? `جاري التحقق... ${elapsed > 0 ? elapsed + " ثانية" : ""}`
+                ? `${t("جاري التحقق...")} ${elapsed > 0 ? elapsed + " " + t("ثانية") : ""}`
                 : "تحقّق من السلة والسعر"}
             </button>
           )}
@@ -1111,7 +1095,7 @@ export default function OrderPage() {
                 cursor:  (quantityChanged && exactPrice == null) ? "not-allowed" : "pointer",
               }}
             >
-              متابعة الطلب · {priceLYD.toFixed(0)} د.ل
+              {t("متابعة الطلب")} · {priceLYD.toFixed(0)} {t("د.ل")}
             </button>
           )}
 
@@ -1122,7 +1106,7 @@ export default function OrderPage() {
               disabled={sending}
               style={{ ...s.btn, opacity: sending ? 0.6 : 1, cursor: sending ? "not-allowed" : "pointer" }}
             >
-              {sending ? "جاري الإرسال..." : `ادفع ${priceLYD.toFixed(0)} د.ل`}
+              {sending ? "جاري الإرسال..." : `${t("ادفع")} ${priceLYD.toFixed(0)} ${t("د.ل")}`}
             </button>
           )}
         </div>
@@ -1163,7 +1147,7 @@ export default function OrderPage() {
       {/* ── Payment Modal ── */}
       {showPayment && (
         <div onClick={() => { if (!edfaliStep && !mcStep) setShowPayment(false); }} style={s.overlay}>
-          <div onClick={e => e.stopPropagation()} className="pay-modal" style={s.modal}>
+          <div onClick={e => e.stopPropagation()} className="pay-modal" style={{ ...s.modal, direction: dir }}>
 
             {/* ── MobiCash: card number ── */}
             {mcStep === "card" ? (
@@ -1186,15 +1170,11 @@ export default function OrderPage() {
                   onClick={handleMobicash}
                   disabled={sending || mcCard.replace(/[^0-9]/g, "").length < 5}
                   style={{ ...s.btn, background: mcCard.replace(/[^0-9]/g, "").length >= 5 ? "linear-gradient(135deg,#0284c7,#0ea5e9)" : CHIP, color: mcCard.replace(/[^0-9]/g, "").length >= 5 ? "#fff" : FAINT, cursor: mcCard.replace(/[^0-9]/g, "").length >= 5 ? "pointer" : "not-allowed" }}
-                >
-                  إرسال رمز التحقق →
-                </button>
+                >{t("إرسال رمز التحقق →")}</button>
                 <button
                   onClick={() => { setMcStep(null); setMcCard(""); }}
                   style={s.ghostBtn}
-                >
-                  رجوع
-                </button>
+                >{t("رجوع")}</button>
               </div>
 
             ) : mcStep === "sending" ? (
@@ -1229,9 +1209,7 @@ export default function OrderPage() {
                 <button
                   onClick={() => { setMcStep("card"); setMcOtp(""); setSending(false); }}
                   style={s.ghostBtn}
-                >
-                  رجوع
-                </button>
+                >{t("رجوع")}</button>
               </div>
 
             ) : edfaliStep === "phone" ? (
@@ -1239,7 +1217,7 @@ export default function OrderPage() {
                 <div style={{ fontSize: 40, marginBottom: 8 }}>🏧</div>
                 <h3 style={s.modalTitle}>ادفع لي — أدخل رقم هاتفك</h3>
                 <p style={s.modalSub}>
-                  أدخل رقم الهاتف المرتبط بحساب <strong>ادفع لي</strong><br />
+                  أدخل رقم الهاتف المرتبط بحساب <strong>{t("ادفع لي")}</strong><br />
                   <span style={{ color: MUTED, fontSize: 12 }}>مثال: 0912345678</span>
                 </p>
                 <input
@@ -1255,15 +1233,11 @@ export default function OrderPage() {
                   onClick={handleEdfaliPhoneSubmit}
                   disabled={edfaliPhone.replace(/\D/g, "").length < 9}
                   style={{ ...s.btn, background: edfaliPhone.replace(/\D/g, "").length >= 9 ? "linear-gradient(135deg,#7c3aed,#9333ea)" : CHIP, color: edfaliPhone.replace(/\D/g, "").length >= 9 ? "#fff" : FAINT, cursor: edfaliPhone.replace(/\D/g, "").length >= 9 ? "pointer" : "not-allowed" }}
-                >
-                  إرسال رمز التحقق →
-                </button>
+                >{t("إرسال رمز التحقق →")}</button>
                 <button
                   onClick={() => { setEdfaliStep(null); setEdfaliPhone(""); }}
                   style={s.ghostBtn}
-                >
-                  رجوع
-                </button>
+                >{t("رجوع")}</button>
               </div>
 
             ) : edfaliStep === "sending" ? (
@@ -1300,9 +1274,7 @@ export default function OrderPage() {
                 <button
                   onClick={() => { setEdfaliStep(null); setEdfaliOtp(""); setSending(false); }}
                   style={s.ghostBtn}
-                >
-                  رجوع
-                </button>
+                >{t("رجوع")}</button>
               </div>
             ) : (<>
 
@@ -1316,11 +1288,11 @@ export default function OrderPage() {
               </div>
               <div style={{ textAlign: "left" }}>
                 <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-0.8px", lineHeight: 1, color: INK }}>{priceLYD.toFixed(0)}</div>
-                <div style={{ fontSize: 11, color: MUTED }}>د.ل</div>
+                <div style={{ fontSize: 11, color: MUTED }}>{t("د.ل")}</div>
               </div>
             </div>
 
-            <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>اختر طريقة الدفع</div>
+            <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>{t("اختر طريقة الدفع")}</div>
 
             {/* المحفظة أولًا وبلون أخضر مميّز: أسرع طريق وبلا رمز تحقق. */}
             {wallet && (
@@ -1331,11 +1303,11 @@ export default function OrderPage() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                      <span style={{ fontWeight: 800, fontSize: 13.5 }}>محفظتي</span>
-                      <span style={{ fontSize: 10, fontWeight: 800, background: "rgba(255,255,255,0.22)", borderRadius: 20, padding: "2px 8px" }}>الأسرع</span>
+                      <span style={{ fontWeight: 800, fontSize: 13.5 }}>{t("محفظتي")}</span>
+                      <span style={{ fontSize: 10, fontWeight: 800, background: "rgba(255,255,255,0.22)", borderRadius: 20, padding: "2px 8px" }}>{t("الأسرع")}</span>
                     </div>
                     <div style={{ fontSize: 11.5, opacity: 0.9, marginTop: 2 }}>
-                      الرصيد {Number(wallet.balance || 0).toFixed(2)} د.ل — بلا رمز تحقق
+                      {t("الرصيد")} {Number(wallet.balance || 0).toFixed(2)} {t("د.ل")} — {t("بلا رمز تحقق")}
                     </div>
                   </div>
                 </div>
@@ -1346,11 +1318,11 @@ export default function OrderPage() {
                     style={{ ...s.btn, marginTop: 12, background: "#0b5d56", color: "#fff", boxShadow: "none",
                       opacity: (walletBusy || sending) ? 0.6 : 1 }}
                   >
-                    {walletBusy ? "⏳ جاري الدفع..." : `ادفع من المحفظة · ${priceLYD.toFixed(0)} د.ل`}
+                    {walletBusy ? "⏳ جاري الدفع..." : `${t("ادفع من المحفظة")} · ${priceLYD.toFixed(0)} ${t("د.ل")}`}
                   </button>
                 ) : (
                   <p style={{ fontSize: 11.5, margin: "10px 0 0", lineHeight: 1.85, background: "rgba(255,255,255,0.16)", borderRadius: 11, padding: "9px 11px" }}>
-                    الرصيد لا يكفي لهذا الطلب ({priceLYD.toFixed(0)} د.ل). ادفع بإحدى البوابات أدناه.
+                    {t("الرصيد لا يكفي لهذا الطلب")} ({priceLYD.toFixed(0)} {t("د.ل")}). {t("ادفع بإحدى البوابات أدناه.")}
                   </p>
                 )}
               </div>
@@ -1363,8 +1335,8 @@ export default function OrderPage() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="2" width="12" height="20" rx="2" /><path d="M11 18h2" /></svg>
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={s.payName}>موبي كاش</div>
-                <div style={s.payNote}>بطاقة مصرف الوحدة — برمز تحقق</div>
+                <div style={s.payName}>{t("موبي كاش")}</div>
+                <div style={s.payNote}>{t("بطاقة مصرف الوحدة — برمز تحقق")}</div>
               </div>
               <span style={s.payAmount}>{priceLYD.toFixed(0)} د.ل</span>
             </button>
@@ -1375,8 +1347,8 @@ export default function OrderPage() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10l9-6 9 6" /><path d="M5 10v9" /><path d="M19 10v9" /><path d="M3 19h18" /></svg>
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={s.payName}>معاملات</div>
-                <div style={s.payNote}>بطاقة مصرفية — نافذة آمنة</div>
+                <div style={s.payName}>{t("معاملات")}</div>
+                <div style={s.payNote}>{t("بطاقة مصرفية — نافذة آمنة")}</div>
               </div>
               <span style={s.payAmount}>{priceLYD.toFixed(0)} د.ل</span>
             </button>
@@ -1388,8 +1360,8 @@ export default function OrderPage() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></svg>
               </div>
               <div style={{ minWidth: 0 }}>
-                <div style={s.payName}>ادفع لي</div>
-                <div style={s.payNote}>محفظة EDFali — قد تكون غير متاحة مؤقتاً</div>
+                <div style={s.payName}>{t("ادفع لي")}</div>
+                <div style={s.payNote}>{t("محفظة EDFali — قد تكون غير متاحة مؤقتاً")}</div>
               </div>
               <span style={s.payAmount}>{priceLYD.toFixed(0)} د.ل</span>
             </button>
@@ -1399,7 +1371,7 @@ export default function OrderPage() {
               <div style={{ background: CARD, borderRadius: 16, padding: "13px 15px", border: `1.5px solid ${LINE}`, marginTop: 4 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 7 }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 10-14 0c0 5.5 7 11 7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
-                  <span style={{ fontSize: 12.5, fontWeight: 800 }}>عنوان الاستلام</span>
+                  <span style={{ fontSize: 12.5, fontWeight: 800 }}>{t("عنوان الاستلام")}</span>
                 </div>
                 <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.85 }}>
                   {[city.trim(), area.trim()].filter(Boolean).join(" — ")}
@@ -1414,9 +1386,7 @@ export default function OrderPage() {
               </div>
             )}
 
-            <button onClick={() => setShowPayment(false)} style={s.ghostBtn}>
-              إغلاق
-            </button>
+            <button onClick={() => setShowPayment(false)} style={s.ghostBtn}>{t("إغلاق")}</button>
             </>)}
           </div>
         </div>

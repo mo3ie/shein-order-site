@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useLang } from "@/lib/i18n";
 
 const GRAD   = "linear-gradient(135deg,#7c3aed,#3b82f6)";
 const PURPLE = "#7c3aed";
@@ -74,13 +75,13 @@ function LoginPrompt({ onLogin }) {
   };
 
   return (
-    <div style={{ minHeight: "calc(100vh - 60px)", background: PAGE, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px", direction: "rtl" }}>
+    <div style={{ minHeight: "calc(100vh - 60px)", background: PAGE, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px", direction: dir }}>
       <div style={{ width: "100%", maxWidth: 380 }}>
 
         {/* أيقونة */}
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ width: 72, height: 72, borderRadius: "50%", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 28, boxShadow: "0 8px 24px rgba(124,58,237,0.35)" }}>📦</div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: INK, margin: "0 0 4px" }}>طلباتي</h2>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: INK, margin: "0 0 4px" }}>{t("طلباتي")}</h2>
           <p style={{ fontSize: 13, color: FAINT }}>سجّل دخولك لعرض طلباتك</p>
         </div>
 
@@ -163,7 +164,7 @@ function OrderCard({ order }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <span style={{ fontSize: 11, color: FAINT, fontFamily: "ui-monospace, monospace" }}>#{order.id.slice(0, 8)}</span>
           <span style={{ fontSize: 10.5, fontWeight: 800, color: sc.color, background: sc.bg, borderRadius: 20, padding: "3px 10px", whiteSpace: "nowrap" }}>
-            {statusLabel(order.status)}
+            {t(statusLabel(order.status))}
           </span>
         </div>
 
@@ -171,7 +172,7 @@ function OrderCard({ order }) {
           <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: "-0.4px" }}>
             {lyd ? Number(lyd).toFixed(0) : "—"}
           </span>
-          {lyd ? <span style={{ fontSize: 11, color: FAINT }}>د.ل</span> : null}
+          {lyd ? <span style={{ fontSize: 11, color: FAINT }}>{t("د.ل")}</span> : null}
         </div>
 
         <div style={{ fontSize: 11, color: MUTED, lineHeight: 1.9, marginTop: 4 }}>
@@ -187,6 +188,7 @@ function OrderCard({ order }) {
 
 // ── الصفحة الرئيسية ──────────────────────────────────────────────────────────
 export default function MyOrdersPage() {
+  const { lang, setLang, t, dir } = useLang();
   const [user,    setUser]    = useState(undefined); // undefined = loading
   const [orders,  setOrders]  = useState([]);
   const [loading, setLoading] = useState(false);
@@ -252,7 +254,7 @@ export default function MyOrdersPage() {
 
   // مسجل الدخول
   return (
-    <div style={{ minHeight: "100vh", background: PAGE, color: INK, direction: "rtl", paddingBottom: 96 }}>
+    <div style={{ minHeight: "100vh", background: PAGE, color: INK, direction: dir, paddingBottom: 96 }}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
 
       <div className="form-inner" style={{ maxWidth: 480, margin: "0 auto" }}>
@@ -261,13 +263,14 @@ export default function MyOrdersPage() {
         <div style={{ background: GRAD_HEAD, color: "#fff", padding: "18px 20px 24px", position: "relative", overflow: "hidden", borderBottomLeftRadius: 26, borderBottomRightRadius: 26 }}>
           <div style={{ position: "absolute", insetInlineEnd: -40, top: -50, width: 170, height: 170, borderRadius: "50%", background: "rgba(255,255,255,0.09)" }} />
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
-            <a href="/" style={{ fontWeight: 900, fontSize: 17, color: "#fff", textDecoration: "none" }}>ترند · شي إن</a>
-            <button onClick={handleLogout} style={{ background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 13px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-              خروج
-            </button>
+            <a href="/" style={{ fontWeight: 900, fontSize: 17, color: "#fff", textDecoration: "none" }}>{t("ترند · شي إن")}</a>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button type="button" onClick={() => setLang(lang === "ar" ? "en" : "ar")} style={{ fontSize: 11, fontWeight: 700, background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 11px", cursor: "pointer", fontFamily: "inherit" }}>{lang === "ar" ? "EN" : "ع"}</button>
+            <button onClick={handleLogout} style={{ background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 13px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{t("خروج")}</button>
+            </div>
           </div>
           <div style={{ marginTop: 20, position: "relative" }}>
-            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.5px", lineHeight: 1.4 }}>طلباتي</div>
+            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.5px", lineHeight: 1.4 }}>{t("طلباتي")}</div>
             <div style={{ fontSize: 12.5, opacity: 0.85, marginTop: 6, lineHeight: 1.8 }}>
               {user.user_metadata?.name || user.email}
             </div>
@@ -306,10 +309,8 @@ export default function MyOrdersPage() {
               <p style={{ fontWeight: 800, marginBottom: 6 }}>
                 {orders.length === 0 ? "لا توجد طلبات بعد" : "لا طلبات في هذا التصنيف"}
               </p>
-              <p style={{ fontSize: 12.5, color: FAINT, marginBottom: 20 }}>ابدأ بطلبك الأول من شي إن الآن</p>
-              <a href="/" style={{ display: "inline-block", padding: "13px 28px", borderRadius: 14, background: GRAD_HEAD, color: "#fff", fontWeight: 800, fontSize: 14, textDecoration: "none", boxShadow: "0 6px 18px rgba(124,58,237,0.28)" }}>
-                إنشاء طلب جديد
-              </a>
+              <p style={{ fontSize: 12.5, color: FAINT, marginBottom: 20 }}>{t("ابدأ بطلبك الأول من شي إن الآن")}</p>
+              <a href="/" style={{ display: "inline-block", padding: "13px 28px", borderRadius: 14, background: GRAD_HEAD, color: "#fff", fontWeight: 800, fontSize: 14, textDecoration: "none", boxShadow: "0 6px 18px rgba(124,58,237,0.28)" }}>{t("إنشاء طلب جديد")}</a>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>

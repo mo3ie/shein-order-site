@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useLang } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import AddressManager from "@/components/AddressManager";
 
@@ -81,7 +82,7 @@ function OrderCard({ order }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <span style={{ fontFamily: "monospace", fontSize: 11, color: FAINT }}>#{order.id.slice(0, 8)}</span>
           <span style={{ fontSize: 11, fontWeight: 700, color: sc.color, background: sc.bg, border: `1px solid ${sc.border}`, padding: "2px 10px", borderRadius: 20, whiteSpace: "nowrap" }}>
-            {statusLabel(order.status)}
+            {t(statusLabel(order.status))}
           </span>
         </div>
 
@@ -90,12 +91,10 @@ function OrderCard({ order }) {
           <span style={{ fontSize: 17, fontWeight: 800, color: INK }}>
             {lydOf(order) != null ? lydOf(order).toFixed(0) : "—"}
           </span>
-          {lydOf(order) != null && <span style={{ fontSize: 11, color: FAINT }}>د.ل</span>}
+          {lydOf(order) != null && <span style={{ fontSize: 11, color: FAINT }}>{t("د.ل")}</span>}
           {!isPaid(order) && (
             <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--t-amber-ink)", background: "var(--t-amber-bg)",
-                           border: "1px solid var(--t-amber-line)", borderRadius: 20, padding: "1px 8px", marginInlineStart: 4 }}>
-              بانتظار الدفع
-            </span>
+                           border: "1px solid var(--t-amber-line)", borderRadius: 20, padding: "1px 8px", marginInlineStart: 4 }}>{t("بانتظار الدفع")}</span>
           )}
         </div>
 
@@ -127,6 +126,7 @@ function OrderCard({ order }) {
 }
 
 export default function AccountPage() {
+  const { lang, setLang, t, dir } = useLang();
   const router  = useRouter();
   const [user,    setUser]    = useState(null);
   const [orders,  setOrders]  = useState([]);
@@ -223,7 +223,7 @@ export default function AccountPage() {
   const name      = user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "مستخدم";
 
   return (
-    <div style={{ minHeight: "100vh", background: PAGE, color: INK, direction: "rtl", paddingBottom: 96 }}>
+    <div style={{ minHeight: "100vh", background: PAGE, color: INK, direction: dir, paddingBottom: 96 }}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
       <div className="form-inner" style={{ maxWidth: 480, margin: "0 auto" }}>
@@ -233,10 +233,11 @@ export default function AccountPage() {
           <div style={{ position: "absolute", insetInlineEnd: -40, top: -50, width: 170, height: 170, borderRadius: "50%", background: "rgba(255,255,255,0.09)" }} />
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
-            <a href="/" style={{ fontWeight: 900, fontSize: 18, color: "#fff", textDecoration: "none" }}>ترند · شي إن</a>
-            <button onClick={logout} style={{ background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 13px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-              خروج
-            </button>
+            <a href="/" style={{ fontWeight: 900, fontSize: 18, color: "#fff", textDecoration: "none" }}>{t("ترند · شي إن")}</a>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button type="button" onClick={() => setLang(lang === "ar" ? "en" : "ar")} style={{ fontSize: 11, fontWeight: 700, background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 11px", cursor: "pointer", fontFamily: "inherit" }}>{lang === "ar" ? "EN" : "ع"}</button>
+            <button onClick={logout} style={{ background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 13px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{t("خروج")}</button>
+            </div>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 22, position: "relative" }}>
@@ -280,17 +281,15 @@ export default function AccountPage() {
 
           {/* ── قائمة الطلبات ── */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
-            <span style={{ fontSize: 14, fontWeight: 800 }}>طلباتي</span>
-            <a href="/my-orders" style={{ fontSize: 11.5, color: PURPLE, textDecoration: "none", fontWeight: 700 }}>عرض الكل ←</a>
+            <span style={{ fontSize: 14, fontWeight: 800 }}>{t("طلباتي")}</span>
+            <a href="/my-orders" style={{ fontSize: 11.5, color: PURPLE, textDecoration: "none", fontWeight: 700 }}>{t("عرض الكل ←")}</a>
           </div>
 
           {orders.length === 0 ? (
             <div style={{ textAlign: "center", padding: "48px 20px", background: CARD, borderRadius: 18, boxShadow: "0 2px 10px rgba(22,19,31,0.05)" }}>
-              <p style={{ fontWeight: 800, marginBottom: 6 }}>لا توجد طلبات بعد</p>
+              <p style={{ fontWeight: 800, marginBottom: 6 }}>{t("لا توجد طلبات بعد")}</p>
               <p style={{ fontSize: 12.5, color: FAINT, marginBottom: 20 }}>ابدأ بطلبك الأول من شي إن</p>
-              <a href="/" style={{ display: "inline-block", padding: "13px 28px", borderRadius: 14, background: GRAD_HEAD, color: "#fff", fontWeight: 800, fontSize: 14, textDecoration: "none", boxShadow: "0 6px 18px rgba(124,58,237,0.28)" }}>
-                إنشاء طلب
-              </a>
+              <a href="/" style={{ display: "inline-block", padding: "13px 28px", borderRadius: 14, background: GRAD_HEAD, color: "#fff", fontWeight: 800, fontSize: 14, textDecoration: "none", boxShadow: "0 6px 18px rgba(124,58,237,0.28)" }}>{t("إنشاء طلب")}</a>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
