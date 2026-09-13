@@ -22,6 +22,9 @@ export default function Header() {
   };
 
   if (pathname.startsWith("/admin")) return null;
+  // صفحة الطلب ترسم ترويستها داخل التدرّج (الإجمالي يعيش فيها)، وشريط التنقّل
+  // السفلي يغني عن روابط الأعلى — فترويسة ثانية هنا تكرار لا أكثر.
+  if (pathname === "/") return null;
 
   return (
     <header style={{

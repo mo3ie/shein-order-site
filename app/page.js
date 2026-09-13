@@ -6,6 +6,23 @@ const PRIMARY   = "#7c3aed";
 const GRADIENT  = "linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%)";
 const BG        = "transparent";
 
+// ── مفردات التصميم (الاتجاه الجريء) ────────────────────────────────────────
+// التدرّج هو هوية الشاشة، والإجمالي يعيش داخله لا تحته: أول ما تراه العين هو
+// المبلغ بالدينار. وما تحته صفحة واحدة من بطاقات بيضاء على أرضية شبه بيضاء.
+const GRAD_HEAD = "linear-gradient(150deg,#7c3aed 0%,#5b4bf5 45%,#3b82f6 100%)";
+const PAGE      = "#f7f7fb";
+const INK       = "#16131f";
+const MUTED     = "#6b6478";
+const FAINT     = "#8b849c";
+const LINE      = "#ece9f6";
+const CHIP      = "#f2f1f8";
+
+// حبّة معلومة داخل الترويسة (على التدرّج، فلا لون أرضية لها إلا الشفاف الأبيض)
+const hChip = {
+  fontSize: 10.5, fontWeight: 700, background: "rgba(255,255,255,0.18)",
+  borderRadius: 20, padding: "5px 11px", whiteSpace: "nowrap",
+};
+
 // موبي كاش قيد التجربة: تظهر للأدمن فقط، أو للجميع عند ضبط
 // NEXT_PUBLIC_MOBICASH_ENABLED=true بعد تفعيل حساب البرودكشن.
 const ADMIN_EMAIL = "mo3iemohamed@gmail.com";
@@ -40,6 +57,7 @@ export default function OrderPage() {
   const [mcOtp,             setMcOtp]             = useState("");
   const [mcOrderId,         setMcOrderId]         = useState(null);
   const [isAdmin,           setIsAdmin]           = useState(false);
+  const [authUser,          setAuthUser]          = useState(null);
   const [wallet,            setWallet]            = useState(null);   // {balance}
   const [walletBusy,        setWalletBusy]        = useState(false);
   // Price now comes from the resolver service (a real SHEIN cart read on our own
@@ -87,6 +105,7 @@ export default function OrderPage() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setIsAdmin(data?.user?.email === ADMIN_EMAIL);
+      setAuthUser(data?.user ?? null);
     });
   }, []);
 
@@ -611,29 +630,77 @@ export default function OrderPage() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <main className="form-main" style={{ minHeight: "calc(100vh - 60px)", background: BG, display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 16px", direction: "rtl" }}>
+    <main className="form-main" style={{ minHeight: "100vh", background: PAGE, color: INK, direction: "rtl", paddingBottom: 96 }}>
 
       <style>{`
         @keyframes zoomIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         @keyframes spin    { to   { transform: rotate(360deg); } }
-        input:focus { outline: none !important; border-color: ${PRIMARY} !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.12) !important; }
+        input:focus, textarea:focus { outline: none !important; border-color: ${PRIMARY} !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.12) !important; }
       `}</style>
 
-      <div className="form-inner" style={{ width: "100%", maxWidth: 480 }}>
+      <div className="form-inner" style={{ width: "100%", maxWidth: 480, margin: "0 auto" }}>
 
-        {/* ── Card ── */}
-        <div className="form-card" style={{ background: "#fff", borderRadius: 24, padding: "36px 32px", boxShadow: "0 8px 40px rgba(124,58,237,0.10)", border: "1px solid #ede9fe" }}>
+        {/* ── الترويسة: التدرّج هو هوية الشاشة، والإجمالي يعيش داخله ── */}
+        <div style={{ background: GRAD_HEAD, color: "#fff", padding: "18px 20px 24px", position: "relative", overflow: "hidden", borderBottomLeftRadius: 26, borderBottomRightRadius: 26 }}>
+          <div style={{ position: "absolute", insetInlineEnd: -40, top: -50, width: 170, height: 170, borderRadius: "50%", background: "rgba(255,255,255,0.09)" }} />
 
-          {/* Logo */}
-          <div style={{ textAlign: "center", marginBottom: 8 }}>
-            <img src="/logo.png" alt="logo" style={{ height: 90, objectFit: "contain" }} />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
+            <a href="/" style={{ display: "flex", alignItems: "center", gap: 9, color: "#fff", textDecoration: "none" }}>
+              <img src="/logo.png" alt="" style={{ height: 30, objectFit: "contain" }} />
+              <span style={{ fontWeight: 900, fontSize: 17 }}>ترند · شي إن</span>
+            </a>
+            <a
+              href={authUser ? "/account" : "/login"}
+              style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: "#fff", textDecoration: "none" }}
+            >
+              {authUser ? (authUser.user_metadata?.name?.[0] || authUser.email?.[0] || "ح").toUpperCase() : "دخول"[0]}
+            </a>
           </div>
-          <h1 style={{ textAlign: "center", fontSize: 18, fontWeight: 800, color: "#1e1b4b", marginBottom: 4 }}>
-            منتجاتك وسلتك بضغطة زر
-          </h1>
-          <p style={{ textAlign: "center", fontSize: 13, color: "#9ca3af", marginBottom: 24 }}>
-            ضع رابط سلتك من شي إن وسنتكفل بالباقي
-          </p>
+
+          <div style={{ marginTop: 20, position: "relative" }}>
+            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.5px", lineHeight: 1.4 }}>
+              منتجاتك وسلّتك بضغطة زر
+            </div>
+            <div style={{ fontSize: 12.5, opacity: 0.85, marginTop: 6, lineHeight: 1.8 }}>
+              ضع رابط سلتك من شي إن، ونحن نقرأ السعر الحقيقي من التطبيق.
+            </div>
+          </div>
+
+          {/* الإجمالي داخل التدرّج: أول ما تراه العين هو المبلغ بالدينار. */}
+          {price > 0 && (
+            <div style={{ marginTop: 18, position: "relative" }}>
+              <div style={{ fontSize: 11.5, opacity: 0.8, marginBottom: 2 }}>الإجمالي المستحق</div>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
+                <span style={{ fontSize: 40, fontWeight: 900, letterSpacing: "-1.5px", lineHeight: 1 }}>
+                  {priceLYD.toFixed(0)}
+                </span>
+                <span style={{ fontSize: 14, fontWeight: 700, opacity: 0.9 }}>د.ل</span>
+              </div>
+              <div style={{ display: "flex", gap: 7, marginTop: 12, flexWrap: "wrap" }}>
+                {itemCount ? <span style={hChip}>{itemCount} صنف</span> : null}
+                <span style={hChip}>{exactPrice != null ? "سعر نهائي من شي إن" : "سعر مقروء من التطبيق"}</span>
+                <span style={hChip}>الشحن إلى ليبيا يُحسب لاحقاً</span>
+              </div>
+            </div>
+          )}
+
+          {/* الخطوات الثلاث تشرح الخدمة لمن يزور أول مرة، وتختفي بعد أول قراءة. */}
+          {resolveState === "idle" && !price && (
+            <div style={{ display: "flex", gap: 8, marginTop: 18, position: "relative" }}>
+              {["الصق الرابط", "حدّد الكميات", "ادفع بالدينار"].map((t, i) => (
+                <div key={i} style={{ flex: 1, background: "rgba(255,255,255,0.14)", borderRadius: 13, padding: "10px 8px", textAlign: "center" }}>
+                  <div style={{ fontSize: 15, fontWeight: 900, opacity: 0.75 }}>{i + 1}</div>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, marginTop: 3, lineHeight: 1.5 }}>{t}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: "16px 16px 0" }}>
+
+        {/* ── بطاقة الرابط ── */}
+        <div className="form-card" style={{ background: "#fff", borderRadius: 18, padding: "18px 16px", boxShadow: "0 2px 10px rgba(22,19,31,0.05)" }}>
 
           {/* Note: UAE */}
           <div style={s.noteBlue}>
@@ -700,6 +767,11 @@ export default function OrderPage() {
               {itemCount ? <> — {itemCount} منتج في السلة</> : null}
             </div>
           )}
+
+          {resolveState === "failed" && (
+            <div style={{ ...s.noteRed, marginBottom: 0 }}>❌ {resolveError}</div>
+          )}
+        </div>{/* /بطاقة الرابط */}
 
           {/* SHEIN's share link always reports one of each item, whatever the
               customer actually chose, so quantities are set here. */}
@@ -785,9 +857,9 @@ export default function OrderPage() {
               )}
             </div>
           )}
-          {resolveState === "failed" && (
-            <div style={s.noteRed}>❌ {resolveError}</div>
-          )}
+          {/* ── بطاقة بياناتك ── */}
+          <div style={{ background: "#fff", borderRadius: 18, padding: "18px 16px", boxShadow: "0 2px 10px rgba(22,19,31,0.05)", marginTop: 14 }}>
+          <div style={{ fontWeight: 900, fontSize: 14.5, marginBottom: 12 }}>بياناتك وعنوان الاستلام</div>
 
           {/* Name */}
           <label style={s.label}>الاسم الكامل</label>
@@ -937,6 +1009,7 @@ export default function OrderPage() {
               ))}
             </div>
           )}
+          </div>{/* /بطاقة بياناتك */}
 
           {/* OCR status */}
           {loading && (
@@ -952,16 +1025,23 @@ export default function OrderPage() {
               read: showing them invited arithmetic instead of a decision. */}
           {price > 0 && (
             <div style={s.priceBox}>
-              <div style={{ ...s.priceRow, padding: "14px 16px", background: "linear-gradient(135deg,#f0fdf4,#dcfce7)", borderRadius: 12, border: "1px solid #bbf7d0" }}>
-                <span style={{ color: "#15803d", fontWeight: 700 }}>🇱🇾 الإجمالي</span>
-                <strong style={{ fontSize: 20, color: "#15803d" }}>{priceLYD.toFixed(2)} د.ل</strong>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div>
+                  <div style={{ fontSize: 11.5, color: MUTED, marginBottom: 3 }}>الإجمالي المستحق</div>
+                  <div style={{ fontSize: 11, color: FAINT }}>
+                    {itemCount ? `${itemCount} صنف · ` : ""}الشحن إلى ليبيا يُحسب لاحقاً
+                  </div>
+                </div>
+                <div style={{ textAlign: "left" }}>
+                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-0.8px", lineHeight: 1, color: INK }}>
+                    {priceLYD.toFixed(0)}
+                  </div>
+                  <div style={{ fontSize: 11, color: MUTED }}>د.ل</div>
+                </div>
               </div>
-              <p style={{ fontSize: 12, color: "#6b7280", margin: "10px 0 0", textAlign: "center", lineHeight: 1.7 }}>
+              <p style={{ fontSize: 11.5, color: FAINT, margin: "12px 0 0", lineHeight: 1.85 }}>
                 السعر شامل قيمة المنتجات اليوم بسعر المصرف. الأسعار غير ثابتة نظراً لتغيّر
                 العروض وسعر صرف الدينار.
-              </p>
-              <p style={{ fontSize: 12, color: "#b45309", margin: "6px 0 0", textAlign: "center" }}>
-                🚚 رسوم الشحن إلى ليبيا تُحسب لاحقاً
               </p>
             </div>
           )}
@@ -976,26 +1056,45 @@ export default function OrderPage() {
           </button>
 
           {/* Track */}
-          <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
-            <input
-              placeholder="🔍 أدخل رقم الطلب للتتبع"
-              value={trackId}
-              onChange={e => setTrackId(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleTrack()}
-              style={{ ...s.input, marginBottom: 0, flex: 1 }}
-            />
-            <button onClick={handleTrack} style={{ ...s.btn, width: "auto", padding: "0 20px", marginTop: 0 }}>
-              بحث
-            </button>
+          <div style={{ background: "#fff", borderRadius: 18, padding: "16px", boxShadow: "0 2px 10px rgba(22,19,31,0.05)", marginTop: 14 }}>
+            <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 10 }}>تتبّع طلباً سابقاً</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                placeholder="أدخل رقم الطلب"
+                value={trackId}
+                onChange={e => setTrackId(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleTrack()}
+                style={{ ...s.input, marginBottom: 0, flex: 1 }}
+              />
+              <button onClick={handleTrack} style={{ ...s.btn, width: "auto", padding: "0 22px", boxShadow: "none" }}>
+                بحث
+              </button>
+            </div>
           </div>
 
-          <div style={{ textAlign: "center", marginTop: 14 }}>
-            <a href="/my-orders" style={{ fontSize: 13, color: PRIMARY, textDecoration: "none", fontWeight: 500 }}>
-              📦 عرض طلباتي السابقة
-            </a>
-          </div>
-        </div>
+        </div>{/* /الحشو */}
       </div>
+
+      {/* ── شريط التنقّل السفلي ── */}
+      <nav style={{
+        position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0, zIndex: 60,
+        background: "#fff", borderTop: `1px solid ${LINE}`,
+        boxShadow: "0 -4px 20px rgba(22,19,31,0.06)",
+      }}>
+        <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", justifyContent: "space-around", padding: "9px 16px 14px" }}>
+          {[
+            { href: "/",          label: "طلب جديد", on: true,  path: <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /> },
+            { href: "/my-orders", label: "طلباتي",   on: false, path: <><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 01-8 0" /></> },
+            { href: "/account",   label: "المحفظة",  on: false, path: <><rect x="2" y="6" width="20" height="13" rx="2" /><path d="M2 10h20" /></> },
+            { href: authUser ? "/account" : "/login", label: authUser ? "حسابي" : "دخول", on: false, path: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1" /></> },
+          ].map((it, i) => (
+            <a key={i} href={it.href} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: it.on ? PRIMARY : FAINT }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={it.on ? 2 : 1.8} strokeLinecap="round" strokeLinejoin="round">{it.path}</svg>
+              <span style={{ fontSize: 10, fontWeight: it.on ? 800 : 600 }}>{it.label}</span>
+            </a>
+          ))}
+        </div>
+      </nav>
 
       {/* ── Image Preview Modal ── */}
       {preview && (
@@ -1017,8 +1116,8 @@ export default function OrderPage() {
             {mcStep === "card" ? (
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 40, marginBottom: 8 }}>📲</div>
-                <h3 style={{ fontSize: 17, fontWeight: 800, color: "#1e1b4b", margin: "0 0 6px" }}>موبي كاش — أدخل رقم بطاقتك</h3>
-                <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>
+                <h3 style={s.modalTitle}>موبي كاش — أدخل رقم بطاقتك</h3>
+                <p style={s.modalSub}>
                   سيصلك رمز تحقق على هاتفك المرتبط بالبطاقة
                 </p>
                 <input
@@ -1039,7 +1138,7 @@ export default function OrderPage() {
                 </button>
                 <button
                   onClick={() => { setMcStep(null); setMcCard(""); }}
-                  style={{ width: "100%", marginTop: 10, padding: 10, background: "none", border: "1px solid #f3f4f6", borderRadius: 10, color: "#9ca3af", cursor: "pointer", fontSize: 13 }}
+                  style={s.ghostBtn}
                 >
                   رجوع
                 </button>
@@ -1054,8 +1153,8 @@ export default function OrderPage() {
             ) : mcStep === "otp" ? (
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 40, marginBottom: 8 }}>🔐</div>
-                <h3 style={{ fontSize: 17, fontWeight: 800, color: "#1e1b4b", margin: "0 0 6px" }}>تحقق من رمز موبي كاش</h3>
-                <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>
+                <h3 style={s.modalTitle}>تحقق من رمز موبي كاش</h3>
+                <p style={s.modalSub}>
                   أُرسل رمز التحقق إلى هاتفك — صالح لمدة <strong>5 دقائق</strong>
                 </p>
                 <input
@@ -1076,7 +1175,7 @@ export default function OrderPage() {
                 </button>
                 <button
                   onClick={() => { setMcStep("card"); setMcOtp(""); setSending(false); }}
-                  style={{ width: "100%", marginTop: 10, padding: 10, background: "none", border: "1px solid #f3f4f6", borderRadius: 10, color: "#9ca3af", cursor: "pointer", fontSize: 13 }}
+                  style={s.ghostBtn}
                 >
                   رجوع
                 </button>
@@ -1085,8 +1184,8 @@ export default function OrderPage() {
             ) : edfaliStep === "phone" ? (
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 40, marginBottom: 8 }}>🏧</div>
-                <h3 style={{ fontSize: 17, fontWeight: 800, color: "#1e1b4b", margin: "0 0 6px" }}>ادفع لي — أدخل رقم هاتفك</h3>
-                <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 16 }}>
+                <h3 style={s.modalTitle}>ادفع لي — أدخل رقم هاتفك</h3>
+                <p style={s.modalSub}>
                   أدخل رقم الهاتف المرتبط بحساب <strong>ادفع لي</strong><br />
                   <span style={{ color: "#6b7280", fontSize: 12 }}>مثال: 0912345678</span>
                 </p>
@@ -1108,7 +1207,7 @@ export default function OrderPage() {
                 </button>
                 <button
                   onClick={() => { setEdfaliStep(null); setEdfaliPhone(""); }}
-                  style={{ width: "100%", marginTop: 10, padding: 10, background: "none", border: "1px solid #f3f4f6", borderRadius: 10, color: "#9ca3af", cursor: "pointer", fontSize: 13 }}
+                  style={s.ghostBtn}
                 >
                   رجوع
                 </button>
@@ -1124,8 +1223,8 @@ export default function OrderPage() {
             ) : edfaliStep === "otp" ? (
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 40, marginBottom: 8 }}>🏧</div>
-                <h3 style={{ fontSize: 17, fontWeight: 800, color: "#1e1b4b", margin: "0 0 6px" }}>تحقق من رمز ادفع لي</h3>
-                <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 20 }}>
+                <h3 style={s.modalTitle}>تحقق من رمز ادفع لي</h3>
+                <p style={s.modalSub}>
                   أُرسل رمز تحقق مكوّن من <strong>4 أرقام</strong> إلى هاتفك<br />
                   <strong style={{ color: PRIMARY }}>{edfaliPhone}</strong>
                 </p>
@@ -1147,62 +1246,43 @@ export default function OrderPage() {
                 </button>
                 <button
                   onClick={() => { setEdfaliStep(null); setEdfaliOtp(""); setSending(false); }}
-                  style={{ width: "100%", marginTop: 10, padding: 10, background: "none", border: "1px solid #f3f4f6", borderRadius: 10, color: "#9ca3af", cursor: "pointer", fontSize: 13 }}
+                  style={s.ghostBtn}
                 >
                   رجوع
                 </button>
               </div>
             ) : (<>
 
-            <div style={{ textAlign: "center", marginBottom: 20 }}>
-              <h3 style={{ fontSize: 18, fontWeight: 800, color: "#1e1b4b", margin: 0 }}>اختر طريقة الدفع</h3>
-              <p style={{ fontSize: 13, color: "#9ca3af", margin: "4px 0 0" }}>
-                المبلغ: <strong style={{ color: PRIMARY }}>{priceLYD.toFixed(0)} د.ل</strong>
-              </p>
+            {/* المبلغ أولاً وبأكبر خط في الورقة، ثم الطرق تحته صفًّا صفًّا. */}
+            <div style={{ background: "#fff", borderRadius: 18, padding: "15px 16px", boxShadow: "0 2px 10px rgba(22,19,31,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <div>
+                <div style={{ fontSize: 11.5, color: MUTED, marginBottom: 3 }}>المبلغ المستحق</div>
+                <div style={{ fontSize: 11, color: FAINT }}>
+                  {itemCount ? `${itemCount} صنف · ` : ""}الشحن إلى ليبيا يُحسب لاحقاً
+                </div>
+              </div>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-0.8px", lineHeight: 1, color: INK }}>{priceLYD.toFixed(0)}</div>
+                <div style={{ fontSize: 11, color: MUTED }}>د.ل</div>
+              </div>
             </div>
 
-            {/* International cards are hidden: every customer here pays in
-                dinars, and the Stripe button was the only thing on the page
-                still quoting dollars. */}
+            <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>اختر طريقة الدفع</div>
 
-            {/* Moamalat — dedicated button */}
-            <button
-              onClick={handleMoamalat}
-              disabled={sending}
-              style={{ ...s.payBtn, background: "linear-gradient(135deg,#15803d,#16a34a)", color: "#fff", marginBottom: 8 }}
-            >
-              <span style={{ fontSize: 22 }}>🏦</span>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>معاملات</div>
-                <div style={{ fontSize: 11, opacity: 0.85 }}>بطاقة ليبية — Moamalat</div>
-              </div>
-              <span style={{ marginRight: "auto", fontWeight: 700, fontSize: 13 }}>{priceLYD.toFixed(0)} د.ل</span>
-            </button>
-
-            {/* EDFali — dedicated button */}
-            <button
-              onClick={() => setEdfaliStep("phone")}
-              disabled={sending}
-              style={{ ...s.payBtn, background: "linear-gradient(135deg,#7c3aed,#9333ea)", color: "#fff", marginBottom: 10 }}
-            >
-              <span style={{ fontSize: 22 }}>🏧</span>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>ادفع لي</div>
-                <div style={{ fontSize: 11, opacity: 0.85 }}>محفظة EDFali — OTP</div>
-              </div>
-              <span style={{ marginRight: "auto", fontWeight: 700, fontSize: 13 }}>{priceLYD.toFixed(0)} د.ل</span>
-            </button>
-
-            {/* The wallet first: paying from a balance already topped up is one
-                tap and no OTP, so it belongs above the gateways. */}
+            {/* المحفظة أولًا وبلون أخضر مميّز: أسرع طريق وبلا رمز تحقق. */}
             {wallet && (
               <div style={s.walletBox}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 20 }}>👛</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                  <div style={{ ...s.payIcon, background: "rgba(255,255,255,0.2)" }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="13" rx="2" /><path d="M2 10h20" /><path d="M17 15h2" /></svg>
+                  </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>محفظتي</div>
-                    <div style={{ fontSize: 12, opacity: 0.85 }}>
-                      الرصيد: <strong>{Number(wallet.balance || 0).toFixed(2)} د.ل</strong>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                      <span style={{ fontWeight: 800, fontSize: 13.5 }}>محفظتي</span>
+                      <span style={{ fontSize: 10, fontWeight: 800, background: "rgba(255,255,255,0.22)", borderRadius: 20, padding: "2px 8px" }}>الأسرع</span>
+                    </div>
+                    <div style={{ fontSize: 11.5, opacity: 0.9, marginTop: 2 }}>
+                      الرصيد {Number(wallet.balance || 0).toFixed(2)} د.ل — بلا رمز تحقق
                     </div>
                   </div>
                 </div>
@@ -1210,15 +1290,14 @@ export default function OrderPage() {
                   <button
                     onClick={handleWalletPay}
                     disabled={walletBusy || sending}
-                    style={{ ...s.btn, marginTop: 10, background: "#0f766e", color: "#fff",
+                    style={{ ...s.btn, marginTop: 12, background: "#0b5d56", color: "#fff", boxShadow: "none",
                       opacity: (walletBusy || sending) ? 0.6 : 1 }}
                   >
-                    {walletBusy ? "⏳ جاري الدفع..." : `ادفع من المحفظة — ${priceLYD.toFixed(0)} د.ل`}
+                    {walletBusy ? "⏳ جاري الدفع..." : `ادفع من المحفظة · ${priceLYD.toFixed(0)} د.ل`}
                   </button>
                 ) : (
-                  <p style={{ fontSize: 12, color: "#92400e", margin: "8px 0 0", lineHeight: 1.7 }}>
-                    الرصيد لا يكفي لهذا الطلب ({priceLYD.toFixed(0)} د.ل). اشحن محفظتك بإحدى
-                    البوابات أدناه ثم ادفع منها.
+                  <p style={{ fontSize: 11.5, margin: "10px 0 0", lineHeight: 1.85, background: "rgba(255,255,255,0.16)", borderRadius: 11, padding: "9px 11px" }}>
+                    الرصيد لا يكفي لهذا الطلب ({priceLYD.toFixed(0)} د.ل). ادفع بإحدى البوابات أدناه.
                   </p>
                 )}
               </div>
@@ -1226,22 +1305,43 @@ export default function OrderPage() {
 
             {/* MobiCash is live in production, so it is no longer gated behind
                 an env flag or the admin account. */}
-            {true && (
-            <button
-              onClick={() => setMcStep("card")}
-              disabled={sending}
-              style={{ ...s.payBtn, background: "linear-gradient(135deg,#0284c7,#0ea5e9)", color: "#fff", marginBottom: 10 }}
-            >
-              <span style={{ fontSize: 22 }}>📲</span>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>موبي كاش</div>
-                <div style={{ fontSize: 11, opacity: 0.85 }}>بطاقة مصرف الوحدة — OTP</div>
+            <button onClick={() => setMcStep("card")} disabled={sending} style={s.payBtn}>
+              <div style={s.payIcon}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="2" width="12" height="20" rx="2" /><path d="M11 18h2" /></svg>
               </div>
-              <span style={{ marginRight: "auto", fontWeight: 700, fontSize: 13 }}>{priceLYD.toFixed(0)} د.ل</span>
+              <div style={{ minWidth: 0 }}>
+                <div style={s.payName}>موبي كاش</div>
+                <div style={s.payNote}>بطاقة مصرف الوحدة — برمز تحقق</div>
+              </div>
+              <span style={s.payAmount}>{priceLYD.toFixed(0)} د.ل</span>
             </button>
-            )}
 
-            <button onClick={() => setShowPayment(false)} style={{ width: "100%", marginTop: 10, padding: "10px", background: "none", border: "1px solid #f3f4f6", borderRadius: 10, color: "#9ca3af", cursor: "pointer", fontSize: 13 }}>
+            {/* Moamalat — dedicated button */}
+            <button onClick={handleMoamalat} disabled={sending} style={s.payBtn}>
+              <div style={s.payIcon}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10l9-6 9 6" /><path d="M5 10v9" /><path d="M19 10v9" /><path d="M3 19h18" /></svg>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={s.payName}>معاملات</div>
+                <div style={s.payNote}>بطاقة مصرفية — نافذة آمنة</div>
+              </div>
+              <span style={s.payAmount}>{priceLYD.toFixed(0)} د.ل</span>
+            </button>
+
+            {/* ادفع لي آخر القائمة وبتنبيه: خادمها ما زال متعذّرًا، فلا يُقدَّم
+                للزبون طريقٌ يرجّح أن يفشل به قبل الطرق العاملة. */}
+            <button onClick={() => setEdfaliStep("phone")} disabled={sending} style={{ ...s.payBtn, opacity: 0.75 }}>
+              <div style={s.payIcon}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></svg>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={s.payName}>ادفع لي</div>
+                <div style={s.payNote}>محفظة EDFali — قد تكون غير متاحة مؤقتاً</div>
+              </div>
+              <span style={s.payAmount}>{priceLYD.toFixed(0)} د.ل</span>
+            </button>
+
+            <button onClick={() => setShowPayment(false)} style={s.ghostBtn}>
               إغلاق
             </button>
             </>)}
@@ -1253,23 +1353,26 @@ export default function OrderPage() {
 }
 
 // ── Styles ─────────────────────────────────────────────────────────────────
+// One vocabulary, defined once: white cards on #f7f7fb, 16–18px radii, a soft
+// single shadow instead of borders, and violet reserved for what is actionable.
 const s = {
   label: {
     display: "block",
-    fontSize: 13,
-    fontWeight: 600,
-    color: "#374151",
-    marginBottom: 6,
+    fontSize: 12.5,
+    fontWeight: 800,
+    color: INK,
+    marginBottom: 7,
   },
   input: {
     width: "100%",
-    padding: "12px 14px",
+    padding: "13px 14px",
     marginBottom: 14,
-    borderRadius: 10,
-    border: "1.5px solid #e5e7eb",
+    borderRadius: 13,
+    border: `1.5px solid ${LINE}`,
     fontSize: 14,
-    color: "#111",
+    color: INK,
     background: "#fff",
+    fontFamily: "inherit",
     boxSizing: "border-box",
     transition: "border-color 0.15s, box-shadow 0.15s",
   },
@@ -1279,16 +1382,16 @@ const s = {
   },
   btn: {
     width: "100%",
-    padding: "14px",
-    background: GRADIENT,
+    padding: "15px",
+    background: GRAD_HEAD,
     color: "#fff",
     border: "none",
-    borderRadius: 12,
+    borderRadius: 14,
     cursor: "pointer",
-    fontWeight: 700,
+    fontWeight: 800,
     fontSize: 15,
-    letterSpacing: "0.3px",
-    boxShadow: "0 4px 14px rgba(124,58,237,0.3)",
+    fontFamily: "inherit",
+    boxShadow: "0 6px 18px rgba(124,58,237,0.28)",
     transition: "opacity 0.15s",
   },
   uploadBox: {
@@ -1297,11 +1400,11 @@ const s = {
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    border: "2px dashed #ddd6fe",
-    borderRadius: 12,
-    padding: "24px 16px",
+    border: "1.5px dashed #d9d3ec",
+    borderRadius: 14,
+    padding: "22px 16px",
     cursor: "pointer",
-    background: "#faf5ff",
+    background: "#fbfaff",
     transition: "border-color 0.15s",
     marginBottom: 4,
   },
@@ -1310,52 +1413,56 @@ const s = {
     background: "#fff5f5",
   },
   verifyBtn: {
-    width: "100%", padding: "13px 16px", marginTop: 10, borderRadius: 12,
-    border: "none", background: GRADIENT, color: "#fff",
-    fontSize: 15, fontWeight: 700, fontFamily: "inherit",
+    width: "100%", padding: "15px 16px", marginTop: 4, borderRadius: 14,
+    border: "none", background: GRAD_HEAD, color: "#fff",
+    fontSize: 15, fontWeight: 800, fontFamily: "inherit",
+    boxShadow: "0 6px 18px rgba(124,58,237,0.28)",
   },
   okBox: {
-    marginTop: 10, padding: "11px 14px", borderRadius: 12,
+    marginTop: 12, padding: "12px 14px", borderRadius: 14,
     background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#15803d",
-    fontSize: 13, lineHeight: 1.7,
+    fontSize: 12.5, lineHeight: 1.8, fontWeight: 600,
   },
+  // Waiting is part of the design, not an empty screen: the place in line, the
+  // expected time, and that the page may be closed.
   queueBox: {
-    marginTop: 10, padding: "12px 14px", borderRadius: 12,
-    background: "#eff6ff", border: "1px solid #bfdbfe", color: "#1d4ed8",
-    fontSize: 13, lineHeight: 1.8,
+    marginTop: 12, padding: "15px 16px", borderRadius: 16,
+    background: "#fff", boxShadow: "0 2px 10px rgba(22,19,31,0.05)",
+    color: INK, fontSize: 12.5, lineHeight: 1.85,
+    border: `1px solid ${LINE}`,
   },
-  queuePos: { fontWeight: 700, fontSize: 14 },
-  queueSub: { opacity: 0.85, fontSize: 12.5 },
+  queuePos: { fontWeight: 800, fontSize: 13.5, color: INK },
+  queueSub: { color: MUTED, fontSize: 12, lineHeight: 1.9, marginTop: 3 },
   qtyBox: {
-    marginTop: 12, padding: "12px 14px", borderRadius: 12,
-    background: "#fff", border: "1px solid #e5e7eb",
+    marginTop: 14, padding: "16px", borderRadius: 18,
+    background: "#fff", boxShadow: "0 2px 10px rgba(22,19,31,0.05)",
   },
-  qtyTitle: { fontWeight: 800, fontSize: 14, marginBottom: 4 },
-  qtyNote: { fontSize: 12.5, color: "#6b7280", lineHeight: 1.7, margin: "0 0 10px" },
+  qtyTitle: { fontWeight: 900, fontSize: 14.5, color: INK, marginBottom: 4 },
+  qtyNote: { fontSize: 12, color: MUTED, lineHeight: 1.85, margin: "0 0 10px" },
   qtyRow: {
-    display: "flex", alignItems: "flex-start", gap: 10,
-    padding: "11px 0", borderTop: "1px solid #f3f4f6",
+    display: "flex", alignItems: "flex-start", gap: 11,
+    padding: "13px 0", borderTop: `1px solid ${LINE}`,
   },
   // A phone gives this row about 300px; the picture and the stepper are fixed,
   // so the text column has to be free to shrink or the title wraps one word
   // per line. minWidth:0 is what actually allows that inside a flex row.
   qtyInfo: { flex: "1 1 auto", minWidth: 0 },
   qtyThumb: {
-    width: 52, height: 52, borderRadius: 8, objectFit: "cover",
-    flexShrink: 0, border: "1px solid #e5e7eb",
+    width: 58, height: 58, borderRadius: 13, objectFit: "cover",
+    flexShrink: 0, border: `1px solid ${LINE}`,
   },
   qtyName: {
-    fontSize: 12.5, lineHeight: 1.55, cursor: "pointer",
+    fontSize: 12.5, lineHeight: 1.6, cursor: "pointer", color: INK, fontWeight: 600,
     overflow: "hidden", display: "-webkit-box",
     WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
   },
-  qtyNameFull: { fontSize: 12.5, lineHeight: 1.55, cursor: "pointer" },
+  qtyNameFull: { fontSize: 12.5, lineHeight: 1.6, cursor: "pointer", color: INK, fontWeight: 600 },
   qtyVariant: {
-    background: "#f3f4f6", borderRadius: 6, padding: "1px 7px",
-    fontSize: 11.5, whiteSpace: "nowrap",
+    background: CHIP, borderRadius: 20, padding: "2px 9px",
+    fontSize: 11, color: MUTED, fontWeight: 700, whiteSpace: "nowrap",
   },
   qtyMeta: {
-    fontSize: 12, color: "#6b7280", marginTop: 4,
+    fontSize: 12, color: MUTED, marginTop: 6,
     display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
   },
   imgRemove: {
@@ -1363,83 +1470,95 @@ const s = {
     borderRadius: "50%", border: "none", background: "#ef4444", color: "#fff",
     fontSize: 13, lineHeight: "20px", cursor: "pointer", padding: 0, fontFamily: "inherit",
   },
-  qtyCtrl: { display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginTop: 2 },
+  // Vertical stepper: one tall touch target per direction, the way a phone
+  // wants it, instead of two small buttons side by side.
+  qtyCtrl: {
+    display: "flex", flexDirection: "column", alignItems: "center",
+    gap: 2, flexShrink: 0, background: CHIP, borderRadius: 13, padding: 3,
+  },
   qtyBtn: {
-    width: 28, height: 28, borderRadius: 8, border: "1px solid #d1d5db",
-    background: "#f9fafb", fontSize: 16, lineHeight: 1, cursor: "pointer",
+    width: 30, height: 26, borderRadius: 10, border: "none",
+    background: "#fff", color: PRIMARY, fontSize: 15, lineHeight: 1,
+    cursor: "pointer", fontWeight: 800,
     fontFamily: "inherit", padding: 0, flexShrink: 0,
+    boxShadow: "0 1px 3px rgba(22,19,31,0.08)",
   },
-  qtyVal: { minWidth: 20, textAlign: "center", fontWeight: 700, fontSize: 14 },
+  qtyVal: { minWidth: 20, textAlign: "center", fontWeight: 900, fontSize: 14, color: INK, padding: "3px 0" },
   geoBtn: {
-    width: "100%", marginTop: 8, padding: "11px 14px", borderRadius: 12,
-    border: "1px dashed #d1d5db", background: "#fafafa", color: "#374151",
-    fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+    width: "100%", marginTop: 2, marginBottom: 4, padding: "13px 14px", borderRadius: 13,
+    border: "1.5px dashed #d9d3ec", background: "#fbfaff", color: PRIMARY,
+    fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
   },
+  // The wallet gets its own colour: it is the fastest path and the only one
+  // without an OTP, so it should not look like the gateways.
   walletBox: {
-    marginBottom: 12, padding: "12px 14px", borderRadius: 12,
-    background: "#f0fdfa", border: "1px solid #99f6e4", color: "#115e59",
+    marginBottom: 12, padding: "14px 15px", borderRadius: 16,
+    background: "linear-gradient(140deg,#0f766e,#14b8a6)", color: "#fff",
+    boxShadow: "0 6px 18px rgba(15,118,110,0.22)",
   },
   repriceBtn: {
-    width: "100%", marginTop: 10, padding: "11px 14px", borderRadius: 12,
-    border: "none", background: "#1d4ed8", color: "#fff",
-    fontSize: 13.5, fontWeight: 700, fontFamily: "inherit",
+    width: "100%", marginTop: 10, padding: "13px 14px", borderRadius: 13,
+    border: "none", background: INK, color: "#fff",
+    fontSize: 13.5, fontWeight: 800, fontFamily: "inherit",
   },
   qtyOk: {
-    marginTop: 10, marginBottom: 0, fontSize: 12.5, lineHeight: 1.7,
+    marginTop: 10, marginBottom: 0, fontSize: 12.5, lineHeight: 1.8,
     color: "#15803d", background: "#f0fdf4", border: "1px solid #bbf7d0",
-    borderRadius: 10, padding: "9px 11px",
+    borderRadius: 13, padding: "11px 12px",
   },
   qtyWarn: {
-    marginTop: 10, marginBottom: 0, fontSize: 12.5, lineHeight: 1.7,
+    marginTop: 10, marginBottom: 0, fontSize: 12.5, lineHeight: 1.8,
     color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a",
-    borderRadius: 10, padding: "9px 11px",
+    borderRadius: 13, padding: "11px 12px",
   },
   noteBlue: {
     background: "#eff6ff",
     border: "1px solid #bfdbfe",
-    borderRadius: 10,
+    borderRadius: 13,
     padding: "12px 14px",
-    fontSize: 13,
+    fontSize: 12.5,
     color: "#1d4ed8",
-    lineHeight: 1.6,
+    lineHeight: 1.8,
     marginBottom: 16,
   },
   noteYellow: {
     background: "#fffbeb",
     border: "1px solid #fcd34d",
-    borderRadius: 10,
+    borderRadius: 13,
     padding: "12px 14px",
-    fontSize: 13,
+    fontSize: 12.5,
     color: "#92400e",
-    lineHeight: 1.6,
+    lineHeight: 1.8,
     marginBottom: 12,
   },
   noteRed: {
-    background: "#fff5f5",
+    background: "#fef2f2",
     border: "1px solid #fca5a5",
-    borderRadius: 10,
+    borderRadius: 13,
     padding: "12px 14px",
-    fontSize: 13,
+    fontSize: 12.5,
     color: "#991b1b",
-    lineHeight: 1.6,
-    margin: "8px 0",
+    lineHeight: 1.8,
+    margin: "10px 0",
   },
   err: {
     color: "#ef4444",
-    fontSize: 12,
-    margin: "-10px 0 10px 2px",
+    fontSize: 11.5,
+    fontWeight: 600,
+    margin: "-9px 0 10px 2px",
   },
   hint: {
-    color: "#9ca3af",
-    fontSize: 12,
-    margin: "-10px 0 14px 2px",
+    color: FAINT,
+    fontSize: 11.5,
+    lineHeight: 1.85,
+    margin: "-9px 0 14px 2px",
   },
   priceBox: {
     marginTop: 16,
     padding: "16px",
-    borderRadius: 14,
-    background: "#f9fafb",
-    border: "1px solid #f3f4f6",
+    borderRadius: 18,
+    background: "#fff",
+    boxShadow: "0 2px 10px rgba(22,19,31,0.05)",
   },
   priceRow: {
     display: "flex",
@@ -1451,37 +1570,59 @@ const s = {
   overlay: {
     position: "fixed",
     inset: 0,
-    background: "rgba(0,0,0,0.55)",
+    background: "rgba(22,19,31,0.55)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     zIndex: 999,
     backdropFilter: "blur(4px)",
+    padding: 16,
   },
   modal: {
-    background: "#fff",
-    padding: "28px 24px",
-    borderRadius: 20,
-    width: 360,
+    background: PAGE,
+    padding: "24px 20px",
+    borderRadius: 22,
+    width: 370,
     maxWidth: "92vw",
     maxHeight: "90vh",
     overflowY: "auto",
     animation: "zoomIn 0.2s ease",
-    boxShadow: "0 24px 60px rgba(0,0,0,0.18)",
+    boxShadow: "0 24px 60px rgba(22,19,31,0.28)",
     direction: "rtl",
+    color: INK,
   },
+  // A payment method is a row, not a coloured slab: icon tile, name, one line
+  // of explanation, and the amount at the end.
   payBtn: {
     width: "100%",
-    padding: "14px 16px",
-    marginBottom: 8,
-    borderRadius: 12,
-    border: "none",
+    padding: "13px 14px",
+    marginBottom: 9,
+    borderRadius: 15,
+    background: "#fff",
+    border: `1.5px solid ${LINE}`,
     cursor: "pointer",
     fontSize: 14,
+    fontFamily: "inherit",
+    color: INK,
     display: "flex",
     alignItems: "center",
     gap: 12,
     textAlign: "right",
-    transition: "opacity 0.15s",
+    transition: "border-color 0.15s, box-shadow 0.15s",
+  },
+  payIcon: {
+    width: 38, height: 38, borderRadius: 12, background: CHIP,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    flexShrink: 0, fontSize: 19,
+  },
+  payName: { fontSize: 13.5, fontWeight: 800, color: INK },
+  payNote: { fontSize: 11.5, color: MUTED, marginTop: 2 },
+  payAmount: { marginInlineStart: "auto", fontWeight: 900, fontSize: 13, color: INK, whiteSpace: "nowrap" },
+  modalTitle: { fontSize: 17, fontWeight: 900, color: INK, margin: "0 0 6px" },
+  modalSub: { fontSize: 12.5, color: MUTED, marginBottom: 16, lineHeight: 1.8 },
+  ghostBtn: {
+    width: "100%", marginTop: 10, padding: 12, background: "none",
+    border: `1.5px solid ${LINE}`, borderRadius: 13, color: MUTED,
+    cursor: "pointer", fontSize: 13, fontWeight: 700, fontFamily: "inherit",
   },
 };

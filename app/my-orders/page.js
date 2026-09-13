@@ -6,6 +6,21 @@ import { supabase } from "@/lib/supabaseClient";
 const GRAD   = "linear-gradient(135deg,#7c3aed,#3b82f6)";
 const PURPLE = "#7c3aed";
 
+// مفردات التصميم نفسها الموجودة في صفحة الطلب، حتى تُقرأ الصفحتان كتصميم واحد.
+const GRAD_HEAD = "linear-gradient(150deg,#7c3aed 0%,#5b4bf5 45%,#3b82f6 100%)";
+const PAGE      = "#f7f7fb";
+const INK       = "#16131f";
+const MUTED     = "#6b6478";
+const FAINT     = "#8b849c";
+const LINE      = "#ece9f6";
+
+function payLabel(m) {
+  return {
+    wallet: "المحفظة", mobicash: "موبي كاش", moamalat: "معاملات",
+    edfali: "ادفع لي", masarafi: "مصرفي باي", yusor: "يسر",
+  }[m] || m || null;
+}
+
 // ── مساعدات ──────────────────────────────────────────────────────────────────
 function statusLabel(s) {
   return {
@@ -55,7 +70,7 @@ function LoginPrompt({ onLogin }) {
   };
 
   return (
-    <div style={{ minHeight: "calc(100vh - 60px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px", direction: "rtl" }}>
+    <div style={{ minHeight: "calc(100vh - 60px)", background: PAGE, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px", direction: "rtl" }}>
       <div style={{ width: "100%", maxWidth: 380 }}>
 
         {/* أيقونة */}
@@ -116,72 +131,53 @@ function LoginPrompt({ onLogin }) {
 }
 
 // ── بطاقة الطلب ───────────────────────────────────────────────────────────
+// كل طلب يحمل ما يعرّفه: المبلغ بالدينار، التاريخ، عدد الأصناف، طريقة الدفع،
+// والعنوان — لا أكثر، وبالدينار وحده (الدولار شأننا لا شأن الزبون).
 function OrderCard({ order }) {
   const sc = statusColor(order.status);
+  const lyd = order.final_total ?? order.price_lyd;
+  const items = order.price_breakdown?.quantities?.length || null;
+  const addr = order.delivery_address
+    ? [order.delivery_address.city, order.delivery_address.area].filter(Boolean).join(" — ")
+    : (order.address || "");
 
   return (
-    <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", border: "1px solid #f3f4f6", borderRight: `3px solid ${sc.color}`, display: "flex", gap: 0 }}>
-
-      {/* صورة مصغرة */}
+    <a
+      href={`/track?id=${order.id}`}
+      style={{
+        background: "#fff", borderRadius: 18, padding: 13, display: "flex", gap: 12,
+        boxShadow: "0 2px 10px rgba(22,19,31,0.05)", textDecoration: "none", color: INK,
+      }}
+    >
       {order.image_url ? (
-        <img
-          src={order.image_url}
-          style={{ width: 90, minWidth: 90, objectFit: "cover", display: "block" }}
-          alt="طلب"
-        />
+        <img src={order.image_url} alt="" style={{ width: 62, height: 62, borderRadius: 13, objectFit: "cover", flexShrink: 0 }} />
       ) : (
-        <div style={{ width: 90, minWidth: 90, background: "linear-gradient(135deg,#f5f3ff,#eff6ff)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>
-          🛍️
-        </div>
+        <div style={{ width: 62, height: 62, borderRadius: 13, background: "linear-gradient(135deg,#f2f1f8,#e8e5f5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🛍️</div>
       )}
 
-      {/* المحتوى */}
-      <div style={{ flex: 1, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-
-        {/* الصف الأول: رقم + الحالة */}
+      <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <span style={{ fontFamily: "monospace", fontSize: 11, color: "#9ca3af" }}>#{order.id.slice(0, 8)}</span>
-          <span style={{ fontSize: 11, fontWeight: 700, color: sc.color, background: sc.bg, border: `1px solid ${sc.border}`, padding: "2px 10px", borderRadius: 20, whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 11, color: FAINT, fontFamily: "ui-monospace, monospace" }}>#{order.id.slice(0, 8)}</span>
+          <span style={{ fontSize: 10.5, fontWeight: 800, color: sc.color, background: sc.bg, borderRadius: 20, padding: "3px 10px", whiteSpace: "nowrap" }}>
             {statusLabel(order.status)}
           </span>
         </div>
 
-        {/* السعر */}
-        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-          <span style={{ fontSize: 18, fontWeight: 800, color: "#1e1b4b" }}>
-            {order.final_total ? Number(order.final_total).toFixed(0) : (order.price_lyd ? Number(order.price_lyd).toFixed(0) : "—")}
+        <div style={{ display: "flex", alignItems: "baseline", gap: 5, marginTop: 5 }}>
+          <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: "-0.4px" }}>
+            {lyd ? Number(lyd).toFixed(0) : "—"}
           </span>
-          <span style={{ fontSize: 11, color: "#9ca3af" }}>
-            {order.final_total || order.price_lyd ? "د.ل" : ""}
-          </span>
-          {order.price && (
-            <span style={{ fontSize: 11, color: "#d1d5db", marginRight: 2 }}>
-              ({Number(order.price).toFixed(2)} $)
-            </span>
-          )}
+          {lyd ? <span style={{ fontSize: 11, color: FAINT }}>د.ل</span> : null}
         </div>
 
-        {/* التاريخ */}
-        <div style={{ fontSize: 11, color: "#9ca3af" }}>
-          🕐 {fmtDate(order.created_at)}
-        </div>
-
-        {/* رابط الطلب + زر التتبع */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 2 }}>
-          {order.cart_link ? (
-            <a href={order.cart_link} target="_blank" rel="noreferrer"
-              style={{ fontSize: 11, color: PURPLE, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "55%" }}>
-              🛒 فتح السلة
-            </a>
-          ) : <span />}
-
-          <a href={`/track?id=${order.id}`}
-            style={{ padding: "5px 14px", borderRadius: 8, background: GRAD, color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(124,58,237,0.25)" }}>
-            تتبع الطلب
-          </a>
+        <div style={{ fontSize: 11, color: MUTED, lineHeight: 1.9, marginTop: 4 }}>
+          {fmtDate(order.created_at)}
+          {items ? ` · ${items} صنف` : ""}
+          {order.payMethod ? ` · ${order.payMethod}` : ""}
+          {addr ? <><br />{addr}</> : null}
         </div>
       </div>
-    </div>
+    </a>
   );
 }
 
@@ -190,15 +186,30 @@ export default function MyOrdersPage() {
   const [user,    setUser]    = useState(undefined); // undefined = loading
   const [orders,  setOrders]  = useState([]);
   const [loading, setLoading] = useState(false);
+  const [filter,  setFilter]  = useState("all");
 
   const loadOrders = async (u) => {
     setLoading(true);
     const { data } = await supabase
       .from("orders")
-      .select("*")
+      .select("*, payments(method,status,amount)")
       .eq("user_id", u.id)
       .order("created_at", { ascending: false });
-    setOrders(data || []);
+
+    // An order row is created before the customer reaches the gateway, so a
+    // payment they started and abandoned leaves one behind. Those are not
+    // orders yet; an unpaid row is kept only long enough to finish paying it.
+    const RESUME_WINDOW_MS = 60 * 60 * 1000;
+    const rows = (data || []).map((o) => {
+      const pays = Array.isArray(o.payments) ? o.payments : [];
+      const done = pays.find((p) => ["paid", "success", "completed"].includes(p.status));
+      return { ...o, payMethod: payLabel(done?.method || pays[0]?.method) || null };
+    }).filter((o) =>
+      !["new", "pending", null, undefined, ""].includes(o.status)
+      || Date.now() - new Date(o.created_at).getTime() < RESUME_WINDOW_MS
+    );
+
+    setOrders(rows);
     setLoading(false);
   };
 
@@ -219,8 +230,8 @@ export default function MyOrdersPage() {
   // تحميل أولي
   if (user === undefined) {
     return (
-      <div style={{ minHeight: "calc(100vh - 60px)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ width: 40, height: 40, borderRadius: "50%", border: `4px solid #ede9fe`, borderTopColor: PURPLE, animation: "spin 0.8s linear infinite" }} />
+      <div style={{ minHeight: "100vh", background: PAGE, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 40, height: 40, borderRadius: "50%", border: "4px solid #ede9fe", borderTopColor: PURPLE, animation: "spin 0.8s linear infinite" }} />
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
@@ -229,55 +240,104 @@ export default function MyOrdersPage() {
   // غير مسجل الدخول
   if (!user) return <LoginPrompt onLogin={u => { setUser(u); loadOrders(u); }} />;
 
+  const shown = orders.filter(o =>
+    filter === "all" ? true
+    : filter === "open" ? !["delivered", "completed", "cancelled"].includes(o.status)
+    : ["delivered", "completed"].includes(o.status)
+  );
+
   // مسجل الدخول
   return (
-    <div style={{ minHeight: "calc(100vh - 60px)", padding: "24px 16px", direction: "rtl", background: "transparent" }}>
+    <div style={{ minHeight: "100vh", background: PAGE, color: INK, direction: "rtl", paddingBottom: 96 }}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
 
-      <div style={{ maxWidth: 540, margin: "0 auto" }}>
+      <div style={{ maxWidth: 480, margin: "0 auto" }}>
 
-        {/* الرأس */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-          <div>
-            <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1e1b4b", margin: 0 }}>📦 طلباتي</h2>
-            <p style={{ fontSize: 12, color: "#9ca3af", margin: "3px 0 0" }}>
-              {user.user_metadata?.name || user.email}
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <a href="/" style={{ padding: "8px 16px", borderRadius: 10, border: "1px solid #e5e7eb", background: "#fff", color: "#374151", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
-              + طلب جديد
-            </a>
-            <button onClick={handleLogout} style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: "#fff5f5", color: "#ef4444", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+        {/* ── الترويسة ── */}
+        <div style={{ background: GRAD_HEAD, color: "#fff", padding: "18px 20px 24px", position: "relative", overflow: "hidden", borderBottomLeftRadius: 26, borderBottomRightRadius: 26 }}>
+          <div style={{ position: "absolute", insetInlineEnd: -40, top: -50, width: 170, height: 170, borderRadius: "50%", background: "rgba(255,255,255,0.09)" }} />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
+            <a href="/" style={{ fontWeight: 900, fontSize: 17, color: "#fff", textDecoration: "none" }}>ترند · شي إن</a>
+            <button onClick={handleLogout} style={{ background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 13px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
               خروج
             </button>
           </div>
+          <div style={{ marginTop: 20, position: "relative" }}>
+            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.5px", lineHeight: 1.4 }}>طلباتي</div>
+            <div style={{ fontSize: 12.5, opacity: 0.85, marginTop: 6, lineHeight: 1.8 }}>
+              {user.user_metadata?.name || user.email}
+            </div>
+          </div>
         </div>
 
-        {/* قائمة الطلبات */}
-        {loading ? (
-          <div style={{ textAlign: "center", padding: 40, color: "#9ca3af" }}>⏳ جاري التحميل...</div>
-        ) : orders.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "60px 20px", background: "#fff", borderRadius: 18, border: "1px solid #f3f4f6" }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📭</div>
-            <p style={{ fontWeight: 700, color: "#1e1b4b", marginBottom: 6 }}>لا توجد طلبات بعد</p>
-            <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 20 }}>ابدأ بطلبك الأول من شي إن الآن</p>
-            <a href="/" style={{ padding: "11px 28px", borderRadius: 12, background: GRAD, color: "#fff", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
-              إنشاء طلب جديد
-            </a>
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <p style={{ fontSize: 12, color: "#9ca3af", margin: 0 }}>{orders.length} طلب</p>
-            {orders.map((order, i) => (
-              <div key={order.id} style={{ animation: `fadeUp 0.3s ease ${i * 0.05}s both` }}>
-                <OrderCard order={order} />
-              </div>
-            ))}
-          </div>
-        )}
+        <div style={{ padding: "18px 16px 0" }}>
 
+          {orders.length > 0 && (
+            <div style={{ display: "flex", gap: 7, marginBottom: 12, flexWrap: "wrap" }}>
+              {[
+                { k: "all",  t: `الكل · ${orders.length}` },
+                { k: "open", t: "قيد المعالجة" },
+                { k: "done", t: "منجزة" },
+              ].map(c => (
+                <button
+                  key={c.k}
+                  onClick={() => setFilter(c.k)}
+                  style={{
+                    fontSize: 11.5, fontWeight: filter === c.k ? 800 : 600, cursor: "pointer",
+                    background: filter === c.k ? INK : "#fff",
+                    color: filter === c.k ? "#fff" : MUTED,
+                    border: filter === c.k ? "1px solid " + INK : "1px solid " + LINE,
+                    borderRadius: 20, padding: "7px 15px", fontFamily: "inherit",
+                  }}
+                >{c.t}</button>
+              ))}
+            </div>
+          )}
+
+          {loading ? (
+            <div style={{ textAlign: "center", padding: 40, color: FAINT, fontSize: 13 }}>⏳ جاري التحميل...</div>
+          ) : shown.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "56px 20px", background: "#fff", borderRadius: 18, boxShadow: "0 2px 10px rgba(22,19,31,0.05)" }}>
+              <div style={{ fontSize: 44, marginBottom: 12 }}>📭</div>
+              <p style={{ fontWeight: 800, marginBottom: 6 }}>
+                {orders.length === 0 ? "لا توجد طلبات بعد" : "لا طلبات في هذا التصنيف"}
+              </p>
+              <p style={{ fontSize: 12.5, color: FAINT, marginBottom: 20 }}>ابدأ بطلبك الأول من شي إن الآن</p>
+              <a href="/" style={{ display: "inline-block", padding: "13px 28px", borderRadius: 14, background: GRAD_HEAD, color: "#fff", fontWeight: 800, fontSize: 14, textDecoration: "none", boxShadow: "0 6px 18px rgba(124,58,237,0.28)" }}>
+                إنشاء طلب جديد
+              </a>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+              {shown.map((order, i) => (
+                <div key={order.id} style={{ animation: `fadeUp 0.3s ease ${i * 0.05}s both` }}>
+                  <OrderCard order={order} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* ── شريط التنقّل السفلي ── */}
+      <nav style={{
+        position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0, zIndex: 60,
+        background: "#fff", borderTop: `1px solid ${LINE}`, boxShadow: "0 -4px 20px rgba(22,19,31,0.06)",
+      }}>
+        <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", justifyContent: "space-around", padding: "9px 16px 14px" }}>
+          {[
+            { href: "/",          label: "طلب جديد", on: false, path: <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /> },
+            { href: "/my-orders", label: "طلباتي",   on: true,  path: <><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 01-8 0" /></> },
+            { href: "/account",   label: "المحفظة",  on: false, path: <><rect x="2" y="6" width="20" height="13" rx="2" /><path d="M2 10h20" /></> },
+            { href: "/account",   label: "حسابي",    on: false, path: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1" /></> },
+          ].map((it, i) => (
+            <a key={i} href={it.href} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: it.on ? PURPLE : FAINT }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={it.on ? 2 : 1.8} strokeLinecap="round" strokeLinejoin="round">{it.path}</svg>
+              <span style={{ fontSize: 10, fontWeight: it.on ? 800 : 600 }}>{it.label}</span>
+            </a>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }
