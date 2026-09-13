@@ -138,6 +138,14 @@ button:not(:disabled):hover { filter: brightness(1.03); }
 .bottom-nav a:active { transform: scale(.92); }
 .stepper-btn:active { transform: scale(.88); }
 
+/* من يطلب تقليل الحركة تُسكَّن عنده الحركات الزخرفية وحدها.
+   أمّا شريط التقدّم ونبضة الانتظار فهما حالة لا زينة: إيقافهما يجعل الشاشة
+   تبدو واقفة بينما القياس يعمل — وهذا ما كان يحدث على ويندوز، إذ يأتي كثير
+   من أجهزته وحركاته مغلقة من إعداداته. */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+  *:not(.keep-motion):not(.keep-motion *), *::before, *::after {
+    transition-duration: .001ms !important;
+  }
+  *:not(.keep-motion):not(.keep-motion *) { animation-duration: .001ms; }
+  .keep-motion, .keep-motion * { animation-duration: revert !important; }
 }

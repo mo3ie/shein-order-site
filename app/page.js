@@ -998,10 +998,16 @@ export default function OrderPage() {
 
             {/* الانتظار جزء من التصميم لا شاشة فارغة */}
             {resolveState === "checking" && (
-              <div style={{ ...s.card, padding: "17px 16px", animation: "riseIn 0.25s ease" }}>
+              <div className="keep-motion" style={{ ...s.card, padding: "17px 16px", animation: "riseIn 0.25s ease" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 13 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: PRIMARY, animation: "pulse 1.4s ease-in-out infinite" }} />
-                  <div style={{ fontSize: 15, fontWeight: 800 }}>{t("نقرأ سعر سلتك الآن")}</div>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: PRIMARY, animation: "pulse 1.4s ease-in-out infinite", flexShrink: 0 }} />
+                  <div style={{ fontSize: 15, fontWeight: 800, flex: 1 }}>{t("نقرأ سعر سلتك الآن")}</div>
+                  {/* المؤقّت داخل البطاقة نفسها ليراه صاحب الهاتف وصاحب
+                      الكمبيوتر سواء: كان معلّقًا بالزرّ وحده، والزرّ يسكن
+                      مكانين مختلفين في التخطيطين. */}
+                  <span style={{ fontSize: 14.5, fontWeight: 900, color: PRIMARY, fontVariantNumeric: "tabular-nums" }}>
+                    {String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}
+                  </span>
                 </div>
                 <div style={{ height: 5, background: "var(--t-track)", borderRadius: 4, overflow: "hidden", position: "relative" }}>
                   <div style={{ position: "absolute", insetBlock: 0, width: "45%", borderRadius: 4, background: GRAD_HEAD, animation: "sweep 1.7s ease-in-out infinite" }} />
@@ -1138,7 +1144,16 @@ export default function OrderPage() {
                     : t("إعادة حساب السلة")}
                 </button>
                 {repricing && (
-                  <p style={{ fontSize: 12.5, color: FAINT, lineHeight: 1.9, margin: "9px 0 0" }}>{t("نضبط الكميات داخل سلتك على شي إن ونقرأ السعر منها — قد يستغرق ذلك دقيقتين إلى أربع.")}</p>
+                  <div className="keep-motion">
+                    {/* شريط القياس نفسه شكلاً وحركة، فحالة الانتظار واحدة أينما
+                        وقعت ولا يبدو الموقع واقفًا. */}
+                    <div style={{ height: 5, background: "var(--t-track)", borderRadius: 4, overflow: "hidden", position: "relative", marginTop: 11 }}>
+                      <div style={{ position: "absolute", insetBlock: 0, width: "45%", borderRadius: 4, background: GRAD_HEAD, animation: "sweep 1.7s ease-in-out infinite" }} />
+                    </div>
+                    <p style={{ fontSize: 12.5, color: FAINT, lineHeight: 1.9, margin: "9px 0 0" }}>
+                      {t("نضبط الكميات داخل سلتك على شي إن ونقرأ السعر منها — قد يستغرق ذلك دقيقتين إلى أربع.")}
+                    </p>
+                  </div>
                 )}
                 {repriceError && <div style={{ ...s.noteRed, marginBottom: 0 }}>{repriceError}</div>}
               </div>
@@ -1346,7 +1361,7 @@ export default function OrderPage() {
               </div>
             </div>
 
-            <aside style={{ display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 24, alignSelf: "start" }}>
+            <aside className="keep-motion" style={{ display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 24, alignSelf: "start" }}>
               {stage !== "link" && summaryCard}
               {stage !== "link" && payWithCard}
               {actionButton}
