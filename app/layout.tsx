@@ -1,3 +1,7 @@
+// الثيم كان معرّفًا ولا يُستورد من أي مكان، فكانت كل متغيّرات الألوان غير
+// موجودة والبطاقات شفافة تُظهر خلفية الصفحة خلفها. استيراده هو ما يجعل
+// التصميم والوضع الداكن وقواعد الكمبيوتر تعمل أصلاً.
+import "./theme.css";
 import type { Metadata } from "next";
 import { Cairo } from "next/font/google";
 import Header from "./components/Header";

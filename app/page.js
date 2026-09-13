@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { useLang } from "@/lib/i18n";
+import { useLang, useIsDesktop } from "@/lib/i18n";
 
 const PRIMARY   = "#7c3aed";
 const GRADIENT  = "linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%)";
@@ -89,6 +89,7 @@ export default function OrderPage() {
   // الرابط والانتظار ← السلة والكميات ← بياناتك، ثم ورقة الدفع.
   const [stage,             setStage]             = useState("link"); // link|cart|details
   const { lang, setLang, t, dir } = useLang();
+  const isDesktop = useIsDesktop();
 
   // A SHEIN share link carries no quantities: three of one shirt arrive as one
   // line of one, and the same shirt in another size arrives as its own line. So
@@ -648,10 +649,16 @@ export default function OrderPage() {
   // سعر الصنف الواحد بالدينار: الزبون لا يرى دولاراً في أي مكان.
   const lydOfUsd = (usd) => (Number(usd || 0) * 1.01) * (exchangeRate || 0);
 
-  // ما وفّره العرض على السلة، إن قرأه شي إن.
-  const savedLyd = breakdown?.promotions
-    ? lydOfUsd(Math.abs(Number(breakdown.promotions)))
+  // ما وفّره العرض على السلة، إن قرأه شي إن من صفحة الدفع.
+  const savedLyd = breakdown?.promotionsUsd
+    ? lydOfUsd(Math.abs(Number(breakdown.promotionsUsd)))
     : 0;
+
+  const stageTitle = stage === "link"
+    ? { h: t("اطلب من شي إن") + " " + t("وادفع بالدينار"), s: t("الصق رابط سلتك المشتركة، ونقرأ سعرها الحقيقي من تطبيق شي إن نفسه.") }
+    : stage === "cart"
+      ? { h: t("راجع سلتك"), s: t("الأسعار مقروءة من تطبيق شي إن نفسه — نفس الأرقام التي ندفعها.") }
+      : { h: t("بياناتك"), s: t("اسمك ورقمك وعنوان الاستلام، ثم الدفع.") };
 
   const headerTop = (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
@@ -663,7 +670,7 @@ export default function OrderPage() {
             aria-label={t("رجوع")}
             style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.2)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: dir === "ltr" ? "scaleX(-1)" : "none" }}><path d="M9 6l6 6-6 6" /></svg>
           </button>
         )}
         <span style={{ fontWeight: 900, fontSize: 18 }}>{t("ترند · شي إن")}</span>
@@ -686,56 +693,132 @@ export default function OrderPage() {
     </div>
   );
 
-  return (
-    <main className="form-main" style={{ minHeight: "100vh", background: PAGE, color: INK, direction: dir, paddingBottom: 168 }}>
+  // ── أفعال الشاشة: زرّ واحد واضح لكل مرحلة، يُركَّب في الشريط السفلي على
+  //    الهاتف وفي العمود الجانبي على الكمبيوتر.
+  const actionButton = (<>
+    {stage === "link" && (
+      <button
+        type="button"
+        onClick={handleResolveCart}
+        disabled={resolveState === "checking" || !cartLink.trim()}
+        style={{
+          ...s.btn,
+          opacity: (resolveState === "checking" || !cartLink.trim()) ? 0.55 : 1,
+          cursor:  (resolveState === "checking" || !cartLink.trim()) ? "not-allowed" : "pointer",
+        }}
+      >
+        {resolveState === "checking"
+          ? `${t("جاري التحقق...")} ${elapsed > 0 ? elapsed + " " + t("ثانية") : ""}`
+          : t("تحقّق من السلة والسعر")}
+      </button>
+    )}
 
-      <style>{`
-        @keyframes zoomIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        @keyframes spin   { to { transform: rotate(360deg); } }
-        @keyframes sweep  { 0% { transform: translateX(120%) } 100% { transform: translateX(-320%) } }
-        @keyframes pulse  { 0%,100% { opacity: .35 } 50% { opacity: 1 } }
-        @keyframes riseIn { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
-        input:focus, textarea:focus { outline: none !important; border-color: ${PRIMARY} !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.12) !important; }
-      `}</style>
+    {stage === "cart" && (
+      <button
+        type="button"
+        onClick={() => setStage("details")}
+        disabled={quantityChanged && exactPrice == null}
+        style={{
+          ...s.btn, background: SOLID, color: ON_SOLID, boxShadow: "none",
+          opacity: (quantityChanged && exactPrice == null) ? 0.5 : 1,
+          cursor:  (quantityChanged && exactPrice == null) ? "not-allowed" : "pointer",
+        }}
+      >
+        {t("متابعة الطلب")} · {priceLYD.toFixed(0)} {t("د.ل")}
+      </button>
+    )}
 
-      <div className="form-inner" style={{ width: "100%", maxWidth: 480, margin: "0 auto" }}>
+    {stage === "details" && (
+      <button
+        type="button"
+        onClick={() => { if (validate()) setShowPayment(true); }}
+        disabled={sending}
+        style={{ ...s.btn, opacity: sending ? 0.6 : 1, cursor: sending ? "not-allowed" : "pointer" }}
+      >
+        {sending ? t("جاري الإرسال...") : `${t("ادفع")} ${priceLYD.toFixed(0)} ${t("د.ل")}`}
+      </button>
+    )}
+  </>);
 
-        {/* ══ الترويسة: التدرّج هو هوية الشاشة، والإجمالي يعيش داخله ══ */}
-        <div style={{ background: GRAD_HEAD, color: "#fff", padding: "18px 20px 24px", position: "relative", overflow: "hidden" }}>
-          <div style={{ position: "absolute", insetInlineEnd: -40, top: -50, width: 170, height: 170, borderRadius: "50%", background: "rgba(255,255,255,0.09)" }} />
-          {headerTop}
+  // ── بطاقة الفاتورة (الكمبيوتر): التدرّج ينتقل إليها فيبقى المبلغ أبرز
+  //    شيء على الشاشة، وسطورها من قراءة صفحة الدفع في شي إن.
+  const summaryCard = (
+    <div style={{ background: GRAD_HEAD, borderRadius: 16, padding: "22px 20px", color: "#fff", position: "relative", overflow: "hidden" }}>
+      <div style={{ position: "absolute", insetInlineEnd: -40, top: -50, width: 170, height: 170, borderRadius: "50%", background: "rgba(255,255,255,0.09)" }} />
+      <div style={{ fontSize: 11, fontWeight: 800, opacity: 0.75, letterSpacing: "1.4px", marginBottom: 15, position: "relative" }}>
+        {t("إجمالي السلة")}
+      </div>
 
-          {stage === "link" ? (
-            <div style={{ marginTop: 20, position: "relative" }}>
-              <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.5px", lineHeight: 1.4 }}>{t("اطلب من شي إن")}<br />{t("وادفع بالدينار")}</div>
-              <div style={{ fontSize: 12.5, opacity: 0.82, marginTop: 6, lineHeight: 1.8 }}>{t("الصق رابط سلتك المشتركة، ونقرأ سعرها الحقيقي من تطبيق شي إن نفسه.")}</div>
+      {breakdown && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 11, position: "relative" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <span style={{ fontSize: 13, opacity: 0.85 }}>{t("قيمة المنتجات")}</span>
+            <span style={{ fontSize: 14 }}>{lydOfUsd(breakdown.retailUsd).toFixed(0)}</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <span style={{ fontSize: 13, opacity: 0.85 }}>{t("الشحن داخل شي إن")}</span>
+            <span style={{ fontSize: 12.5, color: "#86efac", fontWeight: 700 }}>
+              {Number(breakdown.shippingUsd) ? lydOfUsd(breakdown.shippingUsd).toFixed(0) : t("مجاني")}
+            </span>
+          </div>
+          {Number(breakdown.promotionsUsd) ? (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <span style={{ fontSize: 13, opacity: 0.85 }}>{t("عروض شي إن")}</span>
+              <span style={{ fontSize: 14, color: "#86efac" }}>−{savedLyd.toFixed(0)}</span>
             </div>
-          ) : (
-            <div style={{ marginTop: 22, position: "relative" }}>
-              <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>{t("الإجمالي المستحق")}</div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
-                <span style={{ fontSize: 40, fontWeight: 900, letterSpacing: "-1.5px", lineHeight: 1 }}>
-                  {priceLYD.toLocaleString("en-US", { maximumFractionDigits: 0 })}
-                </span>
-                <span style={{ fontSize: 15, fontWeight: 700, opacity: 0.85 }}>{t("د.ل")}</span>
-              </div>
-              <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
-                {itemCount ? <span style={hChip}>{itemCount} {t("صنف")}</span> : null}
-                <span style={hChip}>{exactPrice != null ? "سعر نهائي من شي إن" : "الشحن إلى ليبيا لاحقاً"}</span>
-                {savedLyd > 1 && (
-                  <span style={{ ...hChip, background: "rgba(52,211,153,0.25)" }}>
-                    وفّرت {savedLyd.toFixed(0)} د.ل
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
+          ) : null}
         </div>
+      )}
 
-        {/* ══ المحتوى ══ */}
-        <div className="stage-body" style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 13 }}>
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.22)", margin: "17px 0 14px", position: "relative" }} />
 
-          {/* ────────── ١ · الرابط والانتظار ────────── */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", position: "relative" }}>
+        <div>
+          <div style={{ fontSize: 11, opacity: 0.8, marginBottom: 2 }}>{t("الإجمالي المستحق")}</div>
+          <div style={{ fontSize: 10.5, opacity: 0.7 }}>{t("بسعر المصرف اليوم")}</div>
+        </div>
+        <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-1px", lineHeight: 1 }}>
+          {priceLYD.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+          <span style={{ fontSize: 13, opacity: 0.8, fontWeight: 700, letterSpacing: 0 }}> {t("د.ل")}</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  // طرق الدفع كما تُعرض في العمود الجانبي — الضغط عليها يفتح ورقة الدفع نفسها.
+  const payWithCard = (
+    <div style={{ ...s.card, padding: "16px 18px" }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: MUTED, marginBottom: 12 }}>{t("ادفع بـ")}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {[
+          { k: "wallet", label: t("محفظتي"), note: wallet ? `${Number(wallet.balance || 0).toFixed(0)} ${t("د.ل")}` : null,
+            icon: <><rect x="2" y="6" width="20" height="13" rx="2" /><path d="M2 10h20" /><path d="M17 15h2" /></> },
+          { k: "mobicash", label: t("موبي كاش"), note: null,
+            icon: <><rect x="6" y="2" width="12" height="20" rx="2" /><path d="M11 18h2" /></> },
+          { k: "moamalat", label: t("معاملات"), note: null,
+            icon: <><path d="M3 10l9-6 9 6" /><path d="M5 10v9" /><path d="M19 10v9" /><path d="M3 19h18" /></> },
+        ].map((m) => (
+          <button
+            key={m.k}
+            type="button"
+            onClick={() => { if (validate()) setShowPayment(true); }}
+            style={{
+              display: "flex", alignItems: "center", gap: 11, width: "100%",
+              border: `1.5px solid ${LINE}`, background: CARD, borderRadius: 10,
+              padding: "11px 13px", cursor: "pointer", fontFamily: "inherit",
+              color: INK, textAlign: dir === "ltr" ? "left" : "right",
+            }}
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={m.k === "wallet" ? PRIMARY : MUTED} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{m.icon}</svg>
+            <span style={{ flex: 1, fontSize: 12.5, fontWeight: m.k === "wallet" ? 700 : 500 }}>{m.label}</span>
+            {m.note && <span style={{ fontSize: 11, color: MUTED }}>{m.note}</span>}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
+  const stageContent = (<>
           {stage === "link" && (<>
 
             <div style={s.card}>
@@ -1058,79 +1141,153 @@ export default function OrderPage() {
 
             {errors.price && <div style={s.noteRed}>{errors.price}</div>}
           </>)}
-        </div>
-      </div>
+  </>);
 
-      {/* ══ شريط الإجراء الملتصق: فعل واحد واضح في كل شاشة ══ */}
-      <div className="action-bar" style={{
-        position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 64, zIndex: 55,
-        background: CARD, boxShadow: "0 -4px 20px rgba(22,19,31,0.06)",
-      }}>
-        <div style={{ maxWidth: 480, margin: "0 auto", padding: "12px 20px 14px" }}>
-          {stage === "link" && (
-            <button
-              type="button"
-              onClick={handleResolveCart}
-              disabled={resolveState === "checking" || !cartLink.trim()}
-              style={{
-                ...s.btn,
-                opacity: (resolveState === "checking" || !cartLink.trim()) ? 0.55 : 1,
-                cursor:  (resolveState === "checking" || !cartLink.trim()) ? "not-allowed" : "pointer",
-              }}
-            >
-              {resolveState === "checking"
-                ? `${t("جاري التحقق...")} ${elapsed > 0 ? elapsed + " " + t("ثانية") : ""}`
-                : "تحقّق من السلة والسعر"}
-            </button>
-          )}
 
-          {stage === "cart" && (
-            <button
-              type="button"
-              onClick={() => setStage("details")}
-              disabled={quantityChanged && exactPrice == null}
-              style={{
-                ...s.btn, background: SOLID, color: ON_SOLID, boxShadow: "none",
-                opacity: (quantityChanged && exactPrice == null) ? 0.5 : 1,
-                cursor:  (quantityChanged && exactPrice == null) ? "not-allowed" : "pointer",
-              }}
-            >
-              {t("متابعة الطلب")} · {priceLYD.toFixed(0)} {t("د.ل")}
-            </button>
-          )}
+  return (
+    <main className="form-main" style={{ minHeight: "100vh", background: PAGE, color: INK, direction: dir }}>
 
-          {stage === "details" && (
-            <button
-              type="button"
-              onClick={() => { if (validate()) setShowPayment(true); }}
-              disabled={sending}
-              style={{ ...s.btn, opacity: sending ? 0.6 : 1, cursor: sending ? "not-allowed" : "pointer" }}
-            >
-              {sending ? "جاري الإرسال..." : `${t("ادفع")} ${priceLYD.toFixed(0)} ${t("د.ل")}`}
-            </button>
-          )}
-        </div>
-      </div>
+      <style>{`
+        @keyframes zoomIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        @keyframes spin   { to { transform: rotate(360deg); } }
+        @keyframes sweep  { 0% { transform: translateX(120%) } 100% { transform: translateX(-320%) } }
+        @keyframes pulse  { 0%,100% { opacity: .35 } 50% { opacity: 1 } }
+        @keyframes riseIn { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+        input:focus, textarea:focus { outline: none !important; border-color: ${PRIMARY} !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.12) !important; }
+      `}</style>
 
-      {/* ══ شريط التنقّل السفلي ══ */}
-      <nav className="bottom-nav" style={{
-        position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0, zIndex: 60,
-        background: CARD, borderTop: `1px solid ${LINE}`,
-      }}>
-        <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", justifyContent: "space-around", padding: "8px 16px 10px" }}>
-          {[
-            { href: "/",          label: "طلب جديد", on: true,  path: <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /> },
-            { href: "/my-orders", label: "طلباتي",   on: false, path: <><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 01-8 0" /></> },
-            { href: "/wallet",    label: "المحفظة",  on: false, path: <><rect x="2" y="6" width="20" height="13" rx="2" /><path d="M2 10h20" /></> },
-            { href: authUser ? "/account" : "/login", label: authUser ? "حسابي" : "دخول", on: false, path: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1" /></> },
-          ].map((it, i) => (
-            <a key={i} href={it.href} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: it.on ? PRIMARY : FAINT }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={it.on ? 2 : 1.8} strokeLinecap="round" strokeLinejoin="round">{it.path}</svg>
-              <span style={{ fontSize: 10, fontWeight: it.on ? 800 : 600 }}>{it.label}</span>
-            </a>
-          ))}
-        </div>
-      </nav>
+      {isDesktop ? (
+        /* ══════════ الكمبيوتر: شريط علوي وعمودان ══════════
+           الشاشة العريضة ليست هاتفًا ممدودًا: الملاحة تصعد إلى شريط علوي،
+           والسلة تأخذ العمود الواسع، والفاتورة والدفع يلتصقان في العمود
+           الجانبي — فالتدرّج ينتقل إلى بطاقة الإجمالي ويبقى المبلغ أبرز شيء. */
+        <>
+          <div className="desk-bar">
+            <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
+              <a href="/" style={{ fontWeight: 900, fontSize: 20, letterSpacing: "-0.4px", color: INK, textDecoration: "none" }}>
+                Trend <span style={{ color: PRIMARY }}>SHEIN</span>
+              </a>
+              <div style={{ display: "flex", gap: 22, fontSize: 13 }}>
+                {[
+                  { href: "/", label: t("طلب جديد"), on: true },
+                  { href: "/my-orders", label: t("طلباتي"), on: false },
+                  { href: "/wallet", label: t("المحفظة"), on: false },
+                  { href: "/contact", label: t("مساعدة"), on: false },
+                ].map((l, i) => (
+                  <a key={i} href={l.href} style={{ color: l.on ? INK : MUTED, fontWeight: l.on ? 700 : 500, textDecoration: "none" }}>
+                    {l.label}
+                  </a>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={() => setLang(lang === "ar" ? "en" : "ar")}
+                style={{ fontSize: 12, fontWeight: 700, color: MUTED, border: `1px solid ${LINE}`, background: "none", borderRadius: 20, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit" }}
+              >
+                {lang === "ar" ? "English" : "العربية"}
+              </button>
+              <a
+                href={authUser ? "/account" : "/login"}
+                style={{ width: 32, height: 32, borderRadius: "50%", background: SOLID, color: ON_SOLID, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, textDecoration: "none" }}
+              >
+                {authUser ? (authUser.user_metadata?.name?.[0] || authUser.email?.[0] || "م").toUpperCase() : "؟"}
+              </a>
+            </div>
+          </div>
+
+          <div className="desk-grid">
+            <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
+              <div>
+                <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-0.6px" }}>{stageTitle.h}</div>
+                <div style={{ fontSize: 13.5, color: MUTED, marginTop: 5 }}>{stageTitle.s}</div>
+              </div>
+              <div className="stage-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {stageContent}
+              </div>
+            </div>
+
+            <aside style={{ display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 24, alignSelf: "start" }}>
+              {stage !== "link" && summaryCard}
+              {stage !== "link" && payWithCard}
+              {actionButton}
+              <div style={{ fontSize: 11, color: FAINT, textAlign: "center", lineHeight: 1.8 }}>
+                {t("رسوم الشحن إلى ليبيا تُحسب لاحقاً")}
+              </div>
+            </aside>
+          </div>
+        </>
+      ) : (
+        /* ══════════ الهاتف ══════════ */
+        <>
+          <div className="form-inner" style={{ width: "100%", maxWidth: 480, margin: "0 auto", paddingBottom: 168 }}>
+
+            <div style={{ background: GRAD_HEAD, color: "#fff", padding: "18px 20px 24px", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", insetInlineEnd: -40, top: -50, width: 170, height: 170, borderRadius: "50%", background: "rgba(255,255,255,0.09)" }} />
+              {headerTop}
+
+              {stage === "link" ? (
+                <div style={{ marginTop: 20, position: "relative" }}>
+                  <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.5px", lineHeight: 1.4 }}>{t("اطلب من شي إن")}<br />{t("وادفع بالدينار")}</div>
+                  <div style={{ fontSize: 12.5, opacity: 0.82, marginTop: 6, lineHeight: 1.8 }}>{t("الصق رابط سلتك المشتركة، ونقرأ سعرها الحقيقي من تطبيق شي إن نفسه.")}</div>
+                </div>
+              ) : (
+                <div style={{ marginTop: 22, position: "relative" }}>
+                  <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>{t("الإجمالي المستحق")}</div>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
+                    <span style={{ fontSize: 40, fontWeight: 900, letterSpacing: "-1.5px", lineHeight: 1 }}>
+                      {priceLYD.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                    </span>
+                    <span style={{ fontSize: 15, fontWeight: 700, opacity: 0.85 }}>{t("د.ل")}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
+                    {itemCount ? <span style={hChip}>{itemCount} {t("صنف")}</span> : null}
+                    <span style={hChip}>{exactPrice != null ? t("سعر نهائي من شي إن") : t("الشحن إلى ليبيا لاحقاً")}</span>
+                    {savedLyd > 1 && (
+                      <span style={{ ...hChip, background: "rgba(52,211,153,0.25)" }}>
+                        {t("وفّرت")} {savedLyd.toFixed(0)} {t("د.ل")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="stage-body" style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 13 }}>
+              {stageContent}
+            </div>
+          </div>
+
+          <div className="action-bar" style={{
+            position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 64, zIndex: 55,
+            background: CARD, boxShadow: "0 -4px 20px rgba(22,19,31,0.06)",
+          }}>
+            <div style={{ maxWidth: 480, margin: "0 auto", padding: "12px 20px 14px" }}>
+              {actionButton}
+            </div>
+          </div>
+
+          <nav className="bottom-nav" style={{
+            position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0, zIndex: 60,
+            background: CARD, borderTop: `1px solid ${LINE}`,
+          }}>
+            <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", justifyContent: "space-around", padding: "8px 16px 10px" }}>
+              {[
+                { href: "/",          label: t("طلب جديد"), on: true,  path: <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /> },
+                { href: "/my-orders", label: t("طلباتي"),   on: false, path: <><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 01-8 0" /></> },
+                { href: "/wallet",    label: t("المحفظة"),  on: false, path: <><rect x="2" y="6" width="20" height="13" rx="2" /><path d="M2 10h20" /></> },
+                { href: authUser ? "/account" : "/login", label: authUser ? t("حسابي") : t("دخول"), on: false, path: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1" /></> },
+              ].map((it, i) => (
+                <a key={i} href={it.href} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: it.on ? PRIMARY : FAINT }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={it.on ? 2 : 1.8} strokeLinecap="round" strokeLinejoin="round">{it.path}</svg>
+                  <span style={{ fontSize: 10, fontWeight: it.on ? 800 : 600 }}>{it.label}</span>
+                </a>
+              ))}
+            </div>
+          </nav>
+        </>
+      )}
 
 
       {/* ── Image Preview Modal ── */}
