@@ -758,15 +758,9 @@ export default function OrderPage() {
               {quantityChanged && exactPrice && (
                 <div style={s.qtyOk}>
                   ✅ <strong>هذا هو السعر النهائي من شي إن بالكميات التي اخترتها.</strong>
-                  {breakdown && (
-                    <div style={{ marginTop: 6, fontSize: 12, opacity: 0.9, lineHeight: 1.9 }}>
-                      قيمة المنتجات ${Number(breakdown.retailUsd ?? 0).toFixed(2)}
-                      {" · "}الشحن {Number(breakdown.shippingUsd ?? 0) > 0
-                        ? `$${Number(breakdown.shippingUsd).toFixed(2)}`
-                        : "مجاني"}
-                      {" · "}العروض −${Math.abs(Number(breakdown.promotionsUsd ?? 0)).toFixed(2)}
-                    </div>
-                  )}
+                  {/* SHEIN's own lines are kept for the admin panel, not shown
+                      here: the customer pays in dinars and a dollar breakdown
+                      only invites arithmetic. */}
                 </div>
               )}
             </div>
@@ -1147,24 +1141,9 @@ export default function OrderPage() {
               </p>
             </div>
 
-            {/* Stripe */}
-            <button
-              onClick={handlePayment}
-              style={{ ...s.payBtn, background: "#1a1a2e", color: "#fff" }}
-            >
-              <span style={{ fontSize: 20 }}>💳</span>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>الدفع الدولي</div>
-                <div style={{ fontSize: 12, opacity: 0.7 }}>Visa / MasterCard</div>
-              </div>
-              <span style={{ marginRight: "auto", fontSize: 12, opacity: 0.6 }}>{totalUSD.toFixed(2)} $</span>
-            </button>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "12px 0" }}>
-              <div style={{ flex: 1, height: 1, background: "#f3f4f6" }} />
-              <span style={{ fontSize: 12, color: "#d1d5db" }}>أو ادفع بالدينار الليبي</span>
-              <div style={{ flex: 1, height: 1, background: "#f3f4f6" }} />
-            </div>
+            {/* International cards are hidden: every customer here pays in
+                dinars, and the Stripe button was the only thing on the page
+                still quoting dollars. */}
 
             {/* Moamalat — dedicated button */}
             <button
