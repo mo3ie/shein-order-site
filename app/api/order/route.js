@@ -130,8 +130,18 @@ export async function POST(req) {
       // re-reads the checkout. SHEIN recomputes promotions and the free-shipping
       // threshold itself, which no arithmetic here could do: taking one line
       // from 1 to 3 on the test cart made shipping free and grew the promotion.
+      // Vercel kills this function at maxDuration (60s) and answers with a
+      // plain-text error page, which the browser then tried to read as JSON --
+      // "Unexpected token 'A', \"An error o\"...". So the budget here must stay
+      // well inside that limit.
+      //
+      // It does not need to be longer: the customer has just confirmed a price,
+      // so the resolver holds that exact measurement in its cache (keyed by the
+      // link AND the quantities) and answers in seconds. Only a stale or
+      // evicted entry costs a real measurement, and that is what the timeout
+      // message tells them to redo.
       const resolved = await resolveSharedCart(cart_link, {
-        maxWaitMs: 6 * 60 * 1000,
+        maxWaitMs: 40 * 1000,
         quantities: Array.isArray(quantities) ? quantities : null,
       });
       verifiedPrice = resolved.estimatedPrice;

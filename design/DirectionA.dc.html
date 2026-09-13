@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;600&display=swap">
+  <style>
+    body { margin: 0; font-family: Cairo, system-ui, sans-serif; }
+    a { color: #7c3aed; } a:hover { color: #6d28d9; }
+    .mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  </style>
+</helmet>
+
+<div dir="rtl" style="width: 390px; height: 844px; background: #f6f4f0; color: #1c1a24; overflow: hidden; display: flex; flex-direction: column">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; padding: 18px 20px 12px">
+    <div style="font-weight: 900; font-size: 19px; letter-spacing: -0.4px">ترند <span style="color: #7c3aed">شي إن</span></div>
+    <div style="display: flex; gap: 8px; align-items: center">
+      <span style="font-size: 11px; font-weight: 600; color: #6b6478; border: 1px solid #ddd9d0; border-radius: 20px; padding: 4px 10px">EN</span>
+      <div style="width: 30px; height: 30px; border-radius: 50%; background: #1c1a24; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700">م</div>
+    </div>
+  </div>
+
+  <div style="flex: 1; padding: 0 20px 20px; display: flex; flex-direction: column; gap: 14px; overflow: hidden">
+
+    <div style="background: #fff; border: 1px solid #e8e4dc; border-radius: 4px; padding: 20px 18px; position: relative">
+      <div style="position: absolute; inset-inline-start: 0; top: 22px; width: 3px; height: 26px; background: #7c3aed"></div>
+      <div style="font-size: 11px; font-weight: 700; color: #8a8396; letter-spacing: 1.4px; margin-bottom: 12px">فاتورة السلة</div>
+
+      <div style="display: flex; flex-direction: column; gap: 9px">
+        <div style="display: flex; justify-content: space-between; align-items: baseline">
+          <span style="font-size: 13px; color: #4a4557">قيمة المنتجات</span>
+          <span class="mono" style="font-size: 14px">130.41</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline">
+          <span style="font-size: 13px; color: #4a4557">الشحن الداخلي</span>
+          <span class="mono" style="font-size: 13px; color: #15803d; font-weight: 600">مجاني</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline">
+          <span style="font-size: 13px; color: #4a4557">عروض شي إن</span>
+          <span class="mono" style="font-size: 14px; color: #15803d">−19.42</span>
+        </div>
+      </div>
+
+      <div style="border-top: 1px dashed #d8d3c8; margin: 14px 0 12px"></div>
+
+      <div style="display: flex; justify-content: space-between; align-items: flex-end">
+        <div>
+          <div style="font-size: 11px; color: #8a8396; margin-bottom: 2px">الإجمالي المستحق</div>
+          <div style="font-size: 10.5px; color: #a39ca8">شامل العمولة وسعر الصرف</div>
+        </div>
+        <div class="mono" style="font-size: 30px; font-weight: 600; letter-spacing: -1px">1,064<span style="font-size: 14px; color: #6b6478; font-family: Cairo"> د.ل</span></div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <div style="display: flex; align-items: center; justify-content: space-between">
+        <span style="font-size: 12.5px; font-weight: 700; color: #4a4557">٥ أصناف</span>
+        <span style="font-size: 11.5px; color: #8a8396">اضغط + لزيادة الكمية</span>
+      </div>
+
+      <div style="background: #fff; border: 1px solid #e8e4dc; border-radius: 4px; display: flex; flex-direction: column">
+        <div style="display: flex; gap: 11px; padding: 11px 13px; align-items: center">
+          <div style="width: 46px; height: 46px; border-radius: 3px; background: linear-gradient(135deg,#2f3540,#4a5260); flex-shrink: 0"></div>
+          <div style="flex: 1; min-width: 0">
+            <div style="font-size: 12px; line-height: 1.5; color: #1c1a24">جينز رجالي واسع الساق بترقيع مطرّز</div>
+            <div style="display: flex; gap: 7px; align-items: center; margin-top: 4px">
+              <span style="font-size: 10.5px; background: #f1efe9; border-radius: 3px; padding: 1px 6px; color: #6b6478">أسود / M</span>
+              <span class="mono" style="font-size: 12px; font-weight: 600">26.14</span>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 5px; flex-shrink: 0">
+            <button style="width: 26px; height: 26px; border: 1px solid #ddd9d0; background: #fff; border-radius: 3px; font-size: 15px; line-height: 1; cursor: pointer; font-family: inherit; padding: 0">+</button>
+            <span class="mono" style="font-size: 13px; font-weight: 600; min-width: 14px; text-align: center">1</span>
+            <button style="width: 26px; height: 26px; border: 1px solid #ddd9d0; background: #fff; border-radius: 3px; font-size: 15px; line-height: 1; cursor: pointer; font-family: inherit; padding: 0">−</button>
+          </div>
+        </div>
+        <div style="height: 1px; background: #f1efe9"></div>
+        <div style="display: flex; gap: 11px; padding: 11px 13px; align-items: center">
+          <div style="width: 46px; height: 46px; border-radius: 3px; background: linear-gradient(135deg,#6b4a55,#8d6270); flex-shrink: 0"></div>
+          <div style="flex: 1; min-width: 0">
+            <div style="font-size: 12px; line-height: 1.5; color: #1c1a24">تي شيرت بسحّاب ربع وكتف مسدل</div>
+            <div style="display: flex; gap: 7px; align-items: center; margin-top: 4px">
+              <span style="font-size: 10.5px; background: #f1efe9; border-radius: 3px; padding: 1px 6px; color: #6b6478">أزرق / XL</span>
+              <span class="mono" style="font-size: 12px; font-weight: 600">25.86</span>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 5px; flex-shrink: 0">
+            <button style="width: 26px; height: 26px; border: 1px solid #ddd9d0; background: #fff; border-radius: 3px; font-size: 15px; line-height: 1; cursor: pointer; font-family: inherit; padding: 0">+</button>
+            <span class="mono" style="font-size: 13px; font-weight: 600; min-width: 14px; text-align: center">2</span>
+            <button style="width: 26px; height: 26px; border: 1px solid #ddd9d0; background: #fff; border-radius: 3px; font-size: 15px; line-height: 1; cursor: pointer; font-family: inherit; padding: 0">−</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 4px; padding: 12px 14px">
+      <div style="font-size: 12px; line-height: 1.85; color: #92400e">
+        غيّرت الكميات — السعر أعلاه <strong>تقديري</strong>. اطلب إعادة حساب السلة ليظهر السعر النهائي من شي إن.
+      </div>
+      <button style="width: 100%; margin-top: 10px; padding: 10px; background: #1c1a24; color: #fff; border: none; border-radius: 3px; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer">إعادة حساب السلة</button>
+    </div>
+  </div>
+
+  <div style="padding: 14px 20px 22px; background: #fff; border-top: 1px solid #e8e4dc">
+    <button style="width: 100%; padding: 15px; background: #7c3aed; color: #fff; border: none; border-radius: 4px; font-size: 15px; font-weight: 700; font-family: inherit; cursor: pointer">متابعة الطلب</button>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

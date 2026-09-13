@@ -13,7 +13,22 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
  * The balance is only ever changed here, from the service role, against a
  * signed-in user — a client can read it but never write it.
  */
-async function getUser() {
+/**
+ * Identify the caller.
+ *
+ * The site signs in with the browser Supabase client, which keeps the session
+ * in localStorage — there are no auth cookies for the server to read. A
+ * cookie-only check therefore saw every customer as a stranger and reported a
+ * balance of zero however much they had. The bearer token the page already
+ * holds is the reliable signal; the cookie path stays as a fallback for any
+ * caller that does have one.
+ */
+async function getUser(req) {
+  const bearer = (req?.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
+  if (bearer) {
+    const { data: { user } } = await supabaseAdmin.auth.getUser(bearer);
+    if (user) return user;
+  }
   const cookieStore = await cookies();
   const anon = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -25,8 +40,8 @@ async function getUser() {
 }
 
 /** GET /api/wallet — balance and recent movements for the signed-in customer. */
-export async function GET() {
-  const user = await getUser();
+export async function GET(req) {
+  const user = await getUser(req);
   if (!user) return Response.json({ balance: 0, transactions: [] });
 
   const [{ data: profile }, { data: transactions }] = await Promise.all([
@@ -49,7 +64,7 @@ export async function GET() {
  * go negative.
  */
 export async function POST(req) {
-  const user = await getUser();
+  const user = await getUser(req);
   if (!user) return Response.json({ error: "يجب تسجيل الدخول" }, { status: 401 });
 
   let body;

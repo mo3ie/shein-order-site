@@ -95,9 +95,23 @@ export default function OrderPage() {
       .then(({ data }) => { if (data) setExchangeRate(Number(data.exchange_rate)); });
   }, []);
 
-  const loadWallet = () =>
-    fetch("/api/wallet").then(r => r.json()).then(setWallet).catch(() => {});
-  useEffect(() => { loadWallet(); }, []);
+  // The session lives in the browser client, so the token has to be sent
+  // explicitly — the server has no auth cookie to read.
+  const authHeaders = async () => {
+    const { data } = await supabase.auth.getSession();
+    const t = data?.session?.access_token;
+    return t ? { authorization: `Bearer ${t}` } : {};
+  };
+  const loadWallet = async () => {
+    const h = await authHeaders();
+    if (!h.authorization) { setWallet(null); return; }
+    try { setWallet(await fetch("/api/wallet", { headers: h }).then(r => r.json())); } catch {}
+  };
+  useEffect(() => {
+    loadWallet();
+    const { data: sub } = supabase.auth.onAuthStateChange(() => loadWallet());
+    return () => sub?.subscription?.unsubscribe?.();
+  }, []);
 
   // A price check runs on our server, not in this tab. If the customer closed
   // the page, lost connection, or came back later, pick the same job up again
@@ -421,7 +435,7 @@ export default function OrderPage() {
       const oid = await createOrder(imageUrl);
       const res = await fetch("/api/wallet", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify({ type: "debit", amount: due, method: "wallet", order_id: oid }),
       });
       const data = await res.json();

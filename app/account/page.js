@@ -8,6 +8,22 @@ import AddressManager from "@/components/AddressManager";
 const GRAD   = "linear-gradient(135deg,#7c3aed,#3b82f6)";
 const PURPLE = "#7c3aed";
 
+const PAY_LABEL = {
+  wallet: "المحفظة", mobicash: "موبي كاش", edfali: "ادفع لي",
+  moamalat: "معاملات", masarafi: "مصرفي باي", yusor: "يسر باي",
+};
+
+/** What the customer owes, in the currency they pay in. */
+function lydOf(o) {
+  const v = o.final_total ?? o.price_lyd;
+  return v == null ? null : Number(v);
+}
+
+/** An order only counts as paid once a gateway (or the wallet) says so. */
+function isPaid(o) {
+  return !["new", "pending", null, undefined, ""].includes(o.status);
+}
+
 function statusLabel(s) {
   return {
     new: "جديد", paid: "مدفوع", confirmed: "مؤكد",
@@ -59,27 +75,28 @@ function OrderCard({ order }) {
           </span>
         </div>
 
-        {/* السعر */}
+        {/* السعر — بالدينار فقط: العميل يدفع بالدينار، والدولار تفصيل داخلي */}
         <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
           <span style={{ fontSize: 17, fontWeight: 800, color: "#1e1b4b" }}>
-            {order.final_total
-              ? Number(order.final_total).toFixed(0)
-              : order.price_lyd
-              ? Number(order.price_lyd).toFixed(0)
-              : "—"}
+            {lydOf(order) != null ? lydOf(order).toFixed(0) : "—"}
           </span>
-          {(order.final_total || order.price_lyd) && (
-            <span style={{ fontSize: 11, color: "#9ca3af" }}>د.ل</span>
-          )}
-          {order.price && (
-            <span style={{ fontSize: 11, color: "#d1d5db" }}>
-              ({Number(order.price).toFixed(2)} $)
+          {lydOf(order) != null && <span style={{ fontSize: 11, color: "#9ca3af" }}>د.ل</span>}
+          {!isPaid(order) && (
+            <span style={{ fontSize: 10.5, fontWeight: 700, color: "#b45309", background: "#fffbeb",
+                           border: "1px solid #fde68a", borderRadius: 20, padding: "1px 8px", marginInlineStart: 4 }}>
+              بانتظار الدفع
             </span>
           )}
         </div>
 
-        {/* التاريخ */}
-        <div style={{ fontSize: 11, color: "#9ca3af" }}>🕐 {fmtDate(order.created_at)}</div>
+        {/* ما يحتاجه العميل ليتعرّف على طلبه دون فتح صفحة أخرى */}
+        <div style={{ fontSize: 11, color: "#6b7280", lineHeight: 1.9 }}>
+          🕐 {fmtDate(order.created_at)}
+          {order.itemCount ? <> · 🧾 {order.itemCount} صنف</> : null}
+          {order.payMethod ? <> · 💳 {order.payMethod}</> : null}
+          {order.delivery_address ? <><br />📍 {order.delivery_address}</> : null}
+          {order.shipping ? <><br />🚚 الشحن: {Number(order.shipping).toFixed(0)} د.ل</> : null}
+        </div>
 
         {/* رابط + زر تتبع */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 2 }}>
@@ -132,10 +149,28 @@ export default function AccountPage() {
 
       const { data } = await supabase
         .from("orders")
-        .select("*")
+        .select("*, payments(method,status,amount)")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
-      setOrders(data || []);
+
+      // An order row is created before the customer reaches the gateway, so a
+      // payment they started and abandoned leaves one behind. Those are not
+      // orders yet -- showing them made two identical "طلب جديد" cards appear
+      // for a single attempt. An unpaid row is kept only long enough for the
+      // customer to finish paying it.
+      const RESUME_WINDOW_MS = 60 * 60 * 1000;
+      const rows = (data || []).map((o) => {
+        const pays = Array.isArray(o.payments) ? o.payments : [];
+        const done = pays.find((p) => ["paid", "success", "completed"].includes(p.status));
+        return {
+          ...o,
+          payMethod: PAY_LABEL[done?.method || pays[0]?.method] || null,
+          itemCount: o.price_breakdown?.quantities?.length || null,
+        };
+      }).filter((o) =>
+        isPaid(o) || Date.now() - new Date(o.created_at).getTime() < RESUME_WINDOW_MS
+      );
+      setOrders(rows);
       setLoading(false);
     };
     getData();
