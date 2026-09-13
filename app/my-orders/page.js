@@ -255,7 +255,7 @@ export default function MyOrdersPage() {
     <div style={{ minHeight: "100vh", background: PAGE, color: INK, direction: "rtl", paddingBottom: 96 }}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}`}</style>
 
-      <div style={{ maxWidth: 480, margin: "0 auto" }}>
+      <div className="form-inner" style={{ maxWidth: 480, margin: "0 auto" }}>
 
         {/* ── الترويسة ── */}
         <div style={{ background: GRAD_HEAD, color: "#fff", padding: "18px 20px 24px", position: "relative", overflow: "hidden", borderBottomLeftRadius: 26, borderBottomRightRadius: 26 }}>
@@ -324,7 +324,7 @@ export default function MyOrdersPage() {
       </div>
 
       {/* ── شريط التنقّل السفلي ── */}
-      <nav style={{
+      <nav className="bottom-nav" style={{
         position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0, zIndex: 60,
         background: CARD, borderTop: `1px solid ${LINE}`, boxShadow: "0 -4px 20px rgba(22,19,31,0.06)",
       }}>

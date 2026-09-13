@@ -59,13 +59,6 @@ body {
    Desktop inline styles are completely unchanged
    ══════════════════════════════════════════════════════ */
 @media (max-width: 600px) {
-  .form-main {
-    padding: 10px 8px !important;
-    align-items: flex-start !important;
-  }
-  .form-inner {
-    padding: 0 !important;
-  }
   .form-card {
     padding: 22px 16px !important;
     border-radius: 18px !important;
@@ -149,3 +142,23 @@ body {
 
 /* حقول الإدخال ترث ألوان الثيم، وكذلك النصّ الشبح داخلها. */
 input::placeholder, textarea::placeholder { color: var(--t-faint); }
+
+/* ══════════════════════════════════════════════════════
+   الكمبيوتر — من 900 بكسل فما فوق
+   عمود واحد بعرض 480 يبدو شريطًا ضيّقًا على شاشة عريضة، فتتّسع الصفحة
+   وتتنفّس البطاقات، ويصير شريط التنقّل حبّة طافية بدل شريط بعرض الشاشة.
+   ══════════════════════════════════════════════════════ */
+@media (min-width: 900px) {
+  .form-inner { max-width: 720px !important; }
+  .form-inner > div:first-child {            /* الترويسة المتدرّجة */
+    border-radius: 0 0 30px 30px;
+    padding: 22px 34px 30px !important;
+  }
+  .form-inner > div:last-child { padding: 22px 34px 0 !important; }
+  .form-card { padding: 24px 22px !important; }
+  .bottom-nav { border-radius: 22px; inset-inline: auto !important;
+                left: 50% !important; transform: translateX(-50%);
+                bottom: 18px !important; border-top: none !important;
+                box-shadow: 0 10px 34px rgba(22,19,31,0.16) !important; }
+  .bottom-nav > div { padding: 10px 26px !important; gap: 30px; }
+}

@@ -1082,7 +1082,7 @@ export default function OrderPage() {
       </div>
 
       {/* ── شريط التنقّل السفلي ── */}
-      <nav style={{
+      <nav className="bottom-nav" style={{
         position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0, zIndex: 60,
         background: CARD, borderTop: `1px solid ${LINE}`,
         boxShadow: "0 -4px 20px rgba(22,19,31,0.06)",
