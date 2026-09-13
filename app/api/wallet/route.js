@@ -109,5 +109,34 @@ export async function POST(req) {
   });
   if (txErr) console.error("[wallet] ledger insert failed:", txErr.message);
 
+  // A paid order has to SAY it is paid.
+  //
+  // The order row is created before payment with status "new", and the customer
+  // screens treat an order that is still "new" as an abandoned attempt and stop
+  // listing it after an hour — so an order really paid from the wallet vanished
+  // from "طلباتي" and from the account page. The gateways mark their orders paid
+  // server-side after verification; the wallet has to do the same, here, where
+  // the service role can write and no RLS policy can quietly refuse it.
+  if (type === "debit" && body.order_id) {
+    const { error: ordErr } = await supabaseAdmin
+      .from("orders")
+      .update({ status: "paid", final_total: amount, price_lyd: amount })
+      .eq("id", body.order_id);
+    if (ordErr) console.error("[wallet] order not marked paid:", ordErr.message);
+
+    // The payment row was being inserted from the browser with the anon key,
+    // where RLS can drop it silently and the order loses its payment method.
+    const { error: payErr } = await supabaseAdmin.from("payments").insert({
+      order_id: body.order_id, method: "wallet", status: "paid", amount,
+    });
+    if (payErr) console.error("[wallet] payment row insert failed:", payErr.message);
+
+    // The order belongs to whoever paid for it, so it shows in their list even
+    // if it was started before they signed in.
+    await supabaseAdmin
+      .from("orders").update({ user_id: user.id })
+      .eq("id", body.order_id).is("user_id", null);
+  }
+
   return Response.json({ success: true, balance: next });
 }

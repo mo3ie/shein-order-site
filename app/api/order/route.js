@@ -207,9 +207,29 @@ export async function POST(req) {
       }
     }
 
+    // What the customer actually owes, in the currency they pay in.
+    //
+    // Only the dollar figure was stored and the dinar total was filled in by the
+    // admin later, so a fresh order showed "—" instead of its amount on
+    // "طلباتي" and on the account page. The rate is read here from the same
+    // settings row the site quotes from, so the stored number is the number the
+    // customer was shown.
+    let lydTotal = null;
+    try {
+      const { data: settings } = await supabaseAdmin
+        .from("settings").select("exchange_rate").eq("id", 1).single();
+      const rate = Number(settings?.exchange_rate);
+      if (Number.isFinite(rate) && rate > 0) {
+        lydTotal = Number((verifiedPrice * 1.01 * rate).toFixed(2));
+      }
+    } catch (e) {
+      console.error(`[order] exchange rate unavailable: ${e.message}`);
+    }
+
     // These columns are additive and may not exist on an older database, so the
     // insert falls back to the base row rather than losing the order.
     const extraColumns = {
+      ...(lydTotal != null ? { price_lyd: lydTotal, final_total: lydTotal } : {}),
       ...(cartShotUrl ? { cart_shot_url: cartShotUrl } : {}),
       ...(breakdown || address || extraUsd
         ? { price_breakdown: { ...(breakdown || {}), quantities: quantities || [], note: note || null, images: images || [], source: priceSource } }

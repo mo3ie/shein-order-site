@@ -86,6 +86,10 @@ export default function OrderPage() {
   const [repricing,         setRepricing]         = useState(false);
   const [openNames,         setOpenNames]         = useState({});
   const [repriceError,      setRepriceError]      = useState("");
+  // القياس يستغرق دقائق، والقراءة تصل كل أربع ثوانٍ فقط — فلو اعتمد العدّاد
+  // عليها لبدا الموقع واقفًا. عدّاد الثانية هذا ينبض وحده ليرى الزبون أن
+  // شيئًا يجري.
+  const [repriceSecs,       setRepriceSecs]       = useState(0);
   // الرحلة ثلاث شاشات في واجهة واحدة، لا نموذج واحد طويل:
   // الرابط والانتظار ← السلة والكميات ← بياناتك، ثم ورقة الدفع.
   const [stage,             setStage]             = useState("link"); // link|cart|details
@@ -105,7 +109,7 @@ export default function OrderPage() {
     const want = Number(quantities[i] ?? it.quantity ?? 1);
     const extra = Math.max(0, want - (it.quantity || 1));
     const unit = Number(it.unitRetailUsd ?? it.unitSaleUsd ?? 0);
-    return sum + extra * unit;
+    return sum + extra * (Number.isFinite(unit) && unit > 0 ? unit : 0);
   }, 0);
   const quantityChanged = cartItems.some((it, i) => Number(quantities[i] ?? 1) !== (it.quantity || 1));
 
@@ -122,6 +126,14 @@ export default function OrderPage() {
       setAuthUser(data?.user ?? null);
     });
   }, []);
+
+  useEffect(() => {
+    if (!repricing) return;
+    setRepriceSecs(0);
+    const started = Date.now();
+    const id = setInterval(() => setRepriceSecs(Math.round((Date.now() - started) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [repricing]);
 
   // ما إن يُقرأ السعر حتى تنتقل الواجهة إلى شاشة السلة من نفسها.
   useEffect(() => {
@@ -479,9 +491,6 @@ export default function OrderPage() {
       const data = await res.json();
       if (!res.ok || data.error) throw new Error(data.error || "تعذّر الخصم من المحفظة");
 
-      await supabase.from("payments").insert({
-        order_id: oid, method: "wallet", status: "paid", amount: due,
-      });
       setWallet(w => ({ ...(w || {}), balance: data.balance }));
       localStorage.setItem("lastOrderId", oid);
       window.location.href = `/success?orderId=${oid}&via=wallet`;
@@ -656,6 +665,31 @@ export default function OrderPage() {
     ? lydOfUsd(Math.abs(Number(breakdown.promotionsUsd)))
     : 0;
 
+  /**
+   * سعر السطر الواحد بالدولار، أو لا شيء إن كان الرقم غير معقول.
+   *
+   * أسعار الأصناف تُقرأ من الشاشة، وقد يتسرّب إلى سطرٍ رقمٌ ليس له — إجمالي
+   * السلة مثلاً في سلة فيها خمسة أصناف. فالسطر الذي يساوي وحده سلّته كلها
+   * تقريبًا لا يُعرض سعره بدل أن يُعرض رقم كاذب؛ الإجمالي وحده هو ما يُدفع.
+   */
+  const unitUsdOf = (it) => {
+    const unit = Number(it?.unitRetailUsd ?? it?.unitSaleUsd ?? 0);
+    if (!Number.isFinite(unit) || unit <= 0) return null;
+    const cartUsd = Number(exactPrice ?? price ?? 0);
+    if (cartItems.length > 1 && cartUsd > 0 && unit > cartUsd * 0.95) return null;
+    return unit;
+  };
+
+  // بعد تعديل الكمية لا رقم يُعرض إطلاقًا حتى يقرأه شي إن.
+  //
+  // التقدير كان يُحسب بجمع سعر القطع الزائدة على سعر السلة، وهو رقم لا يعرف
+  // عروض شي إن فيخرج أحيانًا أقل من الحقيقة — والزبون يقرؤه على أنه السعر.
+  // فالأصدق ألّا يُعرض شيء: شرطة مكان المبلغ، وزر إعادة الحساب هو الطريق.
+  const totalReady = !(quantityChanged && exactPrice == null);
+  const totalText = totalReady
+    ? priceLYD.toLocaleString("en-US", { maximumFractionDigits: 0 })
+    : "—";
+
   const stageTitle = stage === "link"
     ? { h: t("اطلب من شي إن") + " " + t("وادفع بالدينار"), s: t("الصق رابط سلتك المشتركة، ونقرأ سعرها الحقيقي من تطبيق شي إن نفسه.") }
     : stage === "cart"
@@ -736,7 +770,9 @@ export default function OrderPage() {
           cursor:  (quantityChanged && exactPrice == null) ? "not-allowed" : "pointer",
         }}
       >
-        {t("متابعة الطلب")} · {priceLYD.toFixed(0)} {t("د.ل")}
+        {totalReady
+          ? <>{t("متابعة الطلب")} · {priceLYD.toFixed(0)} {t("د.ل")}</>
+          : t("أعد حساب السلة أولاً")}
       </button>
     )}
 
@@ -761,7 +797,7 @@ export default function OrderPage() {
         {t("إجمالي السلة")}
       </div>
 
-      {breakdown && (
+      {breakdown && totalReady && (
         <div style={{ display: "flex", flexDirection: "column", gap: 11, position: "relative" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
             <span style={{ fontSize: 13, opacity: 0.85 }}>{t("قيمة المنتجات")}</span>
@@ -790,7 +826,7 @@ export default function OrderPage() {
           <div style={{ fontSize: 10.5, opacity: 0.7 }}>{t("بسعر المصرف اليوم")}</div>
         </div>
         <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-1px", lineHeight: 1 }}>
-          {priceLYD.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+          {totalText}
           <span style={{ fontSize: 13, opacity: 0.8, fontWeight: 700, letterSpacing: 0 }}> {t("د.ل")}</span>
         </div>
       </div>
@@ -941,14 +977,15 @@ export default function OrderPage() {
                     </div>
                     <div style={{ display: "flex", gap: 7, alignItems: "center", marginTop: 5, flexWrap: "wrap" }}>
                       {it.variant ? <span style={s.qtyVariant}>{it.variant}</span> : null}
-                      <span style={{ fontSize: 13, fontWeight: 800, color: PRIMARY, whiteSpace: "nowrap" }}>
-                        {lydOfUsd(it.unitRetailUsd ?? it.unitSaleUsd).toFixed(0)} د.ل
-                      </span>
-                      {it.offerEndsIn ? (
-                        <span style={{ fontSize: 10.5, color: "var(--t-red-ink)", fontWeight: 700 }}>
-                          {t("ينتهي العرض خلال")} {it.offerEndsIn}
+                      {/* سعر الصنف بالدولار كما يقرأه شي إن: تحويله إلى دينار هنا
+                          كان يوهم بأنه سعر هذا السطر نهائيًّا، والدينار محلّه
+                          الإجمالي وحده. ومؤقّت انتهاء العرض أُلغي — يتحرّك تحت
+                          يد الزبون ولا يضيف قرارًا. */}
+                      {unitUsdOf(it) != null && (
+                        <span style={{ fontSize: 13, fontWeight: 800, color: PRIMARY, whiteSpace: "nowrap" }}>
+                          ${unitUsdOf(it).toFixed(2)}
                         </span>
-                      ) : null}
+                      )}
                     </div>
                   </div>
 
@@ -981,7 +1018,9 @@ export default function OrderPage() {
                   disabled={repricing}
                   style={{ width: "100%", marginTop: 11, padding: 12, background: GRADIENT, color: "#fff", border: "none", borderRadius: 12, fontSize: 13.5, fontWeight: 800, fontFamily: "inherit", cursor: repricing ? "not-allowed" : "pointer", opacity: repricing ? 0.6 : 1, boxShadow: "0 4px 14px rgba(124,58,237,0.28)" }}
                 >
-                  {repricing ? "جاري إعادة حساب السلة..." : "إعادة حساب السلة"}
+                  {repricing
+                    ? `${t("جاري إعادة الحساب")} · ${String(Math.floor(repriceSecs / 60)).padStart(2, "0")}:${String(repriceSecs % 60).padStart(2, "0")}`
+                    : t("إعادة حساب السلة")}
                 </button>
                 {repricing && (
                   <p style={{ fontSize: 11, color: FAINT, lineHeight: 1.9, margin: "9px 0 0" }}>{t("نضبط الكميات داخل سلتك على شي إن ونقرأ السعر منها — قد يستغرق ذلك دقيقتين إلى أربع.")}</p>
@@ -994,11 +1033,14 @@ export default function OrderPage() {
               <div style={s.qtyOk}>{t("هذا هو السعر النهائي من شي إن بالكميات التي اخترتها.")}</div>
             )}
 
+            {/* مقفل أثناء القياس: الخروج من الشاشة وقياسٌ جارٍ على السلة نفسها
+                يترك الجهاز يعمل على سلة لم تعد معروضة. */}
             <button
               type="button"
-              onClick={() => { setStage("link"); setResolveState("idle"); setCartItems([]); setPrice(null); setExactPrice(null); setQuantities({}); }}
-              style={{ ...s.ghostBtn, marginTop: 0 }}
-            >{t("سلة أخرى")}</button>
+              disabled={repricing}
+              onClick={() => { setStage("link"); setResolveState("idle"); setCartItems([]); setPrice(null); setExactPrice(null); setQuantities({}); setBreakdown(null); setItemCount(null); }}
+              style={{ ...s.ghostBtn, marginTop: 0, opacity: repricing ? 0.45 : 1, cursor: repricing ? "not-allowed" : "pointer" }}
+            >{repricing ? t("جاري إعادة الحساب") : t("سلة أخرى")}</button>
           </>)}
 
           {/* ────────── ٣ · بياناتك ────────── */}
@@ -1146,7 +1188,7 @@ export default function OrderPage() {
                 </div>
               </div>
               <div style={{ textAlign: "left" }}>
-                <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-0.8px", lineHeight: 1 }}>{priceLYD.toFixed(0)}</div>
+                <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-0.8px", lineHeight: 1 }}>{totalText}</div>
                 <div style={{ fontSize: 11, color: MUTED }}>{t("د.ل")}</div>
               </div>
             </div>
@@ -1249,13 +1291,13 @@ export default function OrderPage() {
                   <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>{t("الإجمالي المستحق")}</div>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
                     <span style={{ fontSize: 40, fontWeight: 900, letterSpacing: "-1.5px", lineHeight: 1 }}>
-                      {priceLYD.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                      {totalText}
                     </span>
                     <span style={{ fontSize: 15, fontWeight: 700, opacity: 0.85 }}>{t("د.ل")}</span>
                   </div>
                   <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
                     {itemCount ? <span style={hChip}>{itemCount} {t("صنف")}</span> : null}
-                    <span style={hChip}>{exactPrice != null ? t("سعر نهائي من شي إن") : t("الشحن إلى ليبيا لاحقاً")}</span>
+                    <span style={hChip}>{!totalReady ? t("أعد الحساب لمعرفة السعر") : exactPrice != null ? t("سعر نهائي من شي إن") : t("الشحن إلى ليبيا لاحقاً")}</span>
                     {savedLyd > 1 && (
                       <span style={{ ...hChip, background: "rgba(52,211,153,0.25)" }}>
                         {t("وفّرت")} {savedLyd.toFixed(0)} {t("د.ل")}
