@@ -27,6 +27,7 @@ export default function PriceTestPage() {
   const [result, setResult] = useState(null);
   const [qty, setQty]       = useState({});
   const [history, setHistory] = useState([]);
+  const [baseline, setBaseline] = useState(null);   // the one-of-each measurement
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -41,7 +42,10 @@ export default function PriceTestPage() {
   async function run(withQuantities) {
     const link = url.trim();
     if (!link || busy) return;
-    setBusy(true); setError(""); setResult(null); setElapsed(0);
+    // Keep the previous result on screen while re-measuring. Clearing it made
+    // the item list and quantities vanish, which read as "it started over".
+    setBusy(true); setError(""); setElapsed(0);
+    if (!withQuantities) { setResult(null); setBaseline(null); }
 
     const started = Date.now();
     const tick = setInterval(() => setElapsed(Math.round((Date.now() - started) / 1000)), 1000);
@@ -91,6 +95,7 @@ export default function PriceTestPage() {
         };
         setResult(shaped);
         if (!withQuantities) {
+          setBaseline(shaped);
           setQty(Object.fromEntries((shaped.items || []).map((it, i) => [i, it.quantity || 1])));
         }
         setHistory((h) => [shaped, ...h].slice(0, 8));
@@ -117,6 +122,14 @@ export default function PriceTestPage() {
 
   const b = result?.breakdown;
   const lyd = (usd) => (Number(usd || 0) * (1 + COMMISSION) * rate);
+
+  // The estimate the storefront would have shown: the baseline price plus each
+  // extra unit at its own retail price.
+  const estimate = (baseline?.price || 0) + (result?.items || []).reduce((sum, it, i) => {
+    const extra = Math.max(0, Number(qty[i] ?? it.quantity ?? 1) - (it.quantity || 1));
+    return sum + extra * Number(it.unitRetailUsd || 0);
+  }, 0);
+  const diff = Number(result?.price || 0) - estimate;
 
   return (
     <main style={S.page}>
@@ -193,6 +206,76 @@ export default function PriceTestPage() {
                 )}
               </tbody>
             </table>
+          )}
+
+          {/* How the two numbers are reached, side by side. The estimate is
+              arithmetic we do; the real price is what SHEIN charged once the
+              quantities were actually set in its cart. Showing the workings is
+              the whole point of this page. */}
+          {result.withQuantities && baseline && (
+            <>
+              <h3 style={S.h3}>كيف حُسب السعران</h3>
+              <table style={S.table}>
+                <tbody>
+                  <tr><td style={S.kMuted} colSpan={2}>التقديري (حساب الموقع، فوري)</td></tr>
+                  <tr>
+                    <td style={S.k}>سعر السلة الأساسي</td>
+                    <td style={S.v}>${Number(baseline.price || 0).toFixed(2)}</td>
+                  </tr>
+                  {(result.items || []).map((it, i) => {
+                    const want = Number(qty[i] ?? it.quantity ?? 1);
+                    const extra = Math.max(0, want - (it.quantity || 1));
+                    if (!extra) return null;
+                    const unit = Number(it.unitRetailUsd || 0);
+                    return (
+                      <tr key={i}>
+                        <td style={S.k}>+ {extra} × ${unit.toFixed(2)} — {it.name.slice(0, 24)}</td>
+                        <td style={S.v}>${(extra * unit).toFixed(2)}</td>
+                      </tr>
+                    );
+                  })}
+                  <tr>
+                    <td style={S.kStrong}>= التقديري</td>
+                    <td style={S.vStrong}>${estimate.toFixed(2)}</td>
+                  </tr>
+                  <tr><td style={S.k}>بالدينار</td><td style={S.v}>{lyd(estimate).toFixed(2)} د.ل</td></tr>
+
+                  <tr style={S.sep}><td colSpan={2} /></tr>
+                  <tr><td style={S.kMuted} colSpan={2}>الحقيقي (من شي إن بعد ضبط الكميات)</td></tr>
+                  <tr>
+                    <td style={S.k}>Retail {Number(baseline.breakdown?.retailUsd || 0).toFixed(2)} → {Number(b?.retailUsd || 0).toFixed(2)}</td>
+                    <td style={S.v}>+${(Number(b?.retailUsd || 0) - Number(baseline.breakdown?.retailUsd || 0)).toFixed(2)}</td>
+                  </tr>
+                  <tr>
+                    <td style={S.k}>Promotions {Number(baseline.breakdown?.promotionsUsd || 0).toFixed(2)} → {Number(b?.promotionsUsd || 0).toFixed(2)}</td>
+                    <td style={{ ...S.v, color: "#4ade80" }}>
+                      {(Number(b?.promotionsUsd || 0) - Number(baseline.breakdown?.promotionsUsd || 0)).toFixed(2)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style={S.k}>Shipping {Number(baseline.breakdown?.shippingUsd || 0).toFixed(2)} → {Number(b?.shippingUsd || 0).toFixed(2)}</td>
+                    <td style={S.v}>{(Number(b?.shippingUsd || 0) - Number(baseline.breakdown?.shippingUsd || 0)).toFixed(2)}</td>
+                  </tr>
+                  <tr>
+                    <td style={S.kStrong}>= الحقيقي</td>
+                    <td style={S.vStrong}>${Number(result.price || 0).toFixed(2)}</td>
+                  </tr>
+                  <tr><td style={S.k}>بالدينار</td><td style={S.v}>{lyd(result.price).toFixed(2)} د.ل</td></tr>
+
+                  <tr style={S.sep}><td colSpan={2} /></tr>
+                  <tr>
+                    <td style={S.kStrong}>الفرق</td>
+                    <td style={{ ...S.vStrong, color: diff > 0 ? "#fca5a5" : "#4ade80" }}>
+                      {diff > 0 ? "+" : ""}{diff.toFixed(2)} $ &nbsp;({diff > 0 ? "+" : ""}{(lyd(result.price) - lyd(estimate)).toFixed(0)} د.ل)
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <p style={S.note}>
+                الفرق يأتي من شي إن وحدها: العروض قد تكبر مع الكمية، والسلة الأكبر قد تعبر
+                عتبة الشحن المجاني. لذلك الحقيقي أحياناً أقل من التقديري وأحياناً أعلى.
+              </p>
+            </>
           )}
 
           {/* The sum is worth showing: when it does not match Retail, an item
@@ -345,6 +428,7 @@ const S = {
   qVal: { minWidth: 18, textAlign: "center", fontWeight: 700, fontSize: 13 },
   shot: { width: "100%", maxWidth: 300, borderRadius: 10, border: "1px solid #2a2a3a",
           display: "block", cursor: "zoom-in" },
+  note: { fontSize: 11.5, color: "#8b8f9c", lineHeight: 1.9, margin: "8px 0 0" },
   phases: { display: "flex", flexWrap: "wrap", gap: 6 },
   phase: { fontSize: 11.5, background: "#0f0f18", border: "1px solid #2a2a3a",
            borderRadius: 8, padding: "4px 9px", color: "#9aa0aa" },
