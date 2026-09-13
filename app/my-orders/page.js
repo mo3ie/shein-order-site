@@ -82,21 +82,21 @@ function LoginPrompt({ onLogin }) {
 
         {/* أيقونة */}
         <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <div style={{ width: 72, height: 72, borderRadius: "50%", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 28, boxShadow: "0 8px 24px rgba(124,58,237,0.35)" }}>📦</div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: INK, margin: "0 0 4px" }}>{t("طلباتي")}</h2>
-          <p style={{ fontSize: 13, color: FAINT }}>سجّل دخولك لعرض طلباتك</p>
+          <div style={{ width: 72, height: 72, borderRadius: "50%", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 30, boxShadow: "0 8px 24px rgba(124,58,237,0.35)" }}>📦</div>
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: INK, margin: "0 0 4px" }}>{t("طلباتي")}</h2>
+          <p style={{ fontSize: 14.5, color: FAINT }}>سجّل دخولك لعرض طلباتك</p>
         </div>
 
         {/* الكارد */}
         <div style={{ background: CARD, borderRadius: 20, padding: "28px 24px", boxShadow: "0 8px 32px rgba(0,0,0,0.08)", border: `1px solid ${LINE}` }}>
           {err && (
-            <div style={{ background: "var(--t-red-bg)", border: "1px solid var(--t-red-line)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "var(--t-red-ink)" }}>
+            <div style={{ background: "var(--t-red-bg)", border: "1px solid var(--t-red-line)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 14.5, color: "var(--t-red-ink)" }}>
               {err}
             </div>
           )}
 
           {/* Google */}
-          <button onClick={handleGoogle} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "12px", borderRadius: 12, border: `1.5px solid ${LINE}`, background: CARD, cursor: "pointer", fontSize: 14, fontWeight: 600, color: INK, marginBottom: 14, transition: "border-color 0.2s" }}
+          <button onClick={handleGoogle} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "12px", borderRadius: 12, border: `1.5px solid ${LINE}`, background: CARD, cursor: "pointer", fontSize: 15.5, fontWeight: 600, color: INK, marginBottom: 14, transition: "border-color 0.2s" }}
             onMouseEnter={e => e.currentTarget.style.borderColor = PURPLE}
             onMouseLeave={e => e.currentTarget.style.borderColor = "var(--t-line)"}
           >
@@ -106,7 +106,7 @@ function LoginPrompt({ onLogin }) {
 
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
             <div style={{ flex: 1, height: 1, background: LINE }} />
-            <span style={{ fontSize: 12, color: FAINT }}>أو</span>
+            <span style={{ fontSize: 13.5, color: FAINT }}>أو</span>
             <div style={{ flex: 1, height: 1, background: LINE }} />
           </div>
 
@@ -123,11 +123,11 @@ function LoginPrompt({ onLogin }) {
             style={{ ...inputStyle, marginBottom: 16 }}
           />
 
-          <button onClick={handleLogin} disabled={loading} style={{ width: "100%", padding: "13px", borderRadius: 12, border: "none", background: GRAD, color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", opacity: loading ? 0.75 : 1, boxShadow: "0 4px 14px rgba(124,58,237,0.3)" }}>
+          <button onClick={handleLogin} disabled={loading} style={{ width: "100%", padding: "13px", borderRadius: 12, border: "none", background: GRAD, color: "#fff", fontWeight: 700, fontSize: 17, cursor: "pointer", opacity: loading ? 0.75 : 1, boxShadow: "0 4px 14px rgba(124,58,237,0.3)" }}>
             {loading ? "⏳ جاري الدخول..." : "تسجيل الدخول"}
           </button>
 
-          <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: FAINT }}>
+          <div style={{ textAlign: "center", marginTop: 16, fontSize: 14.5, color: FAINT }}>
             ليس لديك حساب؟{" "}
             <a href="/signup" style={{ color: PURPLE, fontWeight: 700, textDecoration: "none" }}>إنشاء حساب</a>
           </div>
@@ -159,25 +159,25 @@ function OrderCard({ order }) {
       {order.image_url ? (
         <img src={order.image_url} alt="" style={{ width: 62, height: 62, borderRadius: 13, objectFit: "cover", flexShrink: 0 }} />
       ) : (
-        <div style={{ width: 62, height: 62, borderRadius: 13, background: CHIP, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🛍️</div>
+        <div style={{ width: 62, height: 62, borderRadius: 13, background: CHIP, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>🛍️</div>
       )}
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <span style={{ fontSize: 11, color: FAINT, fontFamily: "ui-monospace, monospace" }}>#{order.id.slice(0, 8)}</span>
-          <span style={{ fontSize: 10.5, fontWeight: 800, color: sc.color, background: sc.bg, borderRadius: 20, padding: "3px 10px", whiteSpace: "nowrap" }}>
+          <span style={{ fontSize: 12.5, color: FAINT, fontFamily: "ui-monospace, monospace" }}>#{order.id.slice(0, 8)}</span>
+          <span style={{ fontSize: 12, fontWeight: 800, color: sc.color, background: sc.bg, borderRadius: 20, padding: "3px 10px", whiteSpace: "nowrap" }}>
             {t(statusLabel(order.status))}
           </span>
         </div>
 
         <div style={{ display: "flex", alignItems: "baseline", gap: 5, marginTop: 5 }}>
-          <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: "-0.4px" }}>
+          <span style={{ fontSize: 20, fontWeight: 900, letterSpacing: "-0.4px" }}>
             {lyd ? Number(lyd).toFixed(0) : "—"}
           </span>
-          {lyd ? <span style={{ fontSize: 11, color: FAINT }}>{t("د.ل")}</span> : null}
+          {lyd ? <span style={{ fontSize: 12.5, color: FAINT }}>{t("د.ل")}</span> : null}
         </div>
 
-        <div style={{ fontSize: 11, color: MUTED, lineHeight: 1.9, marginTop: 4 }}>
+        <div style={{ fontSize: 12.5, color: MUTED, lineHeight: 1.9, marginTop: 4 }}>
           {fmtDate(order.created_at)}
           {items ? ` · ${items} صنف` : ""}
           {order.payMethod ? ` · ${order.payMethod}` : ""}
@@ -269,16 +269,16 @@ export default function MyOrdersPage() {
         <div style={{ background: GRAD_HEAD, color: "#fff", padding: "18px 20px 24px", position: "relative", overflow: "hidden", borderBottomLeftRadius: 26, borderBottomRightRadius: 26 }}>
           <div style={{ position: "absolute", insetInlineEnd: -40, top: -50, width: 170, height: 170, borderRadius: "50%", background: "rgba(255,255,255,0.09)" }} />
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
-            <a href="/" style={{ fontWeight: 900, fontSize: 17, color: "#fff", textDecoration: "none" }}>{t("ترند · شي إن")}</a>
+            <a href="/" style={{ fontWeight: 900, fontSize: 19, color: "#fff", textDecoration: "none" }}>{t("ترند · شي إن")}</a>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button type="button" onClick={toggleTheme} aria-label={t("الوضع الداكن")} style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", cursor: "pointer", fontSize: 13, fontFamily: "inherit", padding: 0 }}>{themeMode === "dark" ? "☀" : "☾"}</button>
-            <button type="button" onClick={() => setLang(lang === "ar" ? "en" : "ar")} style={{ fontSize: 11, fontWeight: 700, background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 11px", cursor: "pointer", fontFamily: "inherit" }}>{lang === "ar" ? "EN" : "ع"}</button>
-            <button onClick={handleLogout} style={{ background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 13px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{t("خروج")}</button>
+            <button type="button" onClick={toggleTheme} aria-label={t("الوضع الداكن")} style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", cursor: "pointer", fontSize: 14.5, fontFamily: "inherit", padding: 0 }}>{themeMode === "dark" ? "☀" : "☾"}</button>
+            <button type="button" onClick={() => setLang(lang === "ar" ? "en" : "ar")} style={{ fontSize: 12.5, fontWeight: 700, background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 11px", cursor: "pointer", fontFamily: "inherit" }}>{lang === "ar" ? "EN" : "ع"}</button>
+            <button onClick={handleLogout} style={{ background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 13px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{t("خروج")}</button>
             </div>
           </div>
           <div style={{ marginTop: 20, position: "relative" }}>
-            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.5px", lineHeight: 1.4 }}>{t("طلباتي")}</div>
-            <div style={{ fontSize: 12.5, opacity: 0.85, marginTop: 6, lineHeight: 1.8 }}>
+            <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-0.5px", lineHeight: 1.4 }}>{t("طلباتي")}</div>
+            <div style={{ fontSize: 14, opacity: 0.85, marginTop: 6, lineHeight: 1.8 }}>
               {user.user_metadata?.name || user.email}
             </div>
           </div>
@@ -297,7 +297,7 @@ export default function MyOrdersPage() {
                   key={c.k}
                   onClick={() => setFilter(c.k)}
                   style={{
-                    fontSize: 11.5, fontWeight: filter === c.k ? 800 : 600, cursor: "pointer",
+                    fontSize: 13, fontWeight: filter === c.k ? 800 : 600, cursor: "pointer",
                     background: filter === c.k ? SOLID : CARD,
                     color: filter === c.k ? ON_SOLID : MUTED,
                     border: `1px solid ${filter === c.k ? SOLID : LINE}`,
@@ -309,15 +309,15 @@ export default function MyOrdersPage() {
           )}
 
           {loading ? (
-            <div style={{ textAlign: "center", padding: 40, color: FAINT, fontSize: 13 }}>⏳ جاري التحميل...</div>
+            <div style={{ textAlign: "center", padding: 40, color: FAINT, fontSize: 14.5 }}>⏳ جاري التحميل...</div>
           ) : shown.length === 0 ? (
             <div style={{ textAlign: "center", padding: "56px 20px", background: CARD, borderRadius: 18, boxShadow: "0 2px 10px rgba(22,19,31,0.05)" }}>
-              <div style={{ fontSize: 44, marginBottom: 12 }}>📭</div>
+              <div style={{ fontSize: 46, marginBottom: 12 }}>📭</div>
               <p style={{ fontWeight: 800, marginBottom: 6 }}>
                 {orders.length === 0 ? "لا توجد طلبات بعد" : "لا طلبات في هذا التصنيف"}
               </p>
-              <p style={{ fontSize: 12.5, color: FAINT, marginBottom: 20 }}>{t("ابدأ بطلبك الأول من شي إن الآن")}</p>
-              <a href="/" style={{ display: "inline-block", padding: "13px 28px", borderRadius: 14, background: GRAD_HEAD, color: "#fff", fontWeight: 800, fontSize: 14, textDecoration: "none", boxShadow: "0 6px 18px rgba(124,58,237,0.28)" }}>{t("إنشاء طلب جديد")}</a>
+              <p style={{ fontSize: 14, color: FAINT, marginBottom: 20 }}>{t("ابدأ بطلبك الأول من شي إن الآن")}</p>
+              <a href="/" style={{ display: "inline-block", padding: "13px 28px", borderRadius: 14, background: GRAD_HEAD, color: "#fff", fontWeight: 800, fontSize: 15.5, textDecoration: "none", boxShadow: "0 6px 18px rgba(124,58,237,0.28)" }}>{t("إنشاء طلب جديد")}</a>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
@@ -345,7 +345,7 @@ export default function MyOrdersPage() {
           ].map((it, i) => (
             <a key={i} href={it.href} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: it.on ? PURPLE : FAINT }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={it.on ? 2 : 1.8} strokeLinecap="round" strokeLinejoin="round">{it.path}</svg>
-              <span style={{ fontSize: 10, fontWeight: it.on ? 800 : 600 }}>{it.label}</span>
+              <span style={{ fontSize: 11.5, fontWeight: it.on ? 800 : 600 }}>{it.label}</span>
             </a>
           ))}
         </div>
@@ -360,7 +360,7 @@ const inputStyle = {
   marginBottom: 12,
   borderRadius: 10,
   border: `1.5px solid ${LINE}`,
-  fontSize: 14,
+  fontSize: 15.5,
   outline: "none",
   color: INK,
   background: CARD,

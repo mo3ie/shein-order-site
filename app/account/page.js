@@ -73,7 +73,7 @@ function OrderCard({ order }) {
       {order.image_url ? (
         <img src={order.image_url} style={{ width: 88, minWidth: 88, objectFit: "cover", display: "block" }} alt="" />
       ) : (
-        <div style={{ width: 88, minWidth: 88, background: CHIP, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>
+        <div style={{ width: 88, minWidth: 88, background: CHIP, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>
           🛍️
         </div>
       )}
@@ -82,26 +82,26 @@ function OrderCard({ order }) {
       <div style={{ flex: 1, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
         {/* رقم + حالة */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <span style={{ fontFamily: "monospace", fontSize: 11, color: FAINT }}>#{order.id.slice(0, 8)}</span>
-          <span style={{ fontSize: 11, fontWeight: 700, color: sc.color, background: sc.bg, border: `1px solid ${sc.border}`, padding: "2px 10px", borderRadius: 20, whiteSpace: "nowrap" }}>
+          <span style={{ fontFamily: "monospace", fontSize: 12.5, color: FAINT }}>#{order.id.slice(0, 8)}</span>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: sc.color, background: sc.bg, border: `1px solid ${sc.border}`, padding: "2px 10px", borderRadius: 20, whiteSpace: "nowrap" }}>
             {t(statusLabel(order.status))}
           </span>
         </div>
 
         {/* السعر — بالدينار فقط: العميل يدفع بالدينار، والدولار تفصيل داخلي */}
         <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
-          <span style={{ fontSize: 17, fontWeight: 800, color: INK }}>
+          <span style={{ fontSize: 19, fontWeight: 800, color: INK }}>
             {lydOf(order) != null ? lydOf(order).toFixed(0) : "—"}
           </span>
-          {lydOf(order) != null && <span style={{ fontSize: 11, color: FAINT }}>{t("د.ل")}</span>}
+          {lydOf(order) != null && <span style={{ fontSize: 12.5, color: FAINT }}>{t("د.ل")}</span>}
           {!isPaid(order) && (
-            <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--t-amber-ink)", background: "var(--t-amber-bg)",
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--t-amber-ink)", background: "var(--t-amber-bg)",
                            border: "1px solid var(--t-amber-line)", borderRadius: 20, padding: "1px 8px", marginInlineStart: 4 }}>{t("بانتظار الدفع")}</span>
           )}
         </div>
 
         {/* ما يحتاجه العميل ليتعرّف على طلبه دون فتح صفحة أخرى */}
-        <div style={{ fontSize: 11, color: MUTED, lineHeight: 1.9 }}>
+        <div style={{ fontSize: 12.5, color: MUTED, lineHeight: 1.9 }}>
           🕐 {fmtDate(order.created_at)}
           {order.itemCount ? <> · 🧾 {order.itemCount} صنف</> : null}
           {order.payMethod ? <> · 💳 {order.payMethod}</> : null}
@@ -113,12 +113,12 @@ function OrderCard({ order }) {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 2 }}>
           {order.cart_link ? (
             <a href={order.cart_link} target="_blank" rel="noreferrer"
-              style={{ fontSize: 11, color: PURPLE, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "55%" }}>
+              style={{ fontSize: 12.5, color: PURPLE, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "55%" }}>
               🛒 فتح السلة
             </a>
           ) : <span />}
           <a href={`/track?id=${order.id}`}
-            style={{ padding: "5px 14px", borderRadius: 8, background: GRAD, color: "#fff", fontSize: 12, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(124,58,237,0.25)" }}>
+            style={{ padding: "5px 14px", borderRadius: 8, background: GRAD, color: "#fff", fontSize: 13.5, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(124,58,237,0.25)" }}>
             تتبع الطلب
           </a>
         </div>
@@ -239,11 +239,11 @@ export default function AccountPage() {
           <div style={{ position: "absolute", insetInlineEnd: -40, top: -50, width: 170, height: 170, borderRadius: "50%", background: "rgba(255,255,255,0.09)" }} />
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
-            <a href="/" style={{ fontWeight: 900, fontSize: 18, color: "#fff", textDecoration: "none" }}>{t("ترند · شي إن")}</a>
+            <a href="/" style={{ fontWeight: 900, fontSize: 20, color: "#fff", textDecoration: "none" }}>{t("ترند · شي إن")}</a>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button type="button" onClick={toggleTheme} aria-label={t("الوضع الداكن")} style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", cursor: "pointer", fontSize: 13, fontFamily: "inherit", padding: 0 }}>{themeMode === "dark" ? "☀" : "☾"}</button>
-            <button type="button" onClick={() => setLang(lang === "ar" ? "en" : "ar")} style={{ fontSize: 11, fontWeight: 700, background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 11px", cursor: "pointer", fontFamily: "inherit" }}>{lang === "ar" ? "EN" : "ع"}</button>
-            <button onClick={logout} style={{ background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 13px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{t("خروج")}</button>
+            <button type="button" onClick={toggleTheme} aria-label={t("الوضع الداكن")} style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", cursor: "pointer", fontSize: 14.5, fontFamily: "inherit", padding: 0 }}>{themeMode === "dark" ? "☀" : "☾"}</button>
+            <button type="button" onClick={() => setLang(lang === "ar" ? "en" : "ar")} style={{ fontSize: 12.5, fontWeight: 700, background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 11px", cursor: "pointer", fontFamily: "inherit" }}>{lang === "ar" ? "EN" : "ع"}</button>
+            <button onClick={logout} style={{ background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 13px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{t("خروج")}</button>
             </div>
           </div>
 
@@ -252,7 +252,7 @@ export default function AccountPage() {
               {avatarUrl ? (
                 <img src={avatarUrl} alt="" style={{ width: 62, height: 62, borderRadius: "50%", objectFit: "cover", border: "2.5px solid rgba(255,255,255,0.45)", opacity: uploadingAvatar ? 0.5 : 1 }} />
               ) : (
-                <div style={{ width: 62, height: 62, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 900, opacity: uploadingAvatar ? 0.5 : 1 }}>
+                <div style={{ width: 62, height: 62, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, fontWeight: 900, opacity: uploadingAvatar ? 0.5 : 1 }}>
                   {name[0]?.toUpperCase()}
                 </div>
               )}
@@ -264,16 +264,16 @@ export default function AccountPage() {
               <input ref={fileRef} type="file" accept="image/*" onChange={uploadAvatar} style={{ display: "none" }} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 900, fontSize: 19, letterSpacing: "-0.4px" }}>{name}</div>
-              <div style={{ fontSize: 12, opacity: 0.82, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.email}</div>
+              <div style={{ fontWeight: 900, fontSize: 21, letterSpacing: "-0.4px" }}>{name}</div>
+              <div style={{ fontSize: 13.5, opacity: 0.82, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.email}</div>
             </div>
           </div>
 
           <div style={{ display: "flex", gap: 6, marginTop: 14, flexWrap: "wrap", position: "relative" }}>
-            <span style={{ fontSize: 11, background: "rgba(255,255,255,0.16)", borderRadius: 20, padding: "4px 11px" }}>
+            <span style={{ fontSize: 12.5, background: "rgba(255,255,255,0.16)", borderRadius: 20, padding: "4px 11px" }}>
               {orders.length} طلب
             </span>
-            <a href="/wallet" style={{ fontSize: 11, background: "rgba(255,255,255,0.16)", borderRadius: 20, padding: "4px 11px", color: "#fff", textDecoration: "none" }}>
+            <a href="/wallet" style={{ fontSize: 12.5, background: "rgba(255,255,255,0.16)", borderRadius: 20, padding: "4px 11px", color: "#fff", textDecoration: "none" }}>
               المحفظة ←
             </a>
           </div>
@@ -288,15 +288,15 @@ export default function AccountPage() {
 
           {/* ── قائمة الطلبات ── */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
-            <span style={{ fontSize: 14, fontWeight: 800 }}>{t("طلباتي")}</span>
-            <a href="/my-orders" style={{ fontSize: 11.5, color: PURPLE, textDecoration: "none", fontWeight: 700 }}>{t("عرض الكل ←")}</a>
+            <span style={{ fontSize: 15.5, fontWeight: 800 }}>{t("طلباتي")}</span>
+            <a href="/my-orders" style={{ fontSize: 13, color: PURPLE, textDecoration: "none", fontWeight: 700 }}>{t("عرض الكل ←")}</a>
           </div>
 
           {orders.length === 0 ? (
             <div style={{ textAlign: "center", padding: "48px 20px", background: CARD, borderRadius: 18, boxShadow: "0 2px 10px rgba(22,19,31,0.05)" }}>
               <p style={{ fontWeight: 800, marginBottom: 6 }}>{t("لا توجد طلبات بعد")}</p>
-              <p style={{ fontSize: 12.5, color: FAINT, marginBottom: 20 }}>ابدأ بطلبك الأول من شي إن</p>
-              <a href="/" style={{ display: "inline-block", padding: "13px 28px", borderRadius: 14, background: GRAD_HEAD, color: "#fff", fontWeight: 800, fontSize: 14, textDecoration: "none", boxShadow: "0 6px 18px rgba(124,58,237,0.28)" }}>{t("إنشاء طلب")}</a>
+              <p style={{ fontSize: 14, color: FAINT, marginBottom: 20 }}>ابدأ بطلبك الأول من شي إن</p>
+              <a href="/" style={{ display: "inline-block", padding: "13px 28px", borderRadius: 14, background: GRAD_HEAD, color: "#fff", fontWeight: 800, fontSize: 15.5, textDecoration: "none", boxShadow: "0 6px 18px rgba(124,58,237,0.28)" }}>{t("إنشاء طلب")}</a>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -324,7 +324,7 @@ export default function AccountPage() {
           ].map((it, i) => (
             <a key={i} href={it.href} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: it.on ? PURPLE : FAINT }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={it.on ? 2 : 1.8} strokeLinecap="round" strokeLinejoin="round">{it.path}</svg>
-              <span style={{ fontSize: 10, fontWeight: it.on ? 800 : 600 }}>{it.label}</span>
+              <span style={{ fontSize: 11.5, fontWeight: it.on ? 800 : 600 }}>{it.label}</span>
             </a>
           ))}
         </div>

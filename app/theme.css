@@ -123,3 +123,21 @@ input::placeholder, textarea::placeholder { color: var(--t-faint); }
   .desk-bar  { padding: 18px 28px; }
   .desk-grid { grid-template-columns: minmax(0, 1fr) 340px; gap: 22px; padding: 24px 28px; }
 }
+
+/* ══════════════════════════════════════════════════════
+   لمسات تفاعلية
+   الضغطة تُحسّ: البطاقات والأزرار تنزل قليلاً تحت الإصبع، والروابط والحقول
+   تستجيب للمرور. حركة قصيرة (120ms) لا تؤخّر أحدًا، وتُلغى كلها لمن يطلب
+   تقليل الحركة من نظامه.
+   ══════════════════════════════════════════════════════ */
+button, a, .tap, [role="button"] { transition: transform .12s ease, box-shadow .18s ease, opacity .15s ease, border-color .15s ease; }
+button:not(:disabled):active, .tap:active { transform: scale(.975); }
+button:not(:disabled):hover { filter: brightness(1.03); }
+.card-tap { transition: transform .14s ease, box-shadow .18s ease; }
+.card-tap:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(22,19,31,0.09) !important; }
+.bottom-nav a:active { transform: scale(.92); }
+.stepper-btn:active { transform: scale(.88); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}

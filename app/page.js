@@ -28,7 +28,7 @@ const ON_SOLID  = "var(--t-on-solid)";
 
 // حبّة معلومة داخل الترويسة (على التدرّج، فلا لون أرضية لها إلا الشفاف الأبيض)
 const hChip = {
-  fontSize: 10.5, fontWeight: 700, background: "rgba(255,255,255,0.18)",
+  fontSize: 12, fontWeight: 700, background: "rgba(255,255,255,0.18)",
   borderRadius: 20, padding: "5px 11px", whiteSpace: "nowrap",
 };
 
@@ -771,6 +771,32 @@ export default function OrderPage() {
     ? priceLYD.toLocaleString("en-US", { maximumFractionDigits: 0 })
     : "—";
 
+
+  /**
+   * عنوان قسم: أيقونة داخل مربّع بنفسجي خفيف ثم النصّ.
+   *
+   * البطاقات كانت تبدأ بسطر نصّ عاري، فتتشابه كلها وتحتاج قراءة لتُميّز.
+   * الأيقونة علامة تُلتقط قبل القراءة، وهي SVG لا إيموجي حتى لا يتغيّر شكلها
+   * من جهاز لآخر.
+   */
+  const sectionTitle = (icon, text, size = 15.5) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+      <span style={{ width: 30, height: 30, borderRadius: 10, background: CHIP, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{icon}</svg>
+      </span>
+      <span style={{ fontSize: size, fontWeight: 800 }}>{text}</span>
+    </div>
+  );
+
+  const ICONS = {
+    link:  <><path d="M10 13a5 5 0 007.5.5l3-3a5 5 0 00-7-7l-1.8 1.7" /><path d="M14 11a5 5 0 00-7.5-.5l-3 3a5 5 0 007 7l1.8-1.7" /></>,
+    cart:  <><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 01-8 0" /></>,
+    user:  <><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1" /></>,
+    note:  <><path d="M4 4h16v16H4z" /><path d="M8 9h8M8 13h8M8 17h5" /></>,
+    track: <><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></>,
+    pin:   <><path d="M12 21s7-5.5 7-11a7 7 0 10-14 0c0 5.5 7 11 7 11z" /><circle cx="12" cy="10" r="2.5" /></>,
+  };
+
   const stageTitle = stage === "link"
     ? { h: t("اطلب من شي إن") + " " + t("وادفع بالدينار"), s: t("الصق رابط سلتك المشتركة، ونقرأ سعرها الحقيقي من تطبيق شي إن نفسه.") }
     : stage === "cart"
@@ -790,7 +816,7 @@ export default function OrderPage() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: dir === "ltr" ? "scaleX(-1)" : "none" }}><path d="M9 6l6 6-6 6" /></svg>
           </button>
         )}
-        <span style={{ fontWeight: 900, fontSize: 18 }}>{t("ترند · شي إن")}</span>
+        <span style={{ fontWeight: 900, fontSize: 20 }}>{t("ترند · شي إن")}</span>
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <button
@@ -806,13 +832,13 @@ export default function OrderPage() {
         <button
           type="button"
           onClick={() => setLang(lang === "ar" ? "en" : "ar")}
-          style={{ fontSize: 11, fontWeight: 700, background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 11px", cursor: "pointer", fontFamily: "inherit" }}
+          style={{ fontSize: 12.5, fontWeight: 700, background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 11px", cursor: "pointer", fontFamily: "inherit" }}
         >
           {lang === "ar" ? "EN" : "ع"}
         </button>
         <a
           href={authUser ? "/account" : "/login"}
-          style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff", textDecoration: "none" }}
+          style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13.5, fontWeight: 700, color: "#fff", textDecoration: "none" }}
         >
           {authUser ? (authUser.user_metadata?.name?.[0] || authUser.email?.[0] || "م").toUpperCase() : "؟"}
         </a>
@@ -874,26 +900,26 @@ export default function OrderPage() {
   const summaryCard = (
     <div style={{ background: GRAD_HEAD, borderRadius: 16, padding: "22px 20px", color: "#fff", position: "relative", overflow: "hidden" }}>
       <div style={{ position: "absolute", insetInlineEnd: -40, top: -50, width: 170, height: 170, borderRadius: "50%", background: "rgba(255,255,255,0.09)" }} />
-      <div style={{ fontSize: 11, fontWeight: 800, opacity: 0.75, letterSpacing: "1.4px", marginBottom: 15, position: "relative" }}>
+      <div style={{ fontSize: 12.5, fontWeight: 800, opacity: 0.75, letterSpacing: "1.4px", marginBottom: 15, position: "relative" }}>
         {t("إجمالي السلة")}
       </div>
 
       {breakdown && totalReady && (
         <div style={{ display: "flex", flexDirection: "column", gap: 11, position: "relative" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <span style={{ fontSize: 13, opacity: 0.85 }}>{t("قيمة المنتجات")}</span>
-            <span style={{ fontSize: 14 }}>{lydOfUsd(breakdown.retailUsd).toFixed(0)}</span>
+            <span style={{ fontSize: 14.5, opacity: 0.85 }}>{t("قيمة المنتجات")}</span>
+            <span style={{ fontSize: 15.5 }}>{lydOfUsd(breakdown.retailUsd).toFixed(0)}</span>
           </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-            <span style={{ fontSize: 13, opacity: 0.85 }}>{t("الشحن داخل شي إن")}</span>
-            <span style={{ fontSize: 12.5, color: "#86efac", fontWeight: 700 }}>
+            <span style={{ fontSize: 14.5, opacity: 0.85 }}>{t("الشحن داخل شي إن")}</span>
+            <span style={{ fontSize: 14, color: "#86efac", fontWeight: 700 }}>
               {Number(breakdown.shippingUsd) ? lydOfUsd(breakdown.shippingUsd).toFixed(0) : t("مجاني")}
             </span>
           </div>
           {Number(breakdown.promotionsUsd) ? (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <span style={{ fontSize: 13, opacity: 0.85 }}>{t("عروض شي إن")}</span>
-              <span style={{ fontSize: 14, color: "#86efac" }}>−{savedLyd.toFixed(0)}</span>
+              <span style={{ fontSize: 14.5, opacity: 0.85 }}>{t("عروض شي إن")}</span>
+              <span style={{ fontSize: 15.5, color: "#86efac" }}>−{savedLyd.toFixed(0)}</span>
             </div>
           ) : null}
         </div>
@@ -903,12 +929,12 @@ export default function OrderPage() {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", position: "relative" }}>
         <div>
-          <div style={{ fontSize: 11, opacity: 0.8, marginBottom: 2 }}>{t("الإجمالي المستحق")}</div>
-          <div style={{ fontSize: 10.5, opacity: 0.7 }}>{t("بسعر المصرف اليوم")}</div>
+          <div style={{ fontSize: 12.5, opacity: 0.8, marginBottom: 2 }}>{t("الإجمالي المستحق")}</div>
+          <div style={{ fontSize: 12, opacity: 0.7 }}>{t("بسعر المصرف اليوم")}</div>
         </div>
-        <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-1px", lineHeight: 1 }}>
+        <div style={{ fontSize: 32, fontWeight: 900, letterSpacing: "-1px", lineHeight: 1 }}>
           {totalText}
-          <span style={{ fontSize: 13, opacity: 0.8, fontWeight: 700, letterSpacing: 0 }}> {t("د.ل")}</span>
+          <span style={{ fontSize: 14.5, opacity: 0.8, fontWeight: 700, letterSpacing: 0 }}> {t("د.ل")}</span>
         </div>
       </div>
     </div>
@@ -917,7 +943,7 @@ export default function OrderPage() {
   // طرق الدفع كما تُعرض في العمود الجانبي — الضغط عليها يفتح ورقة الدفع نفسها.
   const payWithCard = (
     <div style={{ ...s.card, padding: "16px 18px" }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: MUTED, marginBottom: 12 }}>{t("ادفع بـ")}</div>
+      <div style={{ fontSize: 13.5, fontWeight: 700, color: MUTED, marginBottom: 12 }}>{t("ادفع بـ")}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {[
           { k: "wallet", label: t("محفظتي"), note: wallet ? `${Number(wallet.balance || 0).toFixed(0)} ${t("د.ل")}` : null,
@@ -939,8 +965,8 @@ export default function OrderPage() {
             }}
           >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={m.k === "wallet" ? PRIMARY : MUTED} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{m.icon}</svg>
-            <span style={{ flex: 1, fontSize: 12.5, fontWeight: m.k === "wallet" ? 700 : 500 }}>{m.label}</span>
-            {m.note && <span style={{ fontSize: 11, color: MUTED }}>{m.note}</span>}
+            <span style={{ flex: 1, fontSize: 14, fontWeight: m.k === "wallet" ? 700 : 500 }}>{m.label}</span>
+            {m.note && <span style={{ fontSize: 12.5, color: MUTED }}>{m.note}</span>}
           </button>
         ))}
       </div>
@@ -951,21 +977,21 @@ export default function OrderPage() {
           {stage === "link" && (<>
 
             <div style={s.card}>
-              <div style={{ fontSize: 12.5, fontWeight: 800, marginBottom: 9 }}>{t("رابط السلة المشتركة")}</div>
+              {sectionTitle(ICONS.link, t("رابط السلة المشتركة"), 14.5)}
               <input
                 placeholder="onelink.shein.com/..."
                 value={cartLink}
                 onChange={e => { setCartLink(e.target.value); setErrors(p => ({ ...p, cartLink: null })); }}
                 style={{
                   ...s.input, marginBottom: 0, direction: "ltr", textAlign: "left",
-                  fontSize: 12, background: PAGE, padding: "12px 13px", borderRadius: 12,
+                  fontSize: 13.5, background: PAGE, padding: "12px 13px", borderRadius: 12,
                   ...(errors.cartLink ? s.inputErr : {}),
                 }}
               />
               {errors.cartLink
                 ? <p style={{ ...s.err, margin: "8px 0 0" }}>{errors.cartLink}</p>
-                : <div style={{ fontSize: 11, color: FAINT, lineHeight: 1.85, marginTop: 9 }}>{t("من داخل تطبيق شي إن: افتح سلتك ← زر المشاركة ← انسخ الرابط.")}</div>}
-              <div style={{ ...s.noteBlue, marginBottom: 0, marginTop: 11, fontSize: 11.5 }}>
+                : <div style={{ fontSize: 12.5, color: FAINT, lineHeight: 1.85, marginTop: 9 }}>{t("من داخل تطبيق شي إن: افتح سلتك ← زر المشاركة ← انسخ الرابط.")}</div>}
+              <div style={{ ...s.noteBlue, marginBottom: 0, marginTop: 11, fontSize: 13 }}>
                 {t("يجب أن يكون متجر شي إن موجّهاً إلى")} <strong>{t("الإمارات (دبي)")}</strong> {t("حتى تُقرأ الأسعار بالدولار بشكل صحيح.")}
               </div>
             </div>
@@ -975,18 +1001,18 @@ export default function OrderPage() {
               <div style={{ ...s.card, padding: "17px 16px", animation: "riseIn 0.25s ease" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 13 }}>
                   <span style={{ width: 8, height: 8, borderRadius: "50%", background: PRIMARY, animation: "pulse 1.4s ease-in-out infinite" }} />
-                  <div style={{ fontSize: 13.5, fontWeight: 800 }}>{t("نقرأ سعر سلتك الآن")}</div>
+                  <div style={{ fontSize: 15, fontWeight: 800 }}>{t("نقرأ سعر سلتك الآن")}</div>
                 </div>
                 <div style={{ height: 5, background: "var(--t-track)", borderRadius: 4, overflow: "hidden", position: "relative" }}>
                   <div style={{ position: "absolute", insetBlock: 0, width: "45%", borderRadius: 4, background: GRAD_HEAD, animation: "sweep 1.7s ease-in-out infinite" }} />
                 </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 13 }}>
-                  <span style={{ fontSize: 12, color: MUTED }}>
+                  <span style={{ fontSize: 13.5, color: MUTED }}>
                     {queue && queue.ahead > 0 && !queue.running
                       ? <>{t("دورك")} <strong style={{ color: PRIMARY }}>{queue.position}</strong> — {t("أمامك")} {queue.ahead}</>
                       : <>{t("دورك")} <strong style={{ color: PRIMARY }}>{lang === "en" ? "1" : "١"}</strong> — {t("تُقاس الآن")}</>}
                   </span>
-                  <span style={{ fontSize: 12, color: FAINT }}>
+                  <span style={{ fontSize: 13.5, color: FAINT }}>
                     {queue?.etaMs
                       ? `~${Math.max(1, Math.round(queue.etaMs / 60000))} ${t("دقيقة")}`
                       : queue?.averageMs
@@ -994,7 +1020,7 @@ export default function OrderPage() {
                         : elapsed > 0 ? `${elapsed} ${t("ثانية")}` : t("~٥٠ ثانية")}
                   </span>
                 </div>
-                <div style={{ fontSize: 11, color: FAINT, lineHeight: 1.9, marginTop: 9 }}>{t("يمكنك إغلاق الصفحة — العملية تُكمل على خادمنا وتستأنف عند رجوعك.")}</div>
+                <div style={{ fontSize: 12.5, color: FAINT, lineHeight: 1.9, marginTop: 9 }}>{t("يمكنك إغلاق الصفحة — العملية تُكمل على خادمنا وتستأنف عند رجوعك.")}</div>
               </div>
             )}
 
@@ -1009,17 +1035,17 @@ export default function OrderPage() {
                   "تدفع بالدينار الليبي من محفظتك أو من بوابتك المفضّلة.",
                 ].map((step, i) => (
                   <div key={i} style={{ display: "flex", gap: 11, alignItems: "flex-start" }}>
-                    <div style={{ width: 26, height: 26, borderRadius: 9, background: LINE, color: PRIMARY, fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <div style={{ width: 26, height: 26, borderRadius: 9, background: LINE, color: PRIMARY, fontSize: 13.5, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       {lang === "en" ? i + 1 : ["١", "٢", "٣"][i]}
                     </div>
-                    <div style={{ fontSize: 12, lineHeight: 1.75, color: MUTED, paddingTop: 3 }}>{t(step)}</div>
+                    <div style={{ fontSize: 13.5, lineHeight: 1.75, color: MUTED, paddingTop: 3 }}>{t(step)}</div>
                   </div>
                 ))}
               </div>
             )}
 
             <div style={{ ...s.card, padding: "15px 16px" }}>
-              <div style={{ fontSize: 12.5, fontWeight: 800, marginBottom: 10 }}>{t("تتبّع طلباً سابقاً")}</div>
+              {sectionTitle(ICONS.track, t("تتبّع طلباً سابقاً"), 14.5)}
               <div style={{ display: "flex", gap: 8 }}>
                 <input
                   placeholder={t("رقم الطلب")}
@@ -1037,13 +1063,16 @@ export default function OrderPage() {
           {stage === "cart" && (<>
 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 14, fontWeight: 800 }}>{t("سلتك")}</span>
-              <span style={{ fontSize: 11.5, color: MUTED }}>{t("عدّل الكميات ثم أعد الحساب")}</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 15.5, fontWeight: 800 }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{ICONS.cart}</svg>
+                {t("سلتك")}
+              </span>
+              <span style={{ fontSize: 13, color: MUTED }}>{t("عدّل الكميات ثم أعد الحساب")}</span>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
               {cartItems.map((it, i) => (
-                <div key={i} style={{ background: CARD, borderRadius: 16, padding: 11, display: "flex", gap: 11, alignItems: "center", boxShadow: "0 2px 10px rgba(22,19,31,0.05)" }}>
+                <div key={i} className="card-tap" style={{ background: CARD, borderRadius: 16, padding: 11, display: "flex", gap: 11, alignItems: "center", boxShadow: "0 2px 10px rgba(22,19,31,0.05)" }}>
                   {it.image
                     ? <img src={it.image} alt="" style={{ width: 58, height: 58, borderRadius: 12, objectFit: "cover", flexShrink: 0 }} />
                     : <div style={{ width: 58, height: 58, borderRadius: 12, background: CHIP, flexShrink: 0 }} />}
@@ -1063,7 +1092,7 @@ export default function OrderPage() {
                           الإجمالي وحده. ومؤقّت انتهاء العرض أُلغي — يتحرّك تحت
                           يد الزبون ولا يضيف قرارًا. */}
                       {unitUsdOf(it) != null && (
-                        <span style={{ fontSize: 13, fontWeight: 800, color: PRIMARY, whiteSpace: "nowrap" }}>
+                        <span style={{ fontSize: 14.5, fontWeight: 800, color: PRIMARY, whiteSpace: "nowrap" }}>
                           ${unitUsdOf(it).toFixed(2)}
                         </span>
                       )}
@@ -1074,13 +1103,13 @@ export default function OrderPage() {
                     <button
                       type="button"
                       onClick={() => { setExactPrice(null); setQuantities(q => ({ ...q, [i]: Math.min(20, Number(q[i] ?? it.quantity ?? 1) + 1) })); }}
-                      style={{ ...s.stepBtn, color: PRIMARY }}
+                      className="stepper-btn" style={{ ...s.stepBtn, color: PRIMARY }}
                     >+</button>
-                    <span style={{ fontSize: 13, fontWeight: 800 }}>{quantities[i] ?? it.quantity ?? 1}</span>
+                    <span style={{ fontSize: 14.5, fontWeight: 800 }}>{quantities[i] ?? it.quantity ?? 1}</span>
                     <button
                       type="button"
                       onClick={() => { setExactPrice(null); setQuantities(q => ({ ...q, [i]: Math.max(1, Number(q[i] ?? it.quantity ?? 1) - 1) })); }}
-                      style={{ ...s.stepBtn, color: MUTED }}
+                      className="stepper-btn" style={{ ...s.stepBtn, color: MUTED }}
                     >−</button>
                   </div>
                 </div>
@@ -1090,28 +1119,36 @@ export default function OrderPage() {
             {/* التنبيه بأن السعر تقديري يسبق زر إعادة الحساب مباشرة */}
             {quantityChanged && exactPrice == null && (
               <div style={{ background: CARD, border: "1.5px solid var(--t-accent-line)", borderRadius: 16, padding: "13px 15px" }}>
-                <div style={{ fontSize: 12, lineHeight: 1.85, color: MUTED }}>
-                  {t("السعر أعلاه")} <strong style={{ color: PRIMARY }}>{t("تقديري")}</strong> {t("بعد تعديل الكميات. اطلب إعادة الحساب ليقرأ الموقع السعر النهائي من شي إن.")}
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 9, fontSize: 13.5, lineHeight: 1.85, color: MUTED }}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 3 }}>
+                    <circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.01" />
+                  </svg>
+                  <span>
+                    {t("السعر أعلاه")} <strong style={{ color: PRIMARY }}>{t("تقديري")}</strong> {t("بعد تعديل الكميات. اطلب إعادة الحساب ليقرأ الموقع السعر النهائي من شي إن.")}
+                  </span>
                 </div>
                 <button
                   type="button"
                   onClick={handleReprice}
                   disabled={repricing}
-                  style={{ width: "100%", marginTop: 11, padding: 12, background: GRADIENT, color: "#fff", border: "none", borderRadius: 12, fontSize: 13.5, fontWeight: 800, fontFamily: "inherit", cursor: repricing ? "not-allowed" : "pointer", opacity: repricing ? 0.6 : 1, boxShadow: "0 4px 14px rgba(124,58,237,0.28)" }}
+                  style={{ width: "100%", marginTop: 11, padding: 12, background: GRADIENT, color: "#fff", border: "none", borderRadius: 12, fontSize: 15, fontWeight: 800, fontFamily: "inherit", cursor: repricing ? "not-allowed" : "pointer", opacity: repricing ? 0.6 : 1, boxShadow: "0 4px 14px rgba(124,58,237,0.28)" }}
                 >
                   {repricing
                     ? `${t("جاري إعادة الحساب")} · ${String(Math.floor(repriceSecs / 60)).padStart(2, "0")}:${String(repriceSecs % 60).padStart(2, "0")}`
                     : t("إعادة حساب السلة")}
                 </button>
                 {repricing && (
-                  <p style={{ fontSize: 11, color: FAINT, lineHeight: 1.9, margin: "9px 0 0" }}>{t("نضبط الكميات داخل سلتك على شي إن ونقرأ السعر منها — قد يستغرق ذلك دقيقتين إلى أربع.")}</p>
+                  <p style={{ fontSize: 12.5, color: FAINT, lineHeight: 1.9, margin: "9px 0 0" }}>{t("نضبط الكميات داخل سلتك على شي إن ونقرأ السعر منها — قد يستغرق ذلك دقيقتين إلى أربع.")}</p>
                 )}
                 {repriceError && <div style={{ ...s.noteRed, marginBottom: 0 }}>{repriceError}</div>}
               </div>
             )}
 
             {quantityChanged && exactPrice != null && (
-              <div style={s.qtyOk}>{t("هذا هو السعر النهائي من شي إن بالكميات التي اخترتها.")}</div>
+              <div style={{ ...s.qtyOk, display: "flex", alignItems: "flex-start", gap: 9 }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}><path d="M20 6L9 17l-5-5" /></svg>
+                <span>{t("هذا هو السعر النهائي من شي إن بالكميات التي اخترتها.")}</span>
+              </div>
             )}
 
             {/* مقفل أثناء القياس: الخروج من الشاشة وقياسٌ جارٍ على السلة نفسها
@@ -1119,7 +1156,7 @@ export default function OrderPage() {
             <button
               type="button"
               disabled={repricing}
-              onClick={() => { setStage("link"); setResolveState("idle"); setCartItems([]); setPrice(null); setExactPrice(null); setQuantities({}); setBreakdown(null); setItemCount(null); }}
+              onClick={() => { try { localStorage.removeItem(CART_KEY); } catch {} setStage("link"); setResolveState("idle"); setCartItems([]); setPrice(null); setExactPrice(null); setQuantities({}); setBreakdown(null); setItemCount(null); setCartLink(""); }}
               style={{ ...s.ghostBtn, marginTop: 0, opacity: repricing ? 0.45 : 1, cursor: repricing ? "not-allowed" : "pointer" }}
             >{repricing ? t("جاري إعادة الحساب") : t("سلة أخرى")}</button>
           </>)}
@@ -1128,7 +1165,7 @@ export default function OrderPage() {
           {stage === "details" && (<>
 
             <div style={s.card}>
-              <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 13 }}>{t("بياناتك")}</div>
+              {sectionTitle(ICONS.user, t("بياناتك"))}
 
               <label style={s.label}>{t("الاسم الكامل")}</label>
               <input
@@ -1154,10 +1191,7 @@ export default function OrderPage() {
             </div>
 
             <div style={s.card}>
-              <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 13 }}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 10-14 0c0 5.5 7 11 7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
-                <span style={{ fontSize: 14, fontWeight: 800 }}>{t("عنوان الاستلام")}</span>
-              </div>
+              {sectionTitle(ICONS.pin, t("عنوان الاستلام"))}
 
               <div style={{ display: "flex", gap: 8 }}>
                 <input
@@ -1218,7 +1252,7 @@ export default function OrderPage() {
             </div>
 
             <div style={s.card}>
-              <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 13 }}>{t("ملاحظات وصور (اختياري)")}</div>
+              {sectionTitle(ICONS.note, t("ملاحظات وصور (اختياري)"))}
               <textarea
                 placeholder={t("اكتب أي ملاحظة تخص طلبك...")}
                 value={orderNote}
@@ -1239,7 +1273,7 @@ export default function OrderPage() {
                   }}
                 />
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={images.length ? PRIMARY : FAINT} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="15" rx="2.5" /><circle cx="8.5" cy="10.5" r="1.8" /><path d="M21 16l-5-5-7 7" /></svg>
-                <span style={{ fontSize: 12.5, color: images.length ? PRIMARY : FAINT, fontWeight: images.length ? 700 : 500 }}>
+                <span style={{ fontSize: 14, color: images.length ? PRIMARY : FAINT, fontWeight: images.length ? 700 : 500 }}>
                   {images.length ? `${images.length} صورة مرفقة — أضف المزيد` : "إضافة صور (حتى 6)"}
                 </span>
               </label>
@@ -1263,14 +1297,14 @@ export default function OrderPage() {
             {/* ملخّص الفاتورة قبل الدفع */}
             <div style={{ ...s.card, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
-                <div style={{ fontSize: 11.5, color: MUTED, marginBottom: 3 }}>المبلغ المستحق</div>
-                <div style={{ fontSize: 11, color: FAINT }}>
+                <div style={{ fontSize: 13, color: MUTED, marginBottom: 3 }}>المبلغ المستحق</div>
+                <div style={{ fontSize: 12.5, color: FAINT }}>
                   {itemCount ? `${itemCount} صنف · ` : ""}الشحن إلى ليبيا يُحسب لاحقاً
                 </div>
               </div>
               <div style={{ textAlign: "left" }}>
-                <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-0.8px", lineHeight: 1 }}>{totalText}</div>
-                <div style={{ fontSize: 11, color: MUTED }}>{t("د.ل")}</div>
+                <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: "-0.8px", lineHeight: 1 }}>{totalText}</div>
+                <div style={{ fontSize: 12.5, color: MUTED }}>{t("د.ل")}</div>
               </div>
             </div>
 
@@ -1304,8 +1338,8 @@ export default function OrderPage() {
           <div className="desk-grid">
             <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
               <div>
-                <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-0.6px" }}>{stageTitle.h}</div>
-                <div style={{ fontSize: 13.5, color: MUTED, marginTop: 5 }}>{stageTitle.s}</div>
+                <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: "-0.6px" }}>{stageTitle.h}</div>
+                <div style={{ fontSize: 15, color: MUTED, marginTop: 5 }}>{stageTitle.s}</div>
               </div>
               <div className="stage-body" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {stageContent}
@@ -1316,7 +1350,7 @@ export default function OrderPage() {
               {stage !== "link" && summaryCard}
               {stage !== "link" && payWithCard}
               {actionButton}
-              <div style={{ fontSize: 11, color: FAINT, textAlign: "center", lineHeight: 1.8 }}>
+              <div style={{ fontSize: 12.5, color: FAINT, textAlign: "center", lineHeight: 1.8 }}>
                 {t("رسوم الشحن إلى ليبيا تُحسب لاحقاً")}
               </div>
             </aside>
@@ -1333,17 +1367,17 @@ export default function OrderPage() {
 
               {stage === "link" ? (
                 <div style={{ marginTop: 20, position: "relative" }}>
-                  <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.5px", lineHeight: 1.4 }}>{t("اطلب من شي إن")}<br />{t("وادفع بالدينار")}</div>
-                  <div style={{ fontSize: 12.5, opacity: 0.82, marginTop: 6, lineHeight: 1.8 }}>{t("الصق رابط سلتك المشتركة، ونقرأ سعرها الحقيقي من تطبيق شي إن نفسه.")}</div>
+                  <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: "-0.5px", lineHeight: 1.4 }}>{t("اطلب من شي إن")}<br />{t("وادفع بالدينار")}</div>
+                  <div style={{ fontSize: 14, opacity: 0.82, marginTop: 6, lineHeight: 1.8 }}>{t("الصق رابط سلتك المشتركة، ونقرأ سعرها الحقيقي من تطبيق شي إن نفسه.")}</div>
                 </div>
               ) : (
                 <div style={{ marginTop: 22, position: "relative" }}>
-                  <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>{t("الإجمالي المستحق")}</div>
+                  <div style={{ fontSize: 13.5, opacity: 0.8, marginBottom: 4 }}>{t("الإجمالي المستحق")}</div>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
-                    <span style={{ fontSize: 40, fontWeight: 900, letterSpacing: "-1.5px", lineHeight: 1 }}>
+                    <span style={{ fontSize: 42, fontWeight: 900, letterSpacing: "-1.5px", lineHeight: 1 }}>
                       {totalText}
                     </span>
-                    <span style={{ fontSize: 15, fontWeight: 700, opacity: 0.85 }}>{t("د.ل")}</span>
+                    <span style={{ fontSize: 17, fontWeight: 700, opacity: 0.85 }}>{t("د.ل")}</span>
                   </div>
                   <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
                     {itemCount ? <span style={hChip}>{itemCount} {t("صنف")}</span> : null}
@@ -1390,7 +1424,7 @@ export default function OrderPage() {
               ].map((it, i) => (
                 <a key={i} href={it.href} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: it.on ? PRIMARY : FAINT }}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={it.on ? 2 : 1.8} strokeLinecap="round" strokeLinejoin="round">{it.path}</svg>
-                  <span style={{ fontSize: 10, fontWeight: it.on ? 800 : 600 }}>{it.label}</span>
+                  <span style={{ fontSize: 11.5, fontWeight: it.on ? 800 : 600 }}>{it.label}</span>
                 </a>
               ))}
             </div>
@@ -1419,7 +1453,7 @@ export default function OrderPage() {
             {/* ── MobiCash: card number ── */}
             {mcStep === "card" ? (
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 40, marginBottom: 8 }}>📲</div>
+                <div style={{ fontSize: 42, marginBottom: 8 }}>📲</div>
                 <h3 style={s.modalTitle}>موبي كاش — أدخل رقم بطاقتك</h3>
                 <p style={s.modalSub}>
                   سيصلك رمز تحقق على هاتفك المرتبط بالبطاقة
@@ -1430,7 +1464,7 @@ export default function OrderPage() {
                   placeholder="رقم البطاقة"
                   value={mcCard}
                   onChange={e => setMcCard(e.target.value.replace(/[^0-9]/g, "").slice(0, 19))}
-                  style={{ ...s.input, fontSize: 20, textAlign: "center", letterSpacing: 4, fontWeight: 700, marginBottom: 16, direction: "ltr" }}
+                  style={{ ...s.input, fontSize: 22, textAlign: "center", letterSpacing: 4, fontWeight: 700, marginBottom: 16, direction: "ltr" }}
                   autoFocus
                 />
                 <button
@@ -1447,12 +1481,12 @@ export default function OrderPage() {
             ) : mcStep === "sending" ? (
               <div style={{ textAlign: "center", padding: "40px 0" }}>
                 <div style={{ width: 56, height: 56, borderRadius: "50%", border: "4px solid #e0f2fe", borderTopColor: "#0284c7", animation: "spin 0.8s linear infinite", margin: "0 auto 20px" }} />
-                <p style={{ color: MUTED, fontSize: 14 }}>⏳ جاري إرسال رمز التحقق...</p>
+                <p style={{ color: MUTED, fontSize: 15.5 }}>⏳ جاري إرسال رمز التحقق...</p>
               </div>
 
             ) : mcStep === "otp" ? (
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 40, marginBottom: 8 }}>🔐</div>
+                <div style={{ fontSize: 42, marginBottom: 8 }}>🔐</div>
                 <h3 style={s.modalTitle}>تحقق من رمز موبي كاش</h3>
                 <p style={s.modalSub}>
                   أُرسل رمز التحقق إلى هاتفك — صالح لمدة <strong>5 دقائق</strong>
@@ -1463,7 +1497,7 @@ export default function OrderPage() {
                   placeholder="أدخل الرمز"
                   value={mcOtp}
                   onChange={e => setMcOtp(e.target.value.replace(/[^0-9]/g, "").slice(0, 8))}
-                  style={{ ...s.input, fontSize: 28, textAlign: "center", letterSpacing: 12, fontWeight: 700, marginBottom: 16, direction: "ltr" }}
+                  style={{ ...s.input, fontSize: 30, textAlign: "center", letterSpacing: 12, fontWeight: 700, marginBottom: 16, direction: "ltr" }}
                   autoFocus
                 />
                 <button
@@ -1481,11 +1515,11 @@ export default function OrderPage() {
 
             ) : edfaliStep === "phone" ? (
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 40, marginBottom: 8 }}>🏧</div>
+                <div style={{ fontSize: 42, marginBottom: 8 }}>🏧</div>
                 <h3 style={s.modalTitle}>ادفع لي — أدخل رقم هاتفك</h3>
                 <p style={s.modalSub}>
                   أدخل رقم الهاتف المرتبط بحساب <strong>{t("ادفع لي")}</strong><br />
-                  <span style={{ color: MUTED, fontSize: 12 }}>مثال: 0912345678</span>
+                  <span style={{ color: MUTED, fontSize: 13.5 }}>مثال: 0912345678</span>
                 </p>
                 <input
                   type="tel"
@@ -1493,7 +1527,7 @@ export default function OrderPage() {
                   placeholder="0912345678"
                   value={edfaliPhone}
                   onChange={e => setEdfaliPhone(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
-                  style={{ ...s.input, fontSize: 20, textAlign: "center", letterSpacing: 4, fontWeight: 700, marginBottom: 16 }}
+                  style={{ ...s.input, fontSize: 22, textAlign: "center", letterSpacing: 4, fontWeight: 700, marginBottom: 16 }}
                   autoFocus
                 />
                 <button
@@ -1511,12 +1545,12 @@ export default function OrderPage() {
               <div style={{ textAlign: "center", padding: "40px 0" }}>
                 <div style={{ width: 56, height: 56, borderRadius: "50%", border: "4px solid #ede9fe", borderTopColor: "#7c3aed", animation: "spin 0.8s linear infinite", margin: "0 auto 20px" }} />
                 <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-                <p style={{ color: MUTED, fontSize: 14 }}>⏳ جاري إرسال رمز التحقق...</p>
+                <p style={{ color: MUTED, fontSize: 15.5 }}>⏳ جاري إرسال رمز التحقق...</p>
               </div>
 
             ) : edfaliStep === "otp" ? (
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 40, marginBottom: 8 }}>🏧</div>
+                <div style={{ fontSize: 42, marginBottom: 8 }}>🏧</div>
                 <h3 style={s.modalTitle}>تحقق من رمز ادفع لي</h3>
                 <p style={s.modalSub}>
                   أُرسل رمز تحقق مكوّن من <strong>4 أرقام</strong> إلى هاتفك<br />
@@ -1528,7 +1562,7 @@ export default function OrderPage() {
                   placeholder="أدخل الرمز"
                   value={edfaliOtp}
                   onChange={e => setEdfaliOtp(e.target.value.slice(0, 4))}
-                  style={{ ...s.input, fontSize: 28, textAlign: "center", letterSpacing: 12, fontWeight: 700, marginBottom: 16 }}
+                  style={{ ...s.input, fontSize: 30, textAlign: "center", letterSpacing: 12, fontWeight: 700, marginBottom: 16 }}
                   autoFocus
                 />
                 <button
@@ -1548,18 +1582,18 @@ export default function OrderPage() {
             {/* المبلغ أولاً وبأكبر خط في الورقة، ثم الطرق تحته صفًّا صفًّا. */}
             <div style={{ background: CARD, borderRadius: 18, padding: "15px 16px", boxShadow: "0 2px 10px rgba(22,19,31,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <div>
-                <div style={{ fontSize: 11.5, color: MUTED, marginBottom: 3 }}>المبلغ المستحق</div>
-                <div style={{ fontSize: 11, color: FAINT }}>
+                <div style={{ fontSize: 13, color: MUTED, marginBottom: 3 }}>المبلغ المستحق</div>
+                <div style={{ fontSize: 12.5, color: FAINT }}>
                   {itemCount ? `${itemCount} صنف · ` : ""}الشحن إلى ليبيا يُحسب لاحقاً
                 </div>
               </div>
               <div style={{ textAlign: "left" }}>
-                <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-0.8px", lineHeight: 1, color: INK }}>{priceLYD.toFixed(0)}</div>
-                <div style={{ fontSize: 11, color: MUTED }}>{t("د.ل")}</div>
+                <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: "-0.8px", lineHeight: 1, color: INK }}>{priceLYD.toFixed(0)}</div>
+                <div style={{ fontSize: 12.5, color: MUTED }}>{t("د.ل")}</div>
               </div>
             </div>
 
-            <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>{t("اختر طريقة الدفع")}</div>
+            <div style={{ fontSize: 14.5, fontWeight: 900, marginBottom: 10 }}>{t("اختر طريقة الدفع")}</div>
 
             {/* المحفظة أولًا وبلون أخضر مميّز: أسرع طريق وبلا رمز تحقق. */}
             {wallet && (
@@ -1570,10 +1604,10 @@ export default function OrderPage() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                      <span style={{ fontWeight: 800, fontSize: 13.5 }}>{t("محفظتي")}</span>
-                      <span style={{ fontSize: 10, fontWeight: 800, background: "rgba(255,255,255,0.22)", borderRadius: 20, padding: "2px 8px" }}>{t("الأسرع")}</span>
+                      <span style={{ fontWeight: 800, fontSize: 15 }}>{t("محفظتي")}</span>
+                      <span style={{ fontSize: 11.5, fontWeight: 800, background: "rgba(255,255,255,0.22)", borderRadius: 20, padding: "2px 8px" }}>{t("الأسرع")}</span>
                     </div>
-                    <div style={{ fontSize: 11.5, opacity: 0.9, marginTop: 2 }}>
+                    <div style={{ fontSize: 13, opacity: 0.9, marginTop: 2 }}>
                       {t("الرصيد")} {Number(wallet.balance || 0).toFixed(2)} {t("د.ل")} — {t("بلا رمز تحقق")}
                     </div>
                   </div>
@@ -1588,7 +1622,7 @@ export default function OrderPage() {
                     {walletBusy ? "⏳ جاري الدفع..." : `${t("ادفع من المحفظة")} · ${priceLYD.toFixed(0)} ${t("د.ل")}`}
                   </button>
                 ) : (
-                  <p style={{ fontSize: 11.5, margin: "10px 0 0", lineHeight: 1.85, background: "rgba(255,255,255,0.16)", borderRadius: 11, padding: "9px 11px" }}>
+                  <p style={{ fontSize: 13, margin: "10px 0 0", lineHeight: 1.85, background: "rgba(255,255,255,0.16)", borderRadius: 11, padding: "9px 11px" }}>
                     {t("الرصيد لا يكفي لهذا الطلب")} ({priceLYD.toFixed(0)} {t("د.ل")}). {t("ادفع بإحدى البوابات أدناه.")}
                   </p>
                 )}
@@ -1638,9 +1672,9 @@ export default function OrderPage() {
               <div style={{ background: CARD, borderRadius: 16, padding: "13px 15px", border: `1.5px solid ${LINE}`, marginTop: 4 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 7 }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 10-14 0c0 5.5 7 11 7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
-                  <span style={{ fontSize: 12.5, fontWeight: 800 }}>{t("عنوان الاستلام")}</span>
+                  <span style={{ fontSize: 14, fontWeight: 800 }}>{t("عنوان الاستلام")}</span>
                 </div>
-                <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.85 }}>
+                <div style={{ fontSize: 13.5, color: MUTED, lineHeight: 1.85 }}>
                   {[city.trim(), area.trim()].filter(Boolean).join(" — ")}
                   {(addressNote.trim() || geo) && (
                     <><br /><span style={{ color: FAINT }}>
@@ -1674,12 +1708,12 @@ const s = {
   // زر الكمية: مربّع 28 داخل عمود رأسي، كما في التصميم.
   stepBtn: {
     width: 28, height: 28, border: "none", background: CHIP, borderRadius: 9,
-    fontSize: 16, lineHeight: 1, cursor: "pointer", fontFamily: "inherit",
+    fontSize: 18, lineHeight: 1, cursor: "pointer", fontFamily: "inherit",
     padding: 0, fontWeight: 700,
   },
   label: {
     display: "block",
-    fontSize: 12.5,
+    fontSize: 14,
     fontWeight: 800,
     color: INK,
     marginBottom: 7,
@@ -1690,7 +1724,7 @@ const s = {
     marginBottom: 14,
     borderRadius: 13,
     border: `1.5px solid ${LINE}`,
-    fontSize: 14,
+    fontSize: 15.5,
     color: INK,
     background: CARD,
     fontFamily: "inherit",
@@ -1710,7 +1744,7 @@ const s = {
     borderRadius: 14,
     cursor: "pointer",
     fontWeight: 800,
-    fontSize: 15,
+    fontSize: 17,
     fontFamily: "inherit",
     boxShadow: "0 6px 18px rgba(124,58,237,0.28)",
     transition: "opacity 0.15s",
@@ -1736,30 +1770,30 @@ const s = {
   verifyBtn: {
     width: "100%", padding: "15px 16px", marginTop: 4, borderRadius: 14,
     border: "none", background: GRAD_HEAD, color: "#fff",
-    fontSize: 15, fontWeight: 800, fontFamily: "inherit",
+    fontSize: 17, fontWeight: 800, fontFamily: "inherit",
     boxShadow: "0 6px 18px rgba(124,58,237,0.28)",
   },
   okBox: {
     marginTop: 12, padding: "12px 14px", borderRadius: 14,
     background: "var(--t-green-bg)", border: "1px solid var(--t-green-line)", color: "var(--t-green-ink)",
-    fontSize: 12.5, lineHeight: 1.8, fontWeight: 600,
+    fontSize: 14, lineHeight: 1.8, fontWeight: 600,
   },
   // Waiting is part of the design, not an empty screen: the place in line, the
   // expected time, and that the page may be closed.
   queueBox: {
     marginTop: 12, padding: "15px 16px", borderRadius: 16,
     background: CARD, boxShadow: "0 2px 10px rgba(22,19,31,0.05)",
-    color: INK, fontSize: 12.5, lineHeight: 1.85,
+    color: INK, fontSize: 14, lineHeight: 1.85,
     border: `1px solid ${LINE}`,
   },
-  queuePos: { fontWeight: 800, fontSize: 13.5, color: INK },
-  queueSub: { color: MUTED, fontSize: 12, lineHeight: 1.9, marginTop: 3 },
+  queuePos: { fontWeight: 800, fontSize: 15, color: INK },
+  queueSub: { color: MUTED, fontSize: 13.5, lineHeight: 1.9, marginTop: 3 },
   qtyBox: {
     marginTop: 14, padding: "16px", borderRadius: 18,
     background: CARD, boxShadow: "0 2px 10px rgba(22,19,31,0.05)",
   },
-  qtyTitle: { fontWeight: 900, fontSize: 14.5, color: INK, marginBottom: 4 },
-  qtyNote: { fontSize: 12, color: MUTED, lineHeight: 1.85, margin: "0 0 10px" },
+  qtyTitle: { fontWeight: 900, fontSize: 16.5, color: INK, marginBottom: 4 },
+  qtyNote: { fontSize: 13.5, color: MUTED, lineHeight: 1.85, margin: "0 0 10px" },
   qtyRow: {
     display: "flex", alignItems: "flex-start", gap: 11,
     padding: "13px 0", borderTop: `1px solid ${LINE}`,
@@ -1773,23 +1807,23 @@ const s = {
     flexShrink: 0, border: `1px solid ${LINE}`,
   },
   qtyName: {
-    fontSize: 12.5, lineHeight: 1.6, cursor: "pointer", color: INK, fontWeight: 600,
+    fontSize: 14, lineHeight: 1.6, cursor: "pointer", color: INK, fontWeight: 600,
     overflow: "hidden", display: "-webkit-box",
     WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
   },
-  qtyNameFull: { fontSize: 12.5, lineHeight: 1.6, cursor: "pointer", color: INK, fontWeight: 600 },
+  qtyNameFull: { fontSize: 14, lineHeight: 1.6, cursor: "pointer", color: INK, fontWeight: 600 },
   qtyVariant: {
     background: CHIP, borderRadius: 20, padding: "2px 9px",
-    fontSize: 11, color: MUTED, fontWeight: 700, whiteSpace: "nowrap",
+    fontSize: 12.5, color: MUTED, fontWeight: 700, whiteSpace: "nowrap",
   },
   qtyMeta: {
-    fontSize: 12, color: MUTED, marginTop: 6,
+    fontSize: 13.5, color: MUTED, marginTop: 6,
     display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap",
   },
   imgRemove: {
     position: "absolute", top: -6, insetInlineEnd: -6, width: 20, height: 20,
     borderRadius: "50%", border: "none", background: "#ef4444", color: "#fff",
-    fontSize: 13, lineHeight: "20px", cursor: "pointer", padding: 0, fontFamily: "inherit",
+    fontSize: 14.5, lineHeight: "20px", cursor: "pointer", padding: 0, fontFamily: "inherit",
   },
   // Vertical stepper: one tall touch target per direction, the way a phone
   // wants it, instead of two small buttons side by side.
@@ -1799,16 +1833,16 @@ const s = {
   },
   qtyBtn: {
     width: 30, height: 26, borderRadius: 10, border: "none",
-    background: CARD, color: PRIMARY, fontSize: 15, lineHeight: 1,
+    background: CARD, color: PRIMARY, fontSize: 17, lineHeight: 1,
     cursor: "pointer", fontWeight: 800,
     fontFamily: "inherit", padding: 0, flexShrink: 0,
     boxShadow: "0 1px 3px rgba(22,19,31,0.08)",
   },
-  qtyVal: { minWidth: 20, textAlign: "center", fontWeight: 900, fontSize: 14, color: INK, padding: "3px 0" },
+  qtyVal: { minWidth: 20, textAlign: "center", fontWeight: 900, fontSize: 15.5, color: INK, padding: "3px 0" },
   geoBtn: {
     width: "100%", marginTop: 2, marginBottom: 4, padding: "13px 14px", borderRadius: 13,
     border: `1.5px dashed ${DASH}`, background: SOFT, color: PRIMARY,
-    fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
+    fontSize: 14.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
   },
   // The wallet gets its own colour: it is the fastest path and the only one
   // without an OTP, so it should not look like the gateways.
@@ -1820,15 +1854,15 @@ const s = {
   repriceBtn: {
     width: "100%", marginTop: 10, padding: "13px 14px", borderRadius: 13,
     border: "none", background: SOLID, color: ON_SOLID,
-    fontSize: 13.5, fontWeight: 800, fontFamily: "inherit",
+    fontSize: 15, fontWeight: 800, fontFamily: "inherit",
   },
   qtyOk: {
-    marginTop: 10, marginBottom: 0, fontSize: 12.5, lineHeight: 1.8,
+    marginTop: 10, marginBottom: 0, fontSize: 14, lineHeight: 1.8,
     color: "var(--t-green-ink)", background: "var(--t-green-bg)", border: "1px solid var(--t-green-line)",
     borderRadius: 13, padding: "11px 12px",
   },
   qtyWarn: {
-    marginTop: 10, marginBottom: 0, fontSize: 12.5, lineHeight: 1.8,
+    marginTop: 10, marginBottom: 0, fontSize: 14, lineHeight: 1.8,
     color: "var(--t-amber-ink)", background: "var(--t-amber-bg)", border: "1px solid var(--t-amber-line)",
     borderRadius: 13, padding: "11px 12px",
   },
@@ -1837,7 +1871,7 @@ const s = {
     border: "1px solid var(--t-blue-line)",
     borderRadius: 13,
     padding: "12px 14px",
-    fontSize: 12.5,
+    fontSize: 14,
     color: "var(--t-blue-ink)",
     lineHeight: 1.8,
     marginBottom: 16,
@@ -1847,7 +1881,7 @@ const s = {
     border: "1px solid var(--t-amber-line)",
     borderRadius: 13,
     padding: "12px 14px",
-    fontSize: 12.5,
+    fontSize: 14,
     color: "var(--t-amber-ink)",
     lineHeight: 1.8,
     marginBottom: 12,
@@ -1857,20 +1891,20 @@ const s = {
     border: "1px solid var(--t-red-line)",
     borderRadius: 13,
     padding: "12px 14px",
-    fontSize: 12.5,
+    fontSize: 14,
     color: "var(--t-red-ink)",
     lineHeight: 1.8,
     margin: "10px 0",
   },
   err: {
     color: "#ef4444",
-    fontSize: 11.5,
+    fontSize: 13,
     fontWeight: 600,
     margin: "-9px 0 10px 2px",
   },
   hint: {
     color: FAINT,
-    fontSize: 11.5,
+    fontSize: 13,
     lineHeight: 1.85,
     margin: "-9px 0 14px 2px",
   },
@@ -1886,7 +1920,7 @@ const s = {
     justifyContent: "space-between",
     alignItems: "center",
     margin: "6px 0",
-    fontSize: 14,
+    fontSize: 15.5,
   },
   overlay: {
     position: "fixed",
@@ -1922,7 +1956,7 @@ const s = {
     background: CARD,
     border: `1.5px solid ${LINE}`,
     cursor: "pointer",
-    fontSize: 14,
+    fontSize: 15.5,
     fontFamily: "inherit",
     color: INK,
     display: "flex",
@@ -1934,16 +1968,16 @@ const s = {
   payIcon: {
     width: 38, height: 38, borderRadius: 12, background: CHIP,
     display: "flex", alignItems: "center", justifyContent: "center",
-    flexShrink: 0, fontSize: 19,
+    flexShrink: 0, fontSize: 21,
   },
-  payName: { fontSize: 13.5, fontWeight: 800, color: INK },
-  payNote: { fontSize: 11.5, color: MUTED, marginTop: 2 },
-  payAmount: { marginInlineStart: "auto", fontWeight: 900, fontSize: 13, color: INK, whiteSpace: "nowrap" },
-  modalTitle: { fontSize: 17, fontWeight: 900, color: INK, margin: "0 0 6px" },
-  modalSub: { fontSize: 12.5, color: MUTED, marginBottom: 16, lineHeight: 1.8 },
+  payName: { fontSize: 15, fontWeight: 800, color: INK },
+  payNote: { fontSize: 13, color: MUTED, marginTop: 2 },
+  payAmount: { marginInlineStart: "auto", fontWeight: 900, fontSize: 14.5, color: INK, whiteSpace: "nowrap" },
+  modalTitle: { fontSize: 19, fontWeight: 900, color: INK, margin: "0 0 6px" },
+  modalSub: { fontSize: 14, color: MUTED, marginBottom: 16, lineHeight: 1.8 },
   ghostBtn: {
     width: "100%", marginTop: 10, padding: 12, background: "none",
     border: `1.5px solid ${LINE}`, borderRadius: 13, color: MUTED,
-    cursor: "pointer", fontSize: 13, fontWeight: 700, fontFamily: "inherit",
+    cursor: "pointer", fontSize: 14.5, fontWeight: 700, fontFamily: "inherit",
   },
 };

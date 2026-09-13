@@ -27,10 +27,10 @@ export default function TopBar({ active, lang, setLang, t, user }) {
   return (
     <div className="desk-bar">
       <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-        <a href="/" style={{ fontWeight: 900, fontSize: 20, letterSpacing: "-0.4px", color: INK, textDecoration: "none" }}>
+        <a href="/" style={{ fontWeight: 900, fontSize: 22, letterSpacing: "-0.4px", color: INK, textDecoration: "none" }}>
           Trend <span style={{ color: PRIMARY }}>SHEIN</span>
         </a>
-        <div style={{ display: "flex", gap: 22, fontSize: 13 }}>
+        <div style={{ display: "flex", gap: 22, fontSize: 14.5 }}>
           {links.map((l) => (
             <a
               key={l.key}
@@ -57,13 +57,13 @@ export default function TopBar({ active, lang, setLang, t, user }) {
         <button
           type="button"
           onClick={() => setLang(lang === "ar" ? "en" : "ar")}
-          style={{ fontSize: 12, fontWeight: 700, color: MUTED, border: `1px solid ${LINE}`, background: "none", borderRadius: 20, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit" }}
+          style={{ fontSize: 13.5, fontWeight: 700, color: MUTED, border: `1px solid ${LINE}`, background: "none", borderRadius: 20, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit" }}
         >
           {lang === "ar" ? "English" : "العربية"}
         </button>
         <a
           href={user ? "/account" : "/login"}
-          style={{ width: 32, height: 32, borderRadius: "50%", background: SOLID, color: ON_SOLID, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, textDecoration: "none" }}
+          style={{ width: 32, height: 32, borderRadius: "50%", background: SOLID, color: ON_SOLID, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13.5, fontWeight: 700, textDecoration: "none" }}
         >
           {user ? (user.user_metadata?.name?.[0] || user.email?.[0] || "م").toUpperCase() : "؟"}
         </a>
