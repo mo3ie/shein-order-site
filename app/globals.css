@@ -92,6 +92,8 @@ body {
   --t-line:      #ece9f6;
   --t-chip:      #f2f1f8;
   --t-dash:      #d9d3ec;
+  --t-track:     #f0eef8;
+  --t-accent-line: #ddd6fe;
   /* لون مُصمت للأزرار الثانوية: نصّه دائمًا معاكس لأرضيته */
   --t-solid:     #16131f;
   --t-on-solid:  #ffffff;
@@ -113,6 +115,8 @@ body {
     --t-line:      #2a2440;
     --t-chip:      #241f36;
     --t-dash:      #3a3352;
+    --t-track:     #241f36;
+    --t-accent-line: #3f3270;
     --t-solid:     #f2f0f7;
     --t-on-solid:  #16131f;
     --t-blue-bg:   #161f36; --t-blue-line:   #29406e; --t-blue-ink:   #93b4f8;
@@ -132,6 +136,8 @@ body {
   --t-line:      #2a2440;
   --t-chip:      #241f36;
   --t-dash:      #3a3352;
+  --t-track:     #241f36;
+  --t-accent-line: #3f3270;
   --t-solid:     #f2f0f7;
   --t-on-solid:  #16131f;
   --t-blue-bg:   #161f36; --t-blue-line:   #29406e; --t-blue-ink:   #93b4f8;

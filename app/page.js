@@ -84,6 +84,10 @@ export default function OrderPage() {
   const [repricing,         setRepricing]         = useState(false);
   const [openNames,         setOpenNames]         = useState({});
   const [repriceError,      setRepriceError]      = useState("");
+  // الرحلة ثلاث شاشات في واجهة واحدة، لا نموذج واحد طويل:
+  // الرابط والانتظار ← السلة والكميات ← بياناتك، ثم ورقة الدفع.
+  const [stage,             setStage]             = useState("link"); // link|cart|details
+  const [lang,              setLang]              = useState("ar");
 
   // A SHEIN share link carries no quantities: three of one shirt arrive as one
   // line of one, and the same shirt in another size arrives as its own line. So
@@ -114,6 +118,11 @@ export default function OrderPage() {
       setAuthUser(data?.user ?? null);
     });
   }, []);
+
+  // ما إن يُقرأ السعر حتى تنتقل الواجهة إلى شاشة السلة من نفسها.
+  useEffect(() => {
+    if (resolveState === "verified" && cartItems.length > 0 && stage === "link") setStage("cart");
+  }, [resolveState, cartItems.length, stage]);
 
   useEffect(() => {
     supabase.from("settings").select("exchange_rate").eq("id", 1).single()
@@ -635,463 +644,500 @@ export default function OrderPage() {
   };
 
   // ─────────────────────────────────────────────────────────────────────────
+  // سعر الصنف الواحد بالدينار: الزبون لا يرى دولاراً في أي مكان.
+  const lydOfUsd = (usd) => (Number(usd || 0) * 1.01) * (exchangeRate || 0);
+
+  // ما وفّره العرض على السلة، إن قرأه شي إن.
+  const savedLyd = breakdown?.promotions
+    ? lydOfUsd(Math.abs(Number(breakdown.promotions)))
+    : 0;
+
+  const headerTop = (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {stage !== "link" && (
+          <button
+            type="button"
+            onClick={() => setStage(stage === "details" ? "cart" : "link")}
+            aria-label="رجوع"
+            style={{ width: 30, height: 30, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.2)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+          </button>
+        )}
+        <span style={{ fontWeight: 900, fontSize: 18 }}>ترند · شي إن</span>
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <button
+          type="button"
+          onClick={() => setLang(lang === "ar" ? "en" : "ar")}
+          style={{ fontSize: 11, fontWeight: 700, background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 11px", cursor: "pointer", fontFamily: "inherit" }}
+        >
+          {lang === "ar" ? "EN" : "ع"}
+        </button>
+        <a
+          href={authUser ? "/account" : "/login"}
+          style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff", textDecoration: "none" }}
+        >
+          {authUser ? (authUser.user_metadata?.name?.[0] || authUser.email?.[0] || "م").toUpperCase() : "؟"}
+        </a>
+      </div>
+    </div>
+  );
+
   return (
-    <main className="form-main" style={{ minHeight: "100vh", background: PAGE, color: INK, direction: "rtl", paddingBottom: 96 }}>
+    <main className="form-main" style={{ minHeight: "100vh", background: PAGE, color: INK, direction: "rtl", paddingBottom: 168 }}>
 
       <style>{`
         @keyframes zoomIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        @keyframes spin    { to   { transform: rotate(360deg); } }
+        @keyframes spin   { to { transform: rotate(360deg); } }
+        @keyframes sweep  { 0% { transform: translateX(120%) } 100% { transform: translateX(-320%) } }
+        @keyframes pulse  { 0%,100% { opacity: .35 } 50% { opacity: 1 } }
+        @keyframes riseIn { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
         input:focus, textarea:focus { outline: none !important; border-color: ${PRIMARY} !important; box-shadow: 0 0 0 3px rgba(124,58,237,0.12) !important; }
       `}</style>
 
       <div className="form-inner" style={{ width: "100%", maxWidth: 480, margin: "0 auto" }}>
 
-        {/* ── الترويسة: التدرّج هو هوية الشاشة، والإجمالي يعيش داخله ── */}
-        <div style={{ background: GRAD_HEAD, color: "#fff", padding: "18px 20px 24px", position: "relative", overflow: "hidden", borderBottomLeftRadius: 26, borderBottomRightRadius: 26 }}>
+        {/* ══ الترويسة: التدرّج هو هوية الشاشة، والإجمالي يعيش داخله ══ */}
+        <div style={{ background: GRAD_HEAD, color: "#fff", padding: "18px 20px 24px", position: "relative", overflow: "hidden" }}>
           <div style={{ position: "absolute", insetInlineEnd: -40, top: -50, width: 170, height: 170, borderRadius: "50%", background: "rgba(255,255,255,0.09)" }} />
+          {headerTop}
 
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
-            <a href="/" style={{ display: "flex", alignItems: "center", gap: 9, color: "#fff", textDecoration: "none" }}>
-              <img src="/logo.png" alt="" style={{ height: 30, objectFit: "contain" }} />
-              <span style={{ fontWeight: 900, fontSize: 17 }}>ترند · شي إن</span>
-            </a>
-            <a
-              href={authUser ? "/account" : "/login"}
-              style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: "#fff", textDecoration: "none" }}
-            >
-              {authUser ? (authUser.user_metadata?.name?.[0] || authUser.email?.[0] || "ح").toUpperCase() : "دخول"[0]}
-            </a>
-          </div>
-
-          <div style={{ marginTop: 20, position: "relative" }}>
-            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.5px", lineHeight: 1.4 }}>
-              منتجاتك وسلّتك بضغطة زر
+          {stage === "link" ? (
+            <div style={{ marginTop: 20, position: "relative" }}>
+              <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.5px", lineHeight: 1.4 }}>
+                اطلب من شي إن<br />وادفع بالدينار
+              </div>
+              <div style={{ fontSize: 12.5, opacity: 0.82, marginTop: 6, lineHeight: 1.8 }}>
+                الصق رابط سلتك المشتركة، ونقرأ سعرها الحقيقي من تطبيق شي إن نفسه.
+              </div>
             </div>
-            <div style={{ fontSize: 12.5, opacity: 0.85, marginTop: 6, lineHeight: 1.8 }}>
-              ضع رابط سلتك من شي إن، ونحن نقرأ السعر الحقيقي من التطبيق.
-            </div>
-          </div>
-
-          {/* الإجمالي داخل التدرّج: أول ما تراه العين هو المبلغ بالدينار. */}
-          {price > 0 && (
-            <div style={{ marginTop: 18, position: "relative" }}>
-              <div style={{ fontSize: 11.5, opacity: 0.8, marginBottom: 2 }}>الإجمالي المستحق</div>
+          ) : (
+            <div style={{ marginTop: 22, position: "relative" }}>
+              <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>الإجمالي المستحق</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
                 <span style={{ fontSize: 40, fontWeight: 900, letterSpacing: "-1.5px", lineHeight: 1 }}>
-                  {priceLYD.toFixed(0)}
+                  {priceLYD.toLocaleString("en-US", { maximumFractionDigits: 0 })}
                 </span>
-                <span style={{ fontSize: 14, fontWeight: 700, opacity: 0.9 }}>د.ل</span>
+                <span style={{ fontSize: 15, fontWeight: 700, opacity: 0.85 }}>د.ل</span>
               </div>
-              <div style={{ display: "flex", gap: 7, marginTop: 12, flexWrap: "wrap" }}>
-                {itemCount ? <span style={hChip}>{itemCount} صنف</span> : null}
-                <span style={hChip}>{exactPrice != null ? "سعر نهائي من شي إن" : "سعر مقروء من التطبيق"}</span>
-                <span style={hChip}>الشحن إلى ليبيا يُحسب لاحقاً</span>
+              <div style={{ display: "flex", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
+                {itemCount ? <span style={hChip}>{itemCount} أصناف</span> : null}
+                <span style={hChip}>{exactPrice != null ? "سعر نهائي من شي إن" : "الشحن إلى ليبيا لاحقاً"}</span>
+                {savedLyd > 1 && (
+                  <span style={{ ...hChip, background: "rgba(52,211,153,0.25)" }}>
+                    وفّرت {savedLyd.toFixed(0)} د.ل
+                  </span>
+                )}
               </div>
-            </div>
-          )}
-
-          {/* الخطوات الثلاث تشرح الخدمة لمن يزور أول مرة، وتختفي بعد أول قراءة. */}
-          {resolveState === "idle" && !price && (
-            <div style={{ display: "flex", gap: 8, marginTop: 18, position: "relative" }}>
-              {["الصق الرابط", "حدّد الكميات", "ادفع بالدينار"].map((t, i) => (
-                <div key={i} style={{ flex: 1, background: "rgba(255,255,255,0.14)", borderRadius: 13, padding: "10px 8px", textAlign: "center" }}>
-                  <div style={{ fontSize: 15, fontWeight: 900, opacity: 0.75 }}>{i + 1}</div>
-                  <div style={{ fontSize: 10.5, fontWeight: 700, marginTop: 3, lineHeight: 1.5 }}>{t}</div>
-                </div>
-              ))}
             </div>
           )}
         </div>
 
-        <div style={{ padding: "16px 16px 0" }}>
+        {/* ══ المحتوى ══ */}
+        <div className="stage-body" style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 13 }}>
 
-        {/* ── بطاقة الرابط ── */}
-        <div className="form-card" style={{ background: CARD, borderRadius: 18, padding: "18px 16px", boxShadow: "0 2px 10px rgba(22,19,31,0.05)" }}>
+          {/* ────────── ١ · الرابط والانتظار ────────── */}
+          {stage === "link" && (<>
 
-          {/* Note: UAE */}
-          <div style={s.noteBlue}>
-            🇦🇪 <strong>تنبيه هام:</strong> يجب أن يكون متجر شي إن موجّهاً لـ <strong>دبي / الإمارات العربية المتحدة</strong> حتى تظهر الأسعار بالدولار الأمريكي بشكل صحيح.
-          </div>
-
-          {/* Cart Link */}
-          <label style={s.label}>رابط سلة شي إن</label>
-          <input
-            placeholder="https://www.shein.com/..."
-            value={cartLink}
-            onChange={e => { setCartLink(e.target.value); setErrors(p => ({ ...p, cartLink: null })); }}
-            style={{ ...s.input, ...(errors.cartLink ? s.inputErr : {}) }}
-          />
-          {errors.cartLink
-            ? <p style={s.err}>⚠️ {errors.cartLink}</p>
-            : <p style={s.hint}>🔗 الصق رابط <strong>السلة المشتركة</strong> من تطبيق شي إن (زر المشاركة داخل السلة)</p>
-          }
-
-          {/* Verify the cart on our side — this is where the price comes from now. */}
-          <button
-            type="button"
-            onClick={handleResolveCart}
-            disabled={resolveState === "checking" || !cartLink.trim()}
-            style={{
-              ...s.verifyBtn,
-              opacity: (resolveState === "checking" || !cartLink.trim()) ? 0.6 : 1,
-              cursor:  (resolveState === "checking" || !cartLink.trim()) ? "not-allowed" : "pointer",
-            }}
-          >
-            {resolveState === "checking"
-              ? `⏳ جاري التحقق... ${elapsed > 0 ? elapsed + " ثانية" : ""}`
-              : "🔍 تحقق من السلة والسعر"}
-          </button>
-
-          {resolveState === "checking" && (
-            <div style={s.queueBox}>
-              {/* Pricing runs on one device, so the line is real. Telling the
-                  customer where they stand beats an unexplained spinner. */}
-              {queue && queue.ahead > 0 && !queue.running ? (
-                <>
-                  <div style={s.queuePos}>
-                    دورك رقم <strong>{queue.position}</strong> في الانتظار
-                  </div>
-                  <div style={s.queueSub}>
-                    {queue.ahead === 1 ? "أمامك طلب واحد" : `أمامك ${queue.ahead} طلبات`}
-                    {queue.etaMs ? ` — الوقت المتوقع ${Math.max(1, Math.round(queue.etaMs / 60000))} دقيقة تقريباً` : ""}
-                  </div>
-                </>
-              ) : (
-                <div style={s.queuePos}>
-                  ⏳ نقرأ سعر سلتك الآن من تطبيق شي إن
-                  {queue?.averageMs ? ` — عادةً ${Math.round(queue.averageMs / 1000)} ثانية` : ""}
-                </div>
-              )}
-              <div style={s.queueSub}>
-                يمكنك إغلاق الصفحة — العملية تكمل على خادمنا، وتستأنف من حيث توقفت عند رجوعك.
+            <div style={s.card}>
+              <div style={{ fontSize: 12.5, fontWeight: 800, marginBottom: 9 }}>رابط السلة المشتركة</div>
+              <input
+                placeholder="onelink.shein.com/..."
+                value={cartLink}
+                onChange={e => { setCartLink(e.target.value); setErrors(p => ({ ...p, cartLink: null })); }}
+                style={{
+                  ...s.input, marginBottom: 0, direction: "ltr", textAlign: "left",
+                  fontSize: 12, background: PAGE, padding: "12px 13px", borderRadius: 12,
+                  ...(errors.cartLink ? s.inputErr : {}),
+                }}
+              />
+              {errors.cartLink
+                ? <p style={{ ...s.err, margin: "8px 0 0" }}>{errors.cartLink}</p>
+                : <div style={{ fontSize: 11, color: FAINT, lineHeight: 1.85, marginTop: 9 }}>
+                    من داخل تطبيق شي إن: افتح سلتك ← زر المشاركة ← انسخ الرابط.
+                  </div>}
+              <div style={{ ...s.noteBlue, marginBottom: 0, marginTop: 11, fontSize: 11.5 }}>
+                يجب أن يكون متجر شي إن موجّهاً إلى <strong>الإمارات (دبي)</strong> حتى تُقرأ الأسعار بالدولار بشكل صحيح.
               </div>
             </div>
-          )}
-          {resolveState === "verified" && (
-            <div style={s.okBox}>
-              ✅ <strong>تم التحقق من السعر</strong>
-              {itemCount ? <> — {itemCount} منتج في السلة</> : null}
+
+            {/* الانتظار جزء من التصميم لا شاشة فارغة */}
+            {resolveState === "checking" && (
+              <div style={{ ...s.card, padding: "17px 16px", animation: "riseIn 0.25s ease" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 13 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: PRIMARY, animation: "pulse 1.4s ease-in-out infinite" }} />
+                  <div style={{ fontSize: 13.5, fontWeight: 800 }}>نقرأ سعر سلتك الآن</div>
+                </div>
+                <div style={{ height: 5, background: "var(--t-track)", borderRadius: 4, overflow: "hidden", position: "relative" }}>
+                  <div style={{ position: "absolute", insetBlock: 0, width: "45%", borderRadius: 4, background: GRAD_HEAD, animation: "sweep 1.7s ease-in-out infinite" }} />
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 13 }}>
+                  <span style={{ fontSize: 12, color: MUTED }}>
+                    {queue && queue.ahead > 0 && !queue.running
+                      ? <>دورك <strong style={{ color: PRIMARY }}>{queue.position}</strong> — أمامك {queue.ahead}</>
+                      : <>دورك <strong style={{ color: PRIMARY }}>١</strong> — تُقاس الآن</>}
+                  </span>
+                  <span style={{ fontSize: 12, color: FAINT }}>
+                    {queue?.etaMs
+                      ? `~${Math.max(1, Math.round(queue.etaMs / 60000))} دقيقة`
+                      : queue?.averageMs
+                        ? `~${Math.round(queue.averageMs / 1000)} ثانية`
+                        : elapsed > 0 ? `${elapsed} ثانية` : "~٥٠ ثانية"}
+                  </span>
+                </div>
+                <div style={{ fontSize: 11, color: FAINT, lineHeight: 1.9, marginTop: 9 }}>
+                  يمكنك إغلاق الصفحة — العملية تُكمل على خادمنا وتستأنف عند رجوعك.
+                </div>
+              </div>
+            )}
+
+            {resolveState === "failed" && <div style={s.noteRed}>{resolveError}</div>}
+
+            {/* الخطوات الثلاث تشرح الخدمة لمن يزور أول مرة */}
+            {resolveState !== "checking" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 9, marginTop: 2 }}>
+                {[
+                  "نفتح سلتك داخل تطبيق شي إن ونقرأ السعر كما تدفعه ترند تمامًا.",
+                  "تحدّد الكميات التي تريدها — رابط شي إن يرسل كل صنف بكمية واحدة دائمًا.",
+                  "تدفع بالدينار الليبي من محفظتك أو من بوابتك المفضّلة.",
+                ].map((t, i) => (
+                  <div key={i} style={{ display: "flex", gap: 11, alignItems: "flex-start" }}>
+                    <div style={{ width: 26, height: 26, borderRadius: 9, background: LINE, color: PRIMARY, fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      {["١", "٢", "٣"][i]}
+                    </div>
+                    <div style={{ fontSize: 12, lineHeight: 1.75, color: MUTED, paddingTop: 3 }}>{t}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ ...s.card, padding: "15px 16px" }}>
+              <div style={{ fontSize: 12.5, fontWeight: 800, marginBottom: 10 }}>تتبّع طلباً سابقاً</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  placeholder="رقم الطلب"
+                  value={trackId}
+                  onChange={e => setTrackId(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && handleTrack()}
+                  style={{ ...s.input, marginBottom: 0, flex: 1 }}
+                />
+                <button onClick={handleTrack} style={{ ...s.btn, width: "auto", padding: "0 22px", boxShadow: "none" }}>بحث</button>
+              </div>
             </div>
-          )}
+          </>)}
 
-          {resolveState === "failed" && (
-            <div style={{ ...s.noteRed, marginBottom: 0 }}>❌ {resolveError}</div>
-          )}
-        </div>{/* /بطاقة الرابط */}
+          {/* ────────── ٢ · السلة والكميات ────────── */}
+          {stage === "cart" && (<>
 
-          {/* SHEIN's share link always reports one of each item, whatever the
-              customer actually chose, so quantities are set here. */}
-          {resolveState === "verified" && cartItems.length > 0 && (
-            <div style={s.qtyBox}>
-              <div style={s.qtyTitle}>الكميات</div>
-              <p style={s.qtyNote}>
-                رابط المشاركة من شي إن يرسل كل صنف بكمية 1 دائماً. إن كنت تريد أكثر، حدّد الكمية هنا.
-              </p>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: 14, fontWeight: 800 }}>سلتك</span>
+              <span style={{ fontSize: 11.5, color: MUTED }}>عدّل الكميات ثم أعد الحساب</span>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
               {cartItems.map((it, i) => (
-                <div key={i} style={s.qtyRow}>
+                <div key={i} style={{ background: CARD, borderRadius: 16, padding: 11, display: "flex", gap: 11, alignItems: "center", boxShadow: "0 2px 10px rgba(22,19,31,0.05)" }}>
                   {it.image
-                    ? <img src={it.image} alt="" style={s.qtyThumb} />
-                    : <div style={{ ...s.qtyThumb, background: CHIP }} />}
+                    ? <img src={it.image} alt="" style={{ width: 58, height: 58, borderRadius: 12, objectFit: "cover", flexShrink: 0 }} />
+                    : <div style={{ width: 58, height: 58, borderRadius: 12, background: CHIP, flexShrink: 0 }} />}
 
-                  {/* Titles from SHEIN run to 160 characters. Shown in full they
-                      pushed one word per line on a phone and buried the price,
-                      so the name is clamped to two lines and opens on tap. */}
-                  <div style={s.qtyInfo}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       onClick={() => setOpenNames(o => ({ ...o, [i]: !o[i] }))}
-                      style={openNames[i] ? s.qtyNameFull : s.qtyName}
                       title="اضغط لعرض الاسم كاملاً"
+                      style={openNames[i] ? s.qtyNameFull : s.qtyName}
                     >
                       {it.name}
                     </div>
-                    <div style={s.qtyMeta}>
+                    <div style={{ display: "flex", gap: 7, alignItems: "center", marginTop: 5, flexWrap: "wrap" }}>
                       {it.variant ? <span style={s.qtyVariant}>{it.variant}</span> : null}
-                      <strong style={{ whiteSpace: "nowrap" }}>
-                        ${Number(it.unitRetailUsd ?? it.unitSaleUsd ?? 0).toFixed(2)}
-                      </strong>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: PRIMARY, whiteSpace: "nowrap" }}>
+                        {lydOfUsd(it.unitRetailUsd ?? it.unitSaleUsd).toFixed(0)} د.ل
+                      </span>
+                      {it.offerEndsIn ? (
+                        <span style={{ fontSize: 10.5, color: "var(--t-red-ink)", fontWeight: 700 }}>
+                          ينتهي العرض خلال {it.offerEndsIn}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
 
-                  <div style={s.qtyCtrl}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flexShrink: 0 }}>
                     <button
                       type="button"
-                      style={s.qtyBtn}
-                      onClick={() => { setExactPrice(null); setQuantities(q => ({ ...q, [i]: Math.min(20, Number(q[i] ?? 1) + 1) })); }}
+                      onClick={() => { setExactPrice(null); setQuantities(q => ({ ...q, [i]: Math.min(20, Number(q[i] ?? it.quantity ?? 1) + 1) })); }}
+                      style={{ ...s.stepBtn, color: PRIMARY }}
                     >+</button>
-                    <span style={s.qtyVal}>{quantities[i] ?? it.quantity ?? 1}</span>
+                    <span style={{ fontSize: 13, fontWeight: 800 }}>{quantities[i] ?? it.quantity ?? 1}</span>
                     <button
                       type="button"
-                      style={s.qtyBtn}
-                      onClick={() => { setExactPrice(null); setQuantities(q => ({ ...q, [i]: Math.max(1, Number(q[i] ?? 1) - 1) })); }}
+                      onClick={() => { setExactPrice(null); setQuantities(q => ({ ...q, [i]: Math.max(1, Number(q[i] ?? it.quantity ?? 1) - 1) })); }}
+                      style={{ ...s.stepBtn, color: MUTED }}
                     >−</button>
                   </div>
                 </div>
               ))}
-              {quantityChanged && !exactPrice && (
-                <>
-                  <p style={s.qtyWarn}>
-                    ⚠️ السعر الظاهر الآن بعد تعديل الكميات <strong>سعر تقديري</strong>، ولا يحسب
-                    السعر بالعروض. بعد تحديد كميتك اطلب <strong>إعادة حساب السلة</strong> ليظهر لك
-                    السعر النهائي.
+            </div>
+
+            {/* التنبيه بأن السعر تقديري يسبق زر إعادة الحساب مباشرة */}
+            {quantityChanged && exactPrice == null && (
+              <div style={{ background: CARD, border: "1.5px solid var(--t-accent-line)", borderRadius: 16, padding: "13px 15px" }}>
+                <div style={{ fontSize: 12, lineHeight: 1.85, color: MUTED }}>
+                  السعر أعلاه <strong style={{ color: PRIMARY }}>تقديري</strong> بعد تعديل الكميات. اطلب إعادة الحساب
+                  ليقرأ الموقع السعر النهائي من شي إن.
+                </div>
+                <button
+                  type="button"
+                  onClick={handleReprice}
+                  disabled={repricing}
+                  style={{ width: "100%", marginTop: 11, padding: 12, background: GRADIENT, color: "#fff", border: "none", borderRadius: 12, fontSize: 13.5, fontWeight: 800, fontFamily: "inherit", cursor: repricing ? "not-allowed" : "pointer", opacity: repricing ? 0.6 : 1, boxShadow: "0 4px 14px rgba(124,58,237,0.28)" }}
+                >
+                  {repricing ? "جاري إعادة حساب السلة..." : "إعادة حساب السلة"}
+                </button>
+                {repricing && (
+                  <p style={{ fontSize: 11, color: FAINT, lineHeight: 1.9, margin: "9px 0 0" }}>
+                    نضبط الكميات داخل سلتك على شي إن ونقرأ السعر منها — قد يستغرق ذلك دقيقتين إلى أربع.
                   </p>
-                  <button
-                    type="button"
-                    onClick={handleReprice}
-                    disabled={repricing}
-                    style={{ ...s.repriceBtn, opacity: repricing ? 0.6 : 1, cursor: repricing ? "not-allowed" : "pointer" }}
-                  >
-                    {repricing ? "⏳ جاري إعادة حساب السلة..." : "🔄 إعادة حساب السلة"}
-                  </button>
-                  {repricing && (
-                    <p style={s.qtyNote}>
-                      نضبط الكميات داخل سلتك على شي إن ونقرأ السعر منها — قد يستغرق ذلك دقيقتين إلى أربع.
-                      {queue?.ahead > 0 && !queue?.running
-                        ? ` أمامك ${queue.ahead} طلب في الانتظار.`
-                        : ""}
-                    </p>
-                  )}
-                  {repriceError && <div style={s.noteRed}>❌ {repriceError}</div>}
-                </>
+                )}
+                {repriceError && <div style={{ ...s.noteRed, marginBottom: 0 }}>{repriceError}</div>}
+              </div>
+            )}
+
+            {quantityChanged && exactPrice != null && (
+              <div style={s.qtyOk}>هذا هو السعر النهائي من شي إن بالكميات التي اخترتها.</div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => { setStage("link"); setResolveState("idle"); setCartItems([]); setPrice(null); setExactPrice(null); setQuantities({}); }}
+              style={{ ...s.ghostBtn, marginTop: 0 }}
+            >
+              سلة أخرى
+            </button>
+          </>)}
+
+          {/* ────────── ٣ · بياناتك ────────── */}
+          {stage === "details" && (<>
+
+            <div style={s.card}>
+              <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 13 }}>بياناتك</div>
+
+              <label style={s.label}>الاسم الكامل</label>
+              <input
+                placeholder="أدخل اسمك الكامل"
+                value={name}
+                onChange={e => { setName(e.target.value); setErrors(p => ({ ...p, name: null })); }}
+                style={{ ...s.input, ...(errors.name ? s.inputErr : {}) }}
+              />
+              {errors.name && <p style={s.err}>{errors.name}</p>}
+
+              <label style={s.label}>رقم الهاتف الليبي</label>
+              <input
+                placeholder="0913456789"
+                value={phone}
+                type="tel"
+                maxLength={13}
+                onChange={e => { setPhone(e.target.value); setErrors(p => ({ ...p, phone: null })); }}
+                style={{ ...s.input, ...(errors.phone ? s.inputErr : {}) }}
+              />
+              {errors.phone
+                ? <p style={s.err}>{errors.phone}</p>
+                : <p style={s.hint}>يبدأ بـ 091 أو 092 أو 093 أو 094 أو 095 — 10 أرقام</p>}
+            </div>
+
+            <div style={s.card}>
+              <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 13 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 10-14 0c0 5.5 7 11 7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
+                <span style={{ fontSize: 14, fontWeight: 800 }}>عنوان الاستلام</span>
+              </div>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  placeholder="المدينة"
+                  value={city}
+                  onChange={e => { setCity(e.target.value); setErrors(p => ({ ...p, city: null })); }}
+                  style={{ ...s.input, ...(errors.city ? s.inputErr : {}), flex: 1 }}
+                />
+                <input
+                  placeholder="المنطقة"
+                  value={area}
+                  onChange={e => { setArea(e.target.value); setErrors(p => ({ ...p, area: null })); }}
+                  style={{ ...s.input, ...(errors.area ? s.inputErr : {}), flex: 1 }}
+                />
+              </div>
+              {(errors.city || errors.area) && <p style={s.err}>{errors.city || errors.area}</p>}
+
+              <input
+                placeholder="أقرب نقطة دالة أو وصف إضافي (اختياري)"
+                value={addressNote}
+                onChange={e => setAddressNote(e.target.value)}
+                style={s.input}
+              />
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!navigator.geolocation) { setGeoState("unsupported"); return; }
+                  setGeoState("locating");
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      setGeo({
+                        lat: Number(pos.coords.latitude.toFixed(6)),
+                        lng: Number(pos.coords.longitude.toFixed(6)),
+                        accuracy: Math.round(pos.coords.accuracy),
+                      });
+                      setGeoState("ok");
+                    },
+                    () => setGeoState("denied"),
+                    { enableHighAccuracy: true, timeout: 15000 }
+                  );
+                }}
+                style={s.geoBtn}
+              >
+                {geoState === "locating" ? "جاري تحديد موقعك..."
+                  : geo ? "تم تحديد الموقع — اضغط للتحديث"
+                  : "حدّد موقعي على الخريطة"}
+              </button>
+
+              {geo && (
+                <p style={{ ...s.hint, margin: "8px 0 0" }}>
+                  موقع محفوظ (دقة ~{geo.accuracy} متر) —{" "}
+                  <a href={`https://www.google.com/maps?q=${geo.lat},${geo.lng}`} target="_blank" rel="noreferrer" style={{ color: PRIMARY, textDecoration: "underline" }}>
+                    عرضه على الخريطة
+                  </a>
+                </p>
               )}
-              {quantityChanged && exactPrice && (
-                <div style={s.qtyOk}>
-                  ✅ <strong>هذا هو السعر النهائي من شي إن بالكميات التي اخترتها.</strong>
-                  {/* SHEIN's own lines are kept for the admin panel, not shown
-                      here: the customer pays in dinars and a dollar breakdown
-                      only invites arithmetic. */}
+              {geoState === "denied" && <p style={{ ...s.hint, margin: "8px 0 0" }}>لم نتمكن من قراءة موقعك. اكتب العنوان أعلاه ويكفي.</p>}
+              {geoState === "unsupported" && <p style={{ ...s.hint, margin: "8px 0 0" }}>متصفحك لا يدعم تحديد الموقع. اكتب العنوان أعلاه ويكفي.</p>}
+            </div>
+
+            <div style={s.card}>
+              <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 13 }}>ملاحظات وصور (اختياري)</div>
+              <textarea
+                placeholder="اكتب أي ملاحظة تخص طلبك..."
+                value={orderNote}
+                onChange={e => setOrderNote(e.target.value)}
+                rows={3}
+                style={{ ...s.input, resize: "vertical", minHeight: 70, lineHeight: 1.7 }}
+              />
+              <p style={{ ...s.hint, margin: "-6px 0 10px" }}>
+                إن كان لديك منتج تريد تعديله أو اختياره بشكل معيّن، أرسل صورته مع الشرح الذي تريده.
+              </p>
+
+              <label style={s.uploadBox}>
+                <input
+                  type="file" accept="image/*" multiple style={{ display: "none" }}
+                  onChange={e => {
+                    const picked = Array.from(e.target.files || []);
+                    if (!picked.length) return;
+                    setImages(prev => [...prev, ...picked].slice(0, 6));
+                    setErrors(p => ({ ...p, image: null, price: null }));
+                  }}
+                />
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={images.length ? PRIMARY : FAINT} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="15" rx="2.5" /><circle cx="8.5" cy="10.5" r="1.8" /><path d="M21 16l-5-5-7 7" /></svg>
+                <span style={{ fontSize: 12.5, color: images.length ? PRIMARY : FAINT, fontWeight: images.length ? 700 : 500 }}>
+                  {images.length ? `${images.length} صورة مرفقة — أضف المزيد` : "إضافة صور (حتى 6)"}
+                </span>
+              </label>
+
+              {images.length > 0 && (
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
+                  {images.map((f, i) => (
+                    <div key={i} style={{ position: "relative" }}>
+                      <img
+                        src={URL.createObjectURL(f)}
+                        onClick={() => setPreview(URL.createObjectURL(f))}
+                        style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 12, cursor: "pointer", border: `1.5px solid ${LINE}` }}
+                      />
+                      <button type="button" onClick={() => setImages(prev => prev.filter((_, k) => k !== i))} style={s.imgRemove} aria-label="حذف الصورة">×</button>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
-          )}
-          {/* ── بطاقة بياناتك ── */}
-          <div style={{ background: CARD, borderRadius: 18, padding: "18px 16px", boxShadow: "0 2px 10px rgba(22,19,31,0.05)", marginTop: 14 }}>
-          <div style={{ fontWeight: 900, fontSize: 14.5, marginBottom: 12 }}>بياناتك وعنوان الاستلام</div>
 
-          {/* Name */}
-          <label style={s.label}>الاسم الكامل</label>
-          <input
-            placeholder="أدخل اسمك الكامل"
-            value={name}
-            onChange={e => { setName(e.target.value); setErrors(p => ({ ...p, name: null })); }}
-            style={{ ...s.input, ...(errors.name ? s.inputErr : {}) }}
-          />
-          {errors.name && <p style={s.err}>⚠️ {errors.name}</p>}
-
-          {/* Phone */}
-          <label style={s.label}>رقم الهاتف الليبي</label>
-          <input
-            placeholder="0913456789"
-            value={phone}
-            type="tel"
-            maxLength={13}
-            onChange={e => { setPhone(e.target.value); setErrors(p => ({ ...p, phone: null })); }}
-            style={{ ...s.input, ...(errors.phone ? s.inputErr : {}) }}
-          />
-          {errors.phone
-            ? <p style={s.err}>⚠️ {errors.phone}</p>
-            : <p style={s.hint}>📞 يبدأ بـ 091 أو 092 أو 093 أو 094 أو 095 — 10 أرقام</p>
-          }
-
-          {/* Delivery address. Typed first, because a pin alone tells the driver
-              nothing on a street with no numbers; the map is an extra, not a
-              replacement. */}
-          <label style={s.label}>عنوان الاستلام</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <input
-              placeholder="المدينة"
-              value={city}
-              onChange={e => { setCity(e.target.value); setErrors(p => ({ ...p, city: null })); }}
-              style={{ ...s.input, ...(errors.city ? s.inputErr : {}), flex: 1 }}
-            />
-            <input
-              placeholder="المنطقة"
-              value={area}
-              onChange={e => { setArea(e.target.value); setErrors(p => ({ ...p, area: null })); }}
-              style={{ ...s.input, ...(errors.area ? s.inputErr : {}), flex: 1 }}
-            />
-          </div>
-          {(errors.city || errors.area) && <p style={s.err}>⚠️ {errors.city || errors.area}</p>}
-
-          <input
-            placeholder="أقرب نقطة دالة أو وصف إضافي (اختياري)"
-            value={addressNote}
-            onChange={e => setAddressNote(e.target.value)}
-            style={s.input}
-          />
-
-          <button
-            type="button"
-            onClick={() => {
-              if (!navigator.geolocation) { setGeoState("unsupported"); return; }
-              setGeoState("locating");
-              navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                  setGeo({
-                    lat: Number(pos.coords.latitude.toFixed(6)),
-                    lng: Number(pos.coords.longitude.toFixed(6)),
-                    accuracy: Math.round(pos.coords.accuracy),
-                  });
-                  setGeoState("ok");
-                },
-                () => setGeoState("denied"),
-                { enableHighAccuracy: true, timeout: 15000 }
-              );
-            }}
-            style={s.geoBtn}
-          >
-            {geoState === "locating" ? "⏳ جاري تحديد موقعك..."
-              : geo ? "📍 تم تحديد الموقع — اضغط للتحديث"
-              : "📍 حدّد موقعي على الخريطة"}
-          </button>
-
-          {geo && (
-            <p style={s.hint}>
-              ✅ موقع محفوظ (دقة ~{geo.accuracy} متر) —{" "}
-              <a
-                href={`https://www.google.com/maps?q=${geo.lat},${geo.lng}`}
-                target="_blank" rel="noreferrer"
-                style={{ color: PRIMARY, textDecoration: "underline" }}
-              >عرضه على الخريطة</a>
-            </p>
-          )}
-          {geoState === "denied" && (
-            <p style={s.hint}>لم نتمكن من قراءة موقعك. اكتب العنوان أعلاه ويكفي.</p>
-          )}
-          {geoState === "unsupported" && (
-            <p style={s.hint}>متصفحك لا يدعم تحديد الموقع. اكتب العنوان أعلاه ويكفي.</p>
-          )}
-
-          {/* One box: a note the customer writes, and as many reference photos
-              as they need. Replaces the old single-screenshot upload, which
-              stopped being useful once the price came from the cart link. */}
-          <label style={s.label}>ملاحظات وصور (اختياري)</label>
-          <textarea
-            placeholder="اكتب أي ملاحظة تخص طلبك..."
-            value={orderNote}
-            onChange={e => setOrderNote(e.target.value)}
-            rows={3}
-            style={{ ...s.input, resize: "vertical", minHeight: 70, lineHeight: 1.7 }}
-          />
-          <p style={s.hint}>
-            إن كان لديك منتج تريد تعديله أو اختياره بشكل معيّن، أرسل صورته مع الكتابة
-            أو الشكل أو الإضافة التي تريدها بوضوح.
-          </p>
-
-          <label style={s.uploadBox}>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              style={{ display: "none" }}
-              onChange={e => {
-                const picked = Array.from(e.target.files || []);
-                if (!picked.length) return;
-                setImages(prev => [...prev, ...picked].slice(0, 6));
-                setErrors(p => ({ ...p, image: null, price: null }));
-              }}
-            />
-            <span style={{ fontSize: 26 }}>📷</span>
-            <span style={{ fontSize: 13, color: images.length ? PRIMARY : FAINT, fontWeight: images.length ? 600 : 400 }}>
-              {images.length ? `${images.length} صورة مرفقة — أضف المزيد` : "إضافة صور (حتى 6)"}
-            </span>
-          </label>
-
-          {images.length > 0 && (
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10 }}>
-              {images.map((f, i) => (
-                <div key={i} style={{ position: "relative" }}>
-                  <img
-                    src={URL.createObjectURL(f)}
-                    onClick={() => setPreview(URL.createObjectURL(f))}
-                    style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 10, cursor: "pointer", border: "2px solid #ede9fe" }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setImages(prev => prev.filter((_, k) => k !== i))}
-                    style={s.imgRemove}
-                    aria-label="حذف الصورة"
-                  >×</button>
-                </div>
-              ))}
-            </div>
-          )}
-          </div>{/* /بطاقة بياناتك */}
-
-          {/* OCR status */}
-          {loading && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0", color: PRIMARY, fontSize: 13 }}>
-              <span style={{ width: 16, height: 16, borderRadius: "50%", border: `2px solid ${PRIMARY}`, borderTopColor: "transparent", animation: "spin 0.8s linear infinite", display: "inline-block" }} />
-              جاري قراءة الصورة...
-            </div>
-          )}
-
-          {errors.price && <p style={s.err}>⚠️ {errors.price}</p>}
-          {/* One number, in the currency the customer actually pays in. The
-              commission and the dollar rate are ours to know, not theirs to
-              read: showing them invited arithmetic instead of a decision. */}
-          {price > 0 && (
-            <div style={s.priceBox}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div>
-                  <div style={{ fontSize: 11.5, color: MUTED, marginBottom: 3 }}>الإجمالي المستحق</div>
-                  <div style={{ fontSize: 11, color: FAINT }}>
-                    {itemCount ? `${itemCount} صنف · ` : ""}الشحن إلى ليبيا يُحسب لاحقاً
-                  </div>
-                </div>
-                <div style={{ textAlign: "left" }}>
-                  <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-0.8px", lineHeight: 1, color: INK }}>
-                    {priceLYD.toFixed(0)}
-                  </div>
-                  <div style={{ fontSize: 11, color: MUTED }}>د.ل</div>
+            {/* ملخّص الفاتورة قبل الدفع */}
+            <div style={{ ...s.card, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ fontSize: 11.5, color: MUTED, marginBottom: 3 }}>المبلغ المستحق</div>
+                <div style={{ fontSize: 11, color: FAINT }}>
+                  {itemCount ? `${itemCount} صنف · ` : ""}الشحن إلى ليبيا يُحسب لاحقاً
                 </div>
               </div>
-              <p style={{ fontSize: 11.5, color: FAINT, margin: "12px 0 0", lineHeight: 1.85 }}>
-                السعر شامل قيمة المنتجات اليوم بسعر المصرف. الأسعار غير ثابتة نظراً لتغيّر
-                العروض وسعر صرف الدينار.
-              </p>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: "-0.8px", lineHeight: 1 }}>{priceLYD.toFixed(0)}</div>
+                <div style={{ fontSize: 11, color: MUTED }}>د.ل</div>
+              </div>
             </div>
-          )}
 
-          {/* Submit */}
-          <button
-            onClick={() => { if (validate()) setShowPayment(true); }}
-            disabled={sending || loading}
-            style={{ ...s.btn, marginTop: 20, opacity: (sending || loading) ? 0.7 : 1, cursor: (sending || loading) ? "not-allowed" : "pointer" }}
-          >
-            {sending ? "⏳ جاري الإرسال..." : "إرسال الطلب ←"}
-          </button>
-
-          {/* Track */}
-          <div style={{ background: CARD, borderRadius: 18, padding: "16px", boxShadow: "0 2px 10px rgba(22,19,31,0.05)", marginTop: 14 }}>
-            <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 10 }}>تتبّع طلباً سابقاً</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                placeholder="أدخل رقم الطلب"
-                value={trackId}
-                onChange={e => setTrackId(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && handleTrack()}
-                style={{ ...s.input, marginBottom: 0, flex: 1 }}
-              />
-              <button onClick={handleTrack} style={{ ...s.btn, width: "auto", padding: "0 22px", boxShadow: "none" }}>
-                بحث
-              </button>
-            </div>
-          </div>
-
-        </div>{/* /الحشو */}
+            {errors.price && <div style={s.noteRed}>{errors.price}</div>}
+          </>)}
+        </div>
       </div>
 
-      {/* ── شريط التنقّل السفلي ── */}
+      {/* ══ شريط الإجراء الملتصق: فعل واحد واضح في كل شاشة ══ */}
+      <div className="action-bar" style={{
+        position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 64, zIndex: 55,
+        background: CARD, boxShadow: "0 -4px 20px rgba(22,19,31,0.06)",
+      }}>
+        <div style={{ maxWidth: 480, margin: "0 auto", padding: "12px 20px 14px" }}>
+          {stage === "link" && (
+            <button
+              type="button"
+              onClick={handleResolveCart}
+              disabled={resolveState === "checking" || !cartLink.trim()}
+              style={{
+                ...s.btn,
+                opacity: (resolveState === "checking" || !cartLink.trim()) ? 0.55 : 1,
+                cursor:  (resolveState === "checking" || !cartLink.trim()) ? "not-allowed" : "pointer",
+              }}
+            >
+              {resolveState === "checking"
+                ? `جاري التحقق... ${elapsed > 0 ? elapsed + " ثانية" : ""}`
+                : "تحقّق من السلة والسعر"}
+            </button>
+          )}
+
+          {stage === "cart" && (
+            <button
+              type="button"
+              onClick={() => setStage("details")}
+              disabled={quantityChanged && exactPrice == null}
+              style={{
+                ...s.btn, background: SOLID, color: ON_SOLID, boxShadow: "none",
+                opacity: (quantityChanged && exactPrice == null) ? 0.5 : 1,
+                cursor:  (quantityChanged && exactPrice == null) ? "not-allowed" : "pointer",
+              }}
+            >
+              متابعة الطلب · {priceLYD.toFixed(0)} د.ل
+            </button>
+          )}
+
+          {stage === "details" && (
+            <button
+              type="button"
+              onClick={() => { if (validate()) setShowPayment(true); }}
+              disabled={sending}
+              style={{ ...s.btn, opacity: sending ? 0.6 : 1, cursor: sending ? "not-allowed" : "pointer" }}
+            >
+              {sending ? "جاري الإرسال..." : `ادفع ${priceLYD.toFixed(0)} د.ل`}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ══ شريط التنقّل السفلي ══ */}
       <nav className="bottom-nav" style={{
         position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0, zIndex: 60,
         background: CARD, borderTop: `1px solid ${LINE}`,
-        boxShadow: "0 -4px 20px rgba(22,19,31,0.06)",
       }}>
-        <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", justifyContent: "space-around", padding: "9px 16px 14px" }}>
+        <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", justifyContent: "space-around", padding: "8px 16px 10px" }}>
           {[
             { href: "/",          label: "طلب جديد", on: true,  path: <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /> },
             { href: "/my-orders", label: "طلباتي",   on: false, path: <><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 01-8 0" /></> },
-            { href: "/account",   label: "المحفظة",  on: false, path: <><rect x="2" y="6" width="20" height="13" rx="2" /><path d="M2 10h20" /></> },
+            { href: "/wallet",    label: "المحفظة",  on: false, path: <><rect x="2" y="6" width="20" height="13" rx="2" /><path d="M2 10h20" /></> },
             { href: authUser ? "/account" : "/login", label: authUser ? "حسابي" : "دخول", on: false, path: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1" /></> },
           ].map((it, i) => (
             <a key={i} href={it.href} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: it.on ? PRIMARY : FAINT }}>
@@ -1101,6 +1147,7 @@ export default function OrderPage() {
           ))}
         </div>
       </nav>
+
 
       {/* ── Image Preview Modal ── */}
       {preview && (
@@ -1347,6 +1394,26 @@ export default function OrderPage() {
               <span style={s.payAmount}>{priceLYD.toFixed(0)} د.ل</span>
             </button>
 
+            {/* عنوان الاستلام أمام عينه لحظة الدفع، كما في التصميم. */}
+            {(city.trim() || area.trim()) && (
+              <div style={{ background: CARD, borderRadius: 16, padding: "13px 15px", border: `1.5px solid ${LINE}`, marginTop: 4 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 7 }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s7-5.5 7-11a7 7 0 10-14 0c0 5.5 7 11 7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
+                  <span style={{ fontSize: 12.5, fontWeight: 800 }}>عنوان الاستلام</span>
+                </div>
+                <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.85 }}>
+                  {[city.trim(), area.trim()].filter(Boolean).join(" — ")}
+                  {(addressNote.trim() || geo) && (
+                    <><br /><span style={{ color: FAINT }}>
+                      {addressNote.trim()}
+                      {addressNote.trim() && geo ? " · " : ""}
+                      {geo ? "موقع محدّد على الخريطة" : ""}
+                    </span></>
+                  )}
+                </div>
+              </div>
+            )}
+
             <button onClick={() => setShowPayment(false)} style={s.ghostBtn}>
               إغلاق
             </button>
@@ -1362,6 +1429,17 @@ export default function OrderPage() {
 // One vocabulary, defined once: white cards on #f7f7fb, 16–18px radii, a soft
 // single shadow instead of borders, and violet reserved for what is actionable.
 const s = {
+  // البطاقة البيضاء: شكل واحد يتكرر في كل الشاشات.
+  card: {
+    background: CARD, borderRadius: 18, padding: 15,
+    boxShadow: "0 2px 10px rgba(22,19,31,0.05)",
+  },
+  // زر الكمية: مربّع 28 داخل عمود رأسي، كما في التصميم.
+  stepBtn: {
+    width: 28, height: 28, border: "none", background: CHIP, borderRadius: 9,
+    fontSize: 16, lineHeight: 1, cursor: "pointer", fontFamily: "inherit",
+    padding: 0, fontWeight: 700,
+  },
   label: {
     display: "block",
     fontSize: 12.5,

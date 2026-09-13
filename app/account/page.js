@@ -8,6 +8,16 @@ import AddressManager from "@/components/AddressManager";
 const GRAD   = "linear-gradient(135deg,#7c3aed,#3b82f6)";
 const PURPLE = "#7c3aed";
 
+// مفردات التصميم نفسها في كل الشاشات.
+const GRAD_HEAD = "linear-gradient(150deg,#7c3aed 0%,#5b4bf5 45%,#3b82f6 100%)";
+const PAGE      = "var(--t-page)";
+const CARD      = "var(--t-card)";
+const INK       = "var(--t-ink)";
+const MUTED     = "var(--t-muted)";
+const FAINT     = "var(--t-faint)";
+const LINE      = "var(--t-line)";
+const CHIP      = "var(--t-chip)";
+
 const PAY_LABEL = {
   wallet: "المحفظة", mobicash: "موبي كاش", edfali: "ادفع لي",
   moamalat: "معاملات", masarafi: "مصرفي باي", yusor: "يسر باي",
@@ -33,12 +43,12 @@ function statusLabel(s) {
   }[s] || s || "جديد";
 }
 function statusColor(s) {
-  if (["delivered","completed"].includes(s)) return { color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" };
-  if (["paid","confirmed"].includes(s))       return { color: "#7c3aed", bg: "#f5f3ff", border: "#e9d5ff" };
-  if (["shipped"].includes(s))                return { color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe" };
-  if (["ordered","processing"].includes(s))   return { color: "#d97706", bg: "#fffbeb", border: "#fde68a" };
-  if (["cancelled"].includes(s))              return { color: "#ef4444", bg: "#fff5f5", border: "#fecaca" };
-  return { color: "#6b7280", bg: "#f9fafb", border: "#e5e7eb" };
+  if (["delivered","completed"].includes(s)) return { color: "var(--t-green-ink)", bg: "var(--t-green-bg)", border: "var(--t-green-line)" };
+  if (["paid","confirmed"].includes(s))       return { color: "#a78bfa", bg: "var(--t-chip)", border: "var(--t-line)" };
+  if (["shipped"].includes(s))                return { color: "var(--t-blue-ink)", bg: "var(--t-blue-bg)", border: "var(--t-blue-line)" };
+  if (["ordered","processing"].includes(s))   return { color: "var(--t-amber-ink)", bg: "var(--t-amber-bg)", border: "var(--t-amber-line)" };
+  if (["cancelled"].includes(s))              return { color: "var(--t-red-ink)", bg: "var(--t-red-bg)", border: "var(--t-red-line)" };
+  return { color: "var(--t-muted)", bg: "var(--t-chip)", border: "var(--t-line)" };
 }
 function fmtDate(d) {
   if (!d) return "—";
@@ -52,15 +62,15 @@ function OrderCard({ order }) {
 
   return (
     <div style={{
-      background: "#fff", borderRadius: 16, overflow: "hidden",
-      boxShadow: "0 2px 12px rgba(0,0,0,0.06)", border: "1px solid #f3f4f6",
+      background: CARD, borderRadius: 16, overflow: "hidden",
+      boxShadow: "0 2px 10px rgba(22,19,31,0.05)",
       borderRight: `3px solid ${sc.color}`, display: "flex",
     }}>
       {/* صورة مصغرة */}
       {order.image_url ? (
         <img src={order.image_url} style={{ width: 88, minWidth: 88, objectFit: "cover", display: "block" }} alt="" />
       ) : (
-        <div style={{ width: 88, minWidth: 88, background: "linear-gradient(135deg,#f5f3ff,#eff6ff)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>
+        <div style={{ width: 88, minWidth: 88, background: CHIP, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26 }}>
           🛍️
         </div>
       )}
@@ -69,7 +79,7 @@ function OrderCard({ order }) {
       <div style={{ flex: 1, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
         {/* رقم + حالة */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-          <span style={{ fontFamily: "monospace", fontSize: 11, color: "#9ca3af" }}>#{order.id.slice(0, 8)}</span>
+          <span style={{ fontFamily: "monospace", fontSize: 11, color: FAINT }}>#{order.id.slice(0, 8)}</span>
           <span style={{ fontSize: 11, fontWeight: 700, color: sc.color, background: sc.bg, border: `1px solid ${sc.border}`, padding: "2px 10px", borderRadius: 20, whiteSpace: "nowrap" }}>
             {statusLabel(order.status)}
           </span>
@@ -77,20 +87,20 @@ function OrderCard({ order }) {
 
         {/* السعر — بالدينار فقط: العميل يدفع بالدينار، والدولار تفصيل داخلي */}
         <div style={{ display: "flex", alignItems: "baseline", gap: 5 }}>
-          <span style={{ fontSize: 17, fontWeight: 800, color: "#1e1b4b" }}>
+          <span style={{ fontSize: 17, fontWeight: 800, color: INK }}>
             {lydOf(order) != null ? lydOf(order).toFixed(0) : "—"}
           </span>
-          {lydOf(order) != null && <span style={{ fontSize: 11, color: "#9ca3af" }}>د.ل</span>}
+          {lydOf(order) != null && <span style={{ fontSize: 11, color: FAINT }}>د.ل</span>}
           {!isPaid(order) && (
-            <span style={{ fontSize: 10.5, fontWeight: 700, color: "#b45309", background: "#fffbeb",
-                           border: "1px solid #fde68a", borderRadius: 20, padding: "1px 8px", marginInlineStart: 4 }}>
+            <span style={{ fontSize: 10.5, fontWeight: 700, color: "var(--t-amber-ink)", background: "var(--t-amber-bg)",
+                           border: "1px solid var(--t-amber-line)", borderRadius: 20, padding: "1px 8px", marginInlineStart: 4 }}>
               بانتظار الدفع
             </span>
           )}
         </div>
 
         {/* ما يحتاجه العميل ليتعرّف على طلبه دون فتح صفحة أخرى */}
-        <div style={{ fontSize: 11, color: "#6b7280", lineHeight: 1.9 }}>
+        <div style={{ fontSize: 11, color: MUTED, lineHeight: 1.9 }}>
           🕐 {fmtDate(order.created_at)}
           {order.itemCount ? <> · 🧾 {order.itemCount} صنف</> : null}
           {order.payMethod ? <> · 💳 {order.payMethod}</> : null}
@@ -213,62 +223,72 @@ export default function AccountPage() {
   const name      = user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "مستخدم";
 
   return (
-    <div style={{ minHeight: "calc(100vh - 60px)", padding: "24px 16px", direction: "rtl", background: "transparent" }}>
+    <div style={{ minHeight: "100vh", background: PAGE, color: INK, direction: "rtl", paddingBottom: 96 }}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}} @keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
-      <div style={{ maxWidth: 540, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
+      <div className="form-inner" style={{ maxWidth: 480, margin: "0 auto" }}>
 
-        {/* ── بطاقة المستخدم ── */}
-        <div style={{ background: "#fff", borderRadius: 20, padding: "20px 24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)", border: "1px solid #f3f4f6" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div onClick={() => !uploadingAvatar && fileRef.current?.click()} title="تغيير الصورة"
-              style={{ position: "relative", cursor: "pointer", flexShrink: 0 }}>
+        {/* ── الترويسة: الهوية نفسها، وصورة الحساب تعيش داخل التدرّج ── */}
+        <div style={{ background: GRAD_HEAD, color: "#fff", padding: "18px 20px 24px", position: "relative", overflow: "hidden" }}>
+          <div style={{ position: "absolute", insetInlineEnd: -40, top: -50, width: 170, height: 170, borderRadius: "50%", background: "rgba(255,255,255,0.09)" }} />
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
+            <a href="/" style={{ fontWeight: 900, fontSize: 18, color: "#fff", textDecoration: "none" }}>ترند · شي إن</a>
+            <button onClick={logout} style={{ background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 13px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+              خروج
+            </button>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 22, position: "relative" }}>
+            <div onClick={() => !uploadingAvatar && fileRef.current?.click()} title="تغيير الصورة" style={{ position: "relative", cursor: "pointer", flexShrink: 0 }}>
               {avatarUrl ? (
-                <img src={avatarUrl} alt="avatar" style={{ width: 56, height: 56, borderRadius: "50%", objectFit: "cover", border: "2px solid #e9d5ff", opacity: uploadingAvatar ? 0.5 : 1 }} />
+                <img src={avatarUrl} alt="" style={{ width: 62, height: 62, borderRadius: "50%", objectFit: "cover", border: "2.5px solid rgba(255,255,255,0.45)", opacity: uploadingAvatar ? 0.5 : 1 }} />
               ) : (
-                <div style={{ width: 56, height: 56, borderRadius: "50%", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: "#fff", fontWeight: 800, opacity: uploadingAvatar ? 0.5 : 1 }}>
+                <div style={{ width: 62, height: 62, borderRadius: "50%", background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, fontWeight: 900, opacity: uploadingAvatar ? 0.5 : 1 }}>
                   {name[0]?.toUpperCase()}
                 </div>
               )}
-              <span style={{ position: "absolute", bottom: -2, left: -2, width: 22, height: 22, borderRadius: "50%", background: "#fff", border: "1px solid #e5e7eb", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}>
-                {uploadingAvatar ? "⏳" : "📷"}
+              <span style={{ position: "absolute", bottom: -2, insetInlineStart: -2, width: 22, height: 22, borderRadius: "50%", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }}>
+                {uploadingAvatar
+                  ? <span style={{ width: 11, height: 11, borderRadius: "50%", border: `2px solid ${PURPLE}`, borderTopColor: "transparent", animation: "spin 0.8s linear infinite" }} />
+                  : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={PURPLE} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="6" width="18" height="14" rx="2.5" /><circle cx="12" cy="13" r="3.2" /></svg>}
               </span>
               <input ref={fileRef} type="file" accept="image/*" onChange={uploadAvatar} style={{ display: "none" }} />
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 800, fontSize: 16, color: "#1e1b4b" }}>{name}</div>
-              <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2 }}>{user?.email}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 900, fontSize: 19, letterSpacing: "-0.4px" }}>{name}</div>
+              <div style={{ fontSize: 12, opacity: 0.82, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.email}</div>
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-            <a href="/" style={{ flex: 1, padding: "10px", borderRadius: 10, background: GRAD, color: "#fff", fontWeight: 700, fontSize: 13, textDecoration: "none", textAlign: "center", boxShadow: "0 3px 10px rgba(124,58,237,0.3)" }}>
-              + طلب جديد
+          <div style={{ display: "flex", gap: 6, marginTop: 14, flexWrap: "wrap", position: "relative" }}>
+            <span style={{ fontSize: 11, background: "rgba(255,255,255,0.16)", borderRadius: 20, padding: "4px 11px" }}>
+              {orders.length} طلب
+            </span>
+            <a href="/wallet" style={{ fontSize: 11, background: "rgba(255,255,255,0.16)", borderRadius: 20, padding: "4px 11px", color: "#fff", textDecoration: "none" }}>
+              المحفظة ←
             </a>
-            <button onClick={logout} style={{ flex: 1, padding: "10px", borderRadius: 10, border: "1.5px solid #fecaca", background: "#fff5f5", color: "#ef4444", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
-              تسجيل خروج
-            </button>
           </div>
         </div>
 
-        {/* ── العناوين ── */}
-        <div style={{ background: "#fff", borderRadius: 20, padding: "20px 24px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)", border: "1px solid #f3f4f6" }}>
-          <AddressManager />
-        </div>
+        <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 13 }}>
 
-        {/* ── قائمة الطلبات ── */}
-        <div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <h3 style={{ fontSize: 15, fontWeight: 800, color: "#1e1b4b", margin: 0 }}>📦 طلباتي</h3>
-            {orders.length > 0 && <span style={{ fontSize: 12, color: "#9ca3af" }}>{orders.length} طلب</span>}
+          {/* ── العناوين ── */}
+          <div style={{ background: CARD, borderRadius: 18, padding: 15, boxShadow: "0 2px 10px rgba(22,19,31,0.05)" }}>
+            <AddressManager />
+          </div>
+
+          {/* ── قائمة الطلبات ── */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
+            <span style={{ fontSize: 14, fontWeight: 800 }}>طلباتي</span>
+            <a href="/my-orders" style={{ fontSize: 11.5, color: PURPLE, textDecoration: "none", fontWeight: 700 }}>عرض الكل ←</a>
           </div>
 
           {orders.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "50px 20px", background: "#fff", borderRadius: 18, border: "1px solid #f3f4f6" }}>
-              <div style={{ fontSize: 44, marginBottom: 10 }}>📭</div>
-              <p style={{ fontWeight: 700, color: "#1e1b4b", marginBottom: 4 }}>لا توجد طلبات بعد</p>
-              <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 18 }}>ابدأ بطلبك الأول من شي إن</p>
-              <a href="/" style={{ padding: "10px 28px", borderRadius: 12, background: GRAD, color: "#fff", fontWeight: 700, fontSize: 13, textDecoration: "none" }}>
+            <div style={{ textAlign: "center", padding: "48px 20px", background: CARD, borderRadius: 18, boxShadow: "0 2px 10px rgba(22,19,31,0.05)" }}>
+              <p style={{ fontWeight: 800, marginBottom: 6 }}>لا توجد طلبات بعد</p>
+              <p style={{ fontSize: 12.5, color: FAINT, marginBottom: 20 }}>ابدأ بطلبك الأول من شي إن</p>
+              <a href="/" style={{ display: "inline-block", padding: "13px 28px", borderRadius: 14, background: GRAD_HEAD, color: "#fff", fontWeight: 800, fontSize: 14, textDecoration: "none", boxShadow: "0 6px 18px rgba(124,58,237,0.28)" }}>
                 إنشاء طلب
               </a>
             </div>
@@ -282,8 +302,27 @@ export default function AccountPage() {
             </div>
           )}
         </div>
-
       </div>
+
+      {/* ── شريط التنقّل السفلي ── */}
+      <nav className="bottom-nav" style={{
+        position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0, zIndex: 60,
+        background: CARD, borderTop: `1px solid ${LINE}`,
+      }}>
+        <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", justifyContent: "space-around", padding: "8px 16px 10px" }}>
+          {[
+            { href: "/",          label: "طلب جديد", on: false, path: <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /> },
+            { href: "/my-orders", label: "طلباتي",   on: false, path: <><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" /><path d="M3 6h18" /><path d="M16 10a4 4 0 01-8 0" /></> },
+            { href: "/wallet",    label: "المحفظة",  on: false, path: <><rect x="2" y="6" width="20" height="13" rx="2" /><path d="M2 10h20" /></> },
+            { href: "/account",   label: "حسابي",    on: true,  path: <><circle cx="12" cy="8" r="4" /><path d="M4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1" /></> },
+          ].map((it, i) => (
+            <a key={i} href={it.href} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: it.on ? PURPLE : FAINT }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={it.on ? 2 : 1.8} strokeLinecap="round" strokeLinejoin="round">{it.path}</svg>
+              <span style={{ fontSize: 10, fontWeight: it.on ? 800 : 600 }}>{it.label}</span>
+            </a>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }
