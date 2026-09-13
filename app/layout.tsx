@@ -24,15 +24,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" className={cairo.className}>
-      <body
-        className="min-h-full flex flex-col"
-        style={{
-          backgroundImage: "url('/bg.png')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundAttachment: "fixed",
-        }}
-      >
+      {/* صورة الخلفية حُذفت: التصميم أرضية واحدة مسطّحة، والرسوم خلف
+          البطاقات كانت تشوّش لا تزيّن. */}
+      <body className="min-h-full flex flex-col" style={{ background: "var(--t-page)", color: "var(--t-ink)", margin: 0 }}>
         <Header />
         {children}
       </body>

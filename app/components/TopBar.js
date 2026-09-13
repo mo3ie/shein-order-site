@@ -1,4 +1,5 @@
 "use client";
+import { useTheme } from "@/lib/theme";
 
 /**
  * شريط الكمبيوتر العلوي.
@@ -15,6 +16,7 @@ const SOLID   = "var(--t-solid)";
 const ON_SOLID = "var(--t-on-solid)";
 
 export default function TopBar({ active, lang, setLang, t, user }) {
+  const { resolved, toggle } = useTheme();
   const links = [
     { key: "order",  href: "/",          label: t("طلب جديد") },
     { key: "orders", href: "/my-orders", label: t("طلباتي") },
@@ -42,6 +44,16 @@ export default function TopBar({ active, lang, setLang, t, user }) {
       </div>
 
       <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={t("الوضع الداكن")}
+          style={{ width: 32, height: 32, borderRadius: "50%", border: `1px solid ${LINE}`, background: "none", color: MUTED, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+        >
+          {resolved === "dark"
+            ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19" /></svg>
+            : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.8A8.5 8.5 0 1111.2 3a6.6 6.6 0 009.8 9.8z" /></svg>}
+        </button>
         <button
           type="button"
           onClick={() => setLang(lang === "ar" ? "en" : "ar")}

@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useLang, useIsDesktop } from "@/lib/i18n";
+import { useTheme } from "@/lib/theme";
 
 const PRIMARY   = "#7c3aed";
 const GRADIENT  = "linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%)";
@@ -90,6 +91,7 @@ export default function OrderPage() {
   const [stage,             setStage]             = useState("link"); // link|cart|details
   const { lang, setLang, t, dir } = useLang();
   const isDesktop = useIsDesktop();
+  const { resolved, toggle: toggleTheme } = useTheme();
 
   // A SHEIN share link carries no quantities: three of one shirt arrive as one
   // line of one, and the same shirt in another size arrives as its own line. So
@@ -676,6 +678,16 @@ export default function OrderPage() {
         <span style={{ fontWeight: 900, fontSize: 18 }}>{t("ترند · شي إن")}</span>
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <button
+          type="button"
+          onClick={toggleTheme}
+          aria-label={t("الوضع الداكن")}
+          style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0 }}
+        >
+          {resolved === "dark"
+            ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19" /></svg>
+            : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.8A8.5 8.5 0 1111.2 3a6.6 6.6 0 009.8 9.8z" /></svg>}
+        </button>
         <button
           type="button"
           onClick={() => setLang(lang === "ar" ? "en" : "ar")}

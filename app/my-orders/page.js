@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useLang, useIsDesktop } from "@/lib/i18n";
+import { useTheme } from "@/lib/theme";
 import TopBar from "@/app/components/TopBar";
 
 const GRAD   = "linear-gradient(135deg,#7c3aed,#3b82f6)";
@@ -191,6 +192,7 @@ function OrderCard({ order }) {
 export default function MyOrdersPage() {
   const { lang, setLang, t, dir } = useLang();
   const isDesktop = useIsDesktop();
+  const { resolved: themeMode, toggle: toggleTheme } = useTheme();
   const [user,    setUser]    = useState(undefined); // undefined = loading
   const [orders,  setOrders]  = useState([]);
   const [loading, setLoading] = useState(false);
@@ -269,6 +271,7 @@ export default function MyOrdersPage() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative" }}>
             <a href="/" style={{ fontWeight: 900, fontSize: 17, color: "#fff", textDecoration: "none" }}>{t("ترند · شي إن")}</a>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button type="button" onClick={toggleTheme} aria-label={t("الوضع الداكن")} style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", cursor: "pointer", fontSize: 13, fontFamily: "inherit", padding: 0 }}>{themeMode === "dark" ? "☀" : "☾"}</button>
             <button type="button" onClick={() => setLang(lang === "ar" ? "en" : "ar")} style={{ fontSize: 11, fontWeight: 700, background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 11px", cursor: "pointer", fontFamily: "inherit" }}>{lang === "ar" ? "EN" : "ع"}</button>
             <button onClick={handleLogout} style={{ background: "rgba(255,255,255,0.18)", border: "none", color: "#fff", borderRadius: 20, padding: "5px 13px", fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{t("خروج")}</button>
             </div>
