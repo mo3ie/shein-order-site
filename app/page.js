@@ -1275,7 +1275,7 @@ export default function OrderPage() {
       ) : (
         /* ══════════ الهاتف ══════════ */
         <>
-          <div className="form-inner" style={{ width: "100%", maxWidth: 480, margin: "0 auto", paddingBottom: 168 }}>
+          <div className="form-inner" style={{ width: "100%", maxWidth: 480, margin: "0 auto", paddingBottom: 150 }}>
 
             <div style={{ background: GRAD_HEAD, color: "#fff", padding: "18px 20px 24px", position: "relative", overflow: "hidden" }}>
               <div style={{ position: "absolute", insetInlineEnd: -40, top: -50, width: 170, height: 170, borderRadius: "50%", background: "rgba(255,255,255,0.09)" }} />
@@ -1313,17 +1313,22 @@ export default function OrderPage() {
             </div>
           </div>
 
+          {/* الشريطان في رصيف واحد ملتصق بالأسفل.
+              كان شريط الإجراء معلّقًا على bottom: 64 — تخمينًا لارتفاع شريط
+              التنقّل — فيظهر بينهما شقّ من الصفحة كلما اختلف الارتفاع بضعة
+              بكسلات. أن يجلسا في حاوية واحدة يجعل التلاصق بنية لا رقمًا. */}
+          <div className="dock" style={{
+            position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0, zIndex: 60,
+          }}>
           <div className="action-bar" style={{
-            position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 64, zIndex: 55,
             background: CARD, boxShadow: "0 -4px 20px rgba(22,19,31,0.06)",
           }}>
-            <div style={{ maxWidth: 480, margin: "0 auto", padding: "12px 20px 14px" }}>
+            <div style={{ maxWidth: 480, margin: "0 auto", padding: "12px 20px" }}>
               {actionButton}
             </div>
           </div>
 
           <nav className="bottom-nav" style={{
-            position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0, zIndex: 60,
             background: CARD, borderTop: `1px solid ${LINE}`,
           }}>
             <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", justifyContent: "space-around", padding: "8px 16px 10px" }}>
@@ -1340,6 +1345,7 @@ export default function OrderPage() {
               ))}
             </div>
           </nav>
+          </div>
         </>
       )}
 

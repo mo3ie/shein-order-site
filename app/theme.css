@@ -116,7 +116,7 @@ input::placeholder, textarea::placeholder { color: var(--t-faint); }
   /* الشاشات الأخرى تتّسع قليلاً بدل شريط 480 في وسط شاشة عريضة */
   .form-inner { max-width: 760px !important; }
   /* شريط الإجراء والتنقّل السفليان للهاتف وحده */
-  .action-bar, .bottom-nav { display: none !important; }
+  .dock, .action-bar, .bottom-nav { display: none !important; }
 }
 
 @media (min-width: 900px) and (max-width: 1180px) {
