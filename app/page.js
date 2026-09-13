@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useLang, useIsDesktop } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
+import TopBar from "@/app/components/TopBar";
 
 const PRIMARY   = "#7c3aed";
 const GRADIENT  = "linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%)";
@@ -90,6 +91,8 @@ export default function OrderPage() {
   // عليها لبدا الموقع واقفًا. عدّاد الثانية هذا ينبض وحده ليرى الزبون أن
   // شيئًا يجري.
   const [repriceSecs,       setRepriceSecs]       = useState(0);
+  const [checkStartedAt,    setCheckStartedAt]    = useState(null);
+  const [repriceStartedAt,  setRepriceStartedAt]  = useState(null);
   // الرحلة ثلاث شاشات في واجهة واحدة، لا نموذج واحد طويل:
   // الرابط والانتظار ← السلة والكميات ← بياناتك، ثم ورقة الدفع.
   const [stage,             setStage]             = useState("link"); // link|cart|details
@@ -127,13 +130,23 @@ export default function OrderPage() {
     });
   }, []);
 
+  // عدّادان ينبضان كل ثانية من لحظة بدء المهمة نفسها — لا من لحظة فتح
+  // الصفحة — فالعودة إلى الشاشة تجد الوقت الحقيقي لا صفرًا جديدًا.
   useEffect(() => {
-    if (!repricing) return;
-    setRepriceSecs(0);
-    const started = Date.now();
-    const id = setInterval(() => setRepriceSecs(Math.round((Date.now() - started) / 1000)), 1000);
+    if (!repricing || !repriceStartedAt) return;
+    const tick = () => setRepriceSecs(Math.max(0, Math.round((Date.now() - repriceStartedAt) / 1000)));
+    tick();
+    const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [repricing]);
+  }, [repricing, repriceStartedAt]);
+
+  useEffect(() => {
+    if (resolveState !== "checking" || !checkStartedAt) return;
+    const tick = () => setElapsed(Math.max(0, Math.round((Date.now() - checkStartedAt) / 1000)));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [resolveState, checkStartedAt]);
 
   // ما إن يُقرأ السعر حتى تنتقل الواجهة إلى شاشة السلة من نفسها.
   useEffect(() => {
@@ -162,56 +175,119 @@ export default function OrderPage() {
     const { data: sub } = supabase.auth.onAuthStateChange(() => loadWallet());
     return () => sub?.subscription?.unsubscribe?.();
   }, []);
+  // ── استعادة الجلسة ───────────────────────────────────────────────────────
+  //
+  // القياس يجري على خادمنا لا في هذا التبويب، والزبون يتنقّل بين الشاشات وهو
+  // ينتظر. فكانت العودة إلى صفحة الطلب تجده أمام حقل رابط فارغ: السلة ضاعت،
+  // والكميات ضاعت، والعدّاد بدأ من الصفر — فيعيد كل شيء من أوله.
+  //
+  // لذا تُحفظ السلة كما هي (الرابط، الأصناف، الكميات، السعر، المرحلة)، ويُحفظ
+  // رقم المهمة الجارية ولحظة بدئها، فيُستأنف القياس نفسه ويحسب العدّاد من
+  // لحظة البدء الحقيقية لا من لحظة العودة.
+  const CART_KEY = "trend_cart_state";
+  const restoredRef = useRef(false);
 
-  // A price check runs on our server, not in this tab. If the customer closed
-  // the page, lost connection, or came back later, pick the same job up again
-  // instead of starting a second run against the same SHEIN cart.
+  const saveJob = (job) => {
+    try {
+      if (job) localStorage.setItem("trend_price_job", JSON.stringify(job));
+      else localStorage.removeItem("trend_price_job");
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (!restoredRef.current) return;         // لا نكتب قبل أن نقرأ
+    try {
+      if (!cartLink.trim() && !cartItems.length) { localStorage.removeItem(CART_KEY); return; }
+      localStorage.setItem(CART_KEY, JSON.stringify({
+        at: Date.now(),
+        link: cartLink, stage, items: cartItems, quantities,
+        price, exactPrice, breakdown, itemCount, resolvedLink,
+        name, phone, city, area, addressNote, orderNote,
+      }));
+    } catch {}
+  }, [cartLink, stage, cartItems, quantities, price, exactPrice, breakdown,
+      itemCount, resolvedLink, name, phone, city, area, addressNote, orderNote]);
+
   useEffect(() => {
     let cancelled = false;
-    let saved;
-    try { saved = JSON.parse(localStorage.getItem("trend_price_job") || "null"); } catch { saved = null; }
-    // Jobs and their results do not outlive the resolver's 15-minute window.
-    if (!saved?.jobId || !saved?.link || Date.now() - (saved.at || 0) > 15 * 60 * 1000) {
-      try { localStorage.removeItem("trend_price_job"); } catch {}
-      return;
+
+    // ١) أعد بناء السلة كما تركها الزبون.
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(CART_KEY) || "null"); } catch {}
+    // سلة عمرها أكثر من ساعتين: أسعار شي إن تتحرّك، فلا تُستعاد.
+    if (saved && Date.now() - (saved.at || 0) < 2 * 60 * 60 * 1000) {
+      if (saved.link) setCartLink(saved.link);
+      if (Array.isArray(saved.items) && saved.items.length) {
+        setCartItems(saved.items);
+        setQuantities(saved.quantities || {});
+        setPrice(saved.price ?? null);
+        setExactPrice(saved.exactPrice ?? null);
+        setBreakdown(saved.breakdown ?? null);
+        setItemCount(saved.itemCount ?? null);
+        setResolvedLink(saved.resolvedLink || "");
+        setResolveState("verified");
+        setStage(saved.stage === "details" ? "details" : "cart");
+      }
+      if (saved.name) setName(saved.name);
+      if (saved.phone) setPhone(saved.phone);
+      if (saved.city) setCity(saved.city);
+      if (saved.area) setArea(saved.area);
+      if (saved.addressNote) setAddressNote(saved.addressNote);
+      if (saved.orderNote) setOrderNote(saved.orderNote);
+    } else if (saved) {
+      try { localStorage.removeItem(CART_KEY); } catch {}
+    }
+    restoredRef.current = true;
+
+    // ٢) وإن كان هناك قياس جارٍ، التحق به بدل بدء قياس ثانٍ على السلة نفسها.
+    let job = null;
+    try { job = JSON.parse(localStorage.getItem("trend_price_job") || "null"); } catch {}
+    if (!job?.jobId || !job?.link || Date.now() - (job.at || 0) > 15 * 60 * 1000) {
+      saveJob(null);
+      return () => { cancelled = true; };
     }
 
-    setCartLink(saved.link);
-    setResolveState("checking");
-    const started = saved.at;
+    const isReprice = job.kind === "reprice";
+    setCartLink(job.link);
+    if (isReprice) { setRepricing(true); setRepriceStartedAt(job.at); setStage("cart"); }
+    else { setResolveState("checking"); setCheckStartedAt(job.at); setStage("link"); }
 
     (async () => {
       for (;;) {
         if (cancelled) return;
         try {
           const r = await fetch(
-            `/api/resolve-cart?job=${encodeURIComponent(saved.jobId)}&url=${encodeURIComponent(saved.link)}`
+            `/api/resolve-cart?job=${encodeURIComponent(job.jobId)}&url=${encodeURIComponent(job.link)}`
           );
           const pd = await r.json();
           if (cancelled) return;
 
           if (!pd.success) {
-            try { localStorage.removeItem("trend_price_job"); } catch {}
-            setResolveState("failed");
-            setResolveError(pd.message || "تعذّر التحقق من السعر.");
+            saveJob(null);
+            if (isReprice) { setRepricing(false); setRepriceError(pd.message || "تعذّر قراءة السعر الجديد."); }
+            else { setResolveState("failed"); setResolveError(pd.message || "تعذّر التحقق من السعر."); }
             return;
           }
           if (pd.queue) setQueue({ ...pd.queue, averageMs: pd.averageMs });
           if (pd.status !== "pending") {
-            try { localStorage.removeItem("trend_price_job"); } catch {}
+            saveJob(null);
             setQueue(null);
-            setCartItems(pd.items || []);
             setBreakdown(pd.breakdown || null);
-            setQuantities(Object.fromEntries((pd.items || []).map((it, i) => [i, it.quantity || 1])));
-            setPrice(Number(pd.estimatedPrice));
-            setItemCount(pd.itemCount ?? null);
-            setResolvedLink(saved.link);
-            setResolveState("verified");
+            if (pd.itemCount != null) setItemCount(pd.itemCount);
+            if (isReprice) {
+              setExactPrice(Number(pd.estimatedPrice));
+              setRepricing(false);
+            } else {
+              setCartItems(pd.items || []);
+              setQuantities(Object.fromEntries((pd.items || []).map((it, i) => [i, it.quantity || 1])));
+              setPrice(Number(pd.estimatedPrice));
+              setResolvedLink(job.link);
+              setResolveState("verified");
+            }
             return;
           }
-          setElapsed(Math.round((Date.now() - started) / 1000));
         } catch {
-          // A dropped connection is not a failed job; keep polling.
+          // انقطاع الشبكة ليس فشل مهمة: واصل السؤال.
         }
         await new Promise((r) => setTimeout(r, 4000));
       }
@@ -231,6 +307,7 @@ export default function OrderPage() {
     const link = cartLink.trim();
     if (!link || repricing) return;
     setRepricing(true);
+    setRepriceStartedAt(Date.now());
     setRepriceError("");
 
     const wanted = cartItems.map((it, i) => ({
@@ -254,32 +331,38 @@ export default function OrderPage() {
         return;
       }
       const settle = (d) => {
+        saveJob(null);
         setExactPrice(Number(d.estimatedPrice));
         setBreakdown(d.breakdown || null);
         if (d.itemCount != null) setItemCount(d.itemCount);
       };
       if (data.status !== "pending") { settle(data); return; }
 
+      // إعادة الحساب تُحفظ مثل القياس الأول: الخروج من الشاشة والعودة إليها
+      // يلتحق بالمهمة نفسها بعدّادها، بدل أن يبدأ الزبون من الرابط من جديد.
       const started = Date.now();
+      saveJob({ jobId: data.jobId, link, at: started, kind: "reprice" });
+
       for (;;) {
         await new Promise(r => setTimeout(r, 4000));
-        setElapsed(Math.round((Date.now() - started) / 1000));
         const p = await fetch(
           `/api/resolve-cart?job=${encodeURIComponent(data.jobId)}&url=${encodeURIComponent(link)}`
         );
         const pd = await p.json();
-        if (!pd.success) { setRepriceError(pd.message || "تعذّر قراءة السعر الجديد."); return; }
+        if (!pd.success) { saveJob(null); setRepriceError(pd.message || "تعذّر قراءة السعر الجديد."); return; }
         if (pd.queue) setQueue({ ...pd.queue, averageMs: pd.averageMs });
         if (pd.status !== "pending") { settle(pd); return; }
         // Both devices can be busy, and a link is pinned to one account so the
         // request may wait for it. Ten minutes covers a queued run; the queue
         // position is on screen throughout.
         if (Date.now() - started > 10 * 60 * 1000) {
+          saveJob(null);
           setRepriceError("استغرقت قراءة السعر وقتاً أطول من المتوقع. حاول مرة أخرى.");
           return;
         }
       }
     } catch {
+      saveJob(null);
       setRepriceError("تعذّر الاتصال بخدمة التسعير. حاول مرة أخرى.");
     } finally {
       setRepricing(false);
@@ -327,6 +410,8 @@ export default function OrderPage() {
     setResolveState("checking");
     setResolveError("");
     setElapsed(0);
+    const started0 = Date.now();
+    setCheckStartedAt(started0);
     setQueue(null);
     setCartItems([]);
     setQuantities({});
@@ -336,7 +421,7 @@ export default function OrderPage() {
     setErrors(p => ({ ...p, price: null, cartLink: null }));
 
     const finish = (data) => {
-      try { localStorage.removeItem("trend_price_job"); } catch {}
+      saveJob(null);
       setQueue(null);
       setCartItems(data.items || []);
       setBreakdown(data.breakdown || null);
@@ -347,7 +432,7 @@ export default function OrderPage() {
       setResolveState("verified");
     };
     const fail = (msg) => {
-      try { localStorage.removeItem("trend_price_job"); } catch {}
+      saveJob(null);
       setQueue(null);
       setResolveState("failed");
       setResolveError(msg);
@@ -369,16 +454,12 @@ export default function OrderPage() {
       // Remember the job. The measurement runs on the server, not in this tab,
       // so a closed page or a dropped connection must not lose it: reopening
       // rejoins the same run instead of starting a second one.
-      try {
-        localStorage.setItem("trend_price_job",
-          JSON.stringify({ jobId: data.jobId, link, at: Date.now() }));
-      } catch {}
+      saveJob({ jobId: data.jobId, link, at: started0 });
 
-      const started = Date.now();
+      const started = started0;
       const LIMIT_MS = 5 * 60 * 1000;
       for (;;) {
         await new Promise(r => setTimeout(r, 4000));
-        setElapsed(Math.round((Date.now() - started) / 1000));
 
         const p = await fetch(
           `/api/resolve-cart?job=${encodeURIComponent(data.jobId)}&url=${encodeURIComponent(link)}`
@@ -754,7 +835,7 @@ export default function OrderPage() {
         }}
       >
         {resolveState === "checking"
-          ? `${t("جاري التحقق...")} ${elapsed > 0 ? elapsed + " " + t("ثانية") : ""}`
+          ? `${t("جاري التحقق...")} · ${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`
           : t("تحقّق من السلة والسعر")}
       </button>
     )}
@@ -1216,40 +1297,9 @@ export default function OrderPage() {
            والسلة تأخذ العمود الواسع، والفاتورة والدفع يلتصقان في العمود
            الجانبي — فالتدرّج ينتقل إلى بطاقة الإجمالي ويبقى المبلغ أبرز شيء. */
         <>
-          <div className="desk-bar">
-            <div style={{ display: "flex", alignItems: "center", gap: 32 }}>
-              <a href="/" style={{ fontWeight: 900, fontSize: 20, letterSpacing: "-0.4px", color: INK, textDecoration: "none" }}>
-                Trend <span style={{ color: PRIMARY }}>SHEIN</span>
-              </a>
-              <div style={{ display: "flex", gap: 22, fontSize: 13 }}>
-                {[
-                  { href: "/", label: t("طلب جديد"), on: true },
-                  { href: "/my-orders", label: t("طلباتي"), on: false },
-                  { href: "/wallet", label: t("المحفظة"), on: false },
-                  { href: "/contact", label: t("مساعدة"), on: false },
-                ].map((l, i) => (
-                  <a key={i} href={l.href} style={{ color: l.on ? INK : MUTED, fontWeight: l.on ? 700 : 500, textDecoration: "none" }}>
-                    {l.label}
-                  </a>
-                ))}
-              </div>
-            </div>
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <button
-                type="button"
-                onClick={() => setLang(lang === "ar" ? "en" : "ar")}
-                style={{ fontSize: 12, fontWeight: 700, color: MUTED, border: `1px solid ${LINE}`, background: "none", borderRadius: 20, padding: "5px 12px", cursor: "pointer", fontFamily: "inherit" }}
-              >
-                {lang === "ar" ? "English" : "العربية"}
-              </button>
-              <a
-                href={authUser ? "/account" : "/login"}
-                style={{ width: 32, height: 32, borderRadius: "50%", background: SOLID, color: ON_SOLID, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, textDecoration: "none" }}
-              >
-                {authUser ? (authUser.user_metadata?.name?.[0] || authUser.email?.[0] || "م").toUpperCase() : "؟"}
-              </a>
-            </div>
-          </div>
+          {/* الشريط نفسه الذي تستعمله بقية الشاشات: نسخة ثانية هنا كانت تعني
+              أن كل إضافة (زرّ المظهر مثلاً) تصل واجهة ولا تصل الأخرى. */}
+          <TopBar active="order" lang={lang} setLang={setLang} t={t} user={authUser} />
 
           <div className="desk-grid">
             <div style={{ display: "flex", flexDirection: "column", gap: 18, minWidth: 0 }}>
