@@ -40,6 +40,8 @@ export default function OrderPage() {
   const [mcOtp,             setMcOtp]             = useState("");
   const [mcOrderId,         setMcOrderId]         = useState(null);
   const [isAdmin,           setIsAdmin]           = useState(false);
+  const [wallet,            setWallet]            = useState(null);   // {balance}
+  const [walletBusy,        setWalletBusy]        = useState(false);
   // Price now comes from the resolver service (a real SHEIN cart read on our own
   // accounts) instead of OCR on a customer screenshot.
   const [resolveState,      setResolveState]      = useState("idle"); // idle|checking|verified|failed
@@ -82,12 +84,6 @@ export default function OrderPage() {
   const totalUSD  = base + profit;
   const priceLYD  = exchangeRate ? totalUSD * exchangeRate : 0;
 
-  const paymentMethods = [
-    { id: "masrefypay", name: "مصرفي",     icon: "💳", color: "#ea580c" },
-    { id: "yousrpay",   name: "يسر باي",   icon: "💳", color: "#0d9488" },
-    { id: "saharpay",   name: "صحارة باي", icon: "💳", color: "#ca8a04" },
-  ];
-
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setIsAdmin(data?.user?.email === ADMIN_EMAIL);
@@ -98,6 +94,10 @@ export default function OrderPage() {
     supabase.from("settings").select("exchange_rate").eq("id", 1).single()
       .then(({ data }) => { if (data) setExchangeRate(Number(data.exchange_rate)); });
   }, []);
+
+  const loadWallet = () =>
+    fetch("/api/wallet").then(r => r.json()).then(setWallet).catch(() => {});
+  useEffect(() => { loadWallet(); }, []);
 
   // A price check runs on our server, not in this tab. If the customer closed
   // the page, lost connection, or came back later, pick the same job up again
@@ -400,38 +400,44 @@ export default function OrderPage() {
     }
   };
 
-  // ── DPay ─────────────────────────────────────────────────────────────────
-  const handleDpay = async (method) => {
-    if (!method) { alert("اختر طريقة الدفع أولاً"); return; }
+  /**
+   * Pays for the order out of the SHEIN wallet.
+   *
+   * The debit is asked for first: if the balance does not cover it the server
+   * refuses and no order is created, so a customer never ends up with an order
+   * that was never paid for.
+   */
+  const handleWalletPay = async () => {
+    if (walletBusy) return;
+    const due = Number(priceLYD.toFixed(2));
+    if (!wallet || Number(wallet.balance) + 0.001 < due) {
+      alert("رصيد المحفظة لا يكفي. اشحن المحفظة أولاً.");
+      return;
+    }
     try {
+      setWalletBusy(true);
       setSending(true);
       const imageUrl = await uploadImage();
       const oid = await createOrder(imageUrl);
-      setOrderId(oid);
-      await supabase.from("payments").insert({ order_id: oid, method: "dpay", status: "pending", amount: priceLYD });
-      const res = await fetch("/api/dpay", {
+      const res = await fetch("/api/wallet", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId: oid,
-          amount: Math.round(Number(priceLYD)),
-          method,
-          customer_mobile: phone,
-          card_number: cardNumber,
-          customer_name: name,
-        }),
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ type: "debit", amount: due, method: "wallet", order_id: oid }),
       });
       const data = await res.json();
-      if (data.payment_link) {
-        localStorage.setItem("lastOrderId", oid);
-        if (data.session_id) localStorage.setItem("dpaySession", data.session_id);
-        window.location.href = data.payment_link;
-      } else {
-        throw new Error(data.error || "فشل الدفع");
-      }
+      if (!res.ok || data.error) throw new Error(data.error || "تعذّر الخصم من المحفظة");
+
+      await supabase.from("payments").insert({
+        order_id: oid, method: "wallet", status: "paid", amount: due,
+      });
+      setWallet(w => ({ ...(w || {}), balance: data.balance }));
+      localStorage.setItem("lastOrderId", oid);
+      window.location.href = `/success?orderId=${oid}&via=wallet`;
     } catch (err) {
-      alert(err.message || "خطأ في الدفع");
+      alert(err.message || "تعذّر الدفع من المحفظة");
       setSending(false);
+    } finally {
+      setWalletBusy(false);
     }
   };
 
@@ -1173,8 +1179,40 @@ export default function OrderPage() {
               <span style={{ marginRight: "auto", fontWeight: 700, fontSize: 13 }}>{priceLYD.toFixed(0)} د.ل</span>
             </button>
 
-            {/* MobiCash — hidden until NEXT_PUBLIC_MOBICASH_ENABLED=true (sandbox → production) */}
-            {(process.env.NEXT_PUBLIC_MOBICASH_ENABLED === "true" || isAdmin) && (
+            {/* The wallet first: paying from a balance already topped up is one
+                tap and no OTP, so it belongs above the gateways. */}
+            {wallet && (
+              <div style={s.walletBox}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 20 }}>👛</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13.5 }}>محفظتي</div>
+                    <div style={{ fontSize: 12, opacity: 0.85 }}>
+                      الرصيد: <strong>{Number(wallet.balance || 0).toFixed(2)} د.ل</strong>
+                    </div>
+                  </div>
+                </div>
+                {Number(wallet.balance || 0) + 0.001 >= priceLYD ? (
+                  <button
+                    onClick={handleWalletPay}
+                    disabled={walletBusy || sending}
+                    style={{ ...s.btn, marginTop: 10, background: "#0f766e", color: "#fff",
+                      opacity: (walletBusy || sending) ? 0.6 : 1 }}
+                  >
+                    {walletBusy ? "⏳ جاري الدفع..." : `ادفع من المحفظة — ${priceLYD.toFixed(0)} د.ل`}
+                  </button>
+                ) : (
+                  <p style={{ fontSize: 12, color: "#92400e", margin: "8px 0 0", lineHeight: 1.7 }}>
+                    الرصيد لا يكفي لهذا الطلب ({priceLYD.toFixed(0)} د.ل). اشحن محفظتك بإحدى
+                    البوابات أدناه ثم ادفع منها.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* MobiCash is live in production, so it is no longer gated behind
+                an env flag or the admin account. */}
+            {true && (
             <button
               onClick={() => setMcStep("card")}
               disabled={sending}
@@ -1188,52 +1226,6 @@ export default function OrderPage() {
               <span style={{ marginRight: "auto", fontWeight: 700, fontSize: 13 }}>{priceLYD.toFixed(0)} د.ل</span>
             </button>
             )}
-
-            <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "4px 0 10px" }}>
-              <div style={{ flex: 1, height: 1, background: "#f3f4f6" }} />
-              <span style={{ fontSize: 11, color: "#d1d5db" }}>بوابات أخرى</span>
-              <div style={{ flex: 1, height: 1, background: "#f3f4f6" }} />
-            </div>
-
-            {/* DPay methods */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 12 }}>
-              {paymentMethods.map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => setSelectedMethod(m.id)}
-                  style={{
-                    padding: "12px 10px",
-                    borderRadius: 12,
-                    border: selectedMethod === m.id ? `2px solid ${m.color}` : "2px solid #f3f4f6",
-                    background: selectedMethod === m.id ? `${m.color}15` : "#fafafa",
-                    cursor: "pointer",
-                    textAlign: "center",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  <div style={{ fontSize: 22 }}>{m.icon}</div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: selectedMethod === m.id ? m.color : "#374151", marginTop: 4 }}>{m.name}</div>
-                </button>
-              ))}
-            </div>
-
-            {["masrefypay", "yousrpay", "saharpay"].includes(selectedMethod) && (
-              <input placeholder="💳 رقم البطاقة (7 أرقام)" value={cardNumber} onChange={e => setCardNumber(e.target.value)} style={{ ...s.input, marginBottom: 10 }} />
-            )}
-
-            <button
-              disabled={!selectedMethod || sending}
-              onClick={() => handleDpay(selectedMethod)}
-              style={{
-                ...s.btn,
-                marginTop: 4,
-                background: selectedMethod ? GRADIENT : "#e5e7eb",
-                color: selectedMethod ? "#fff" : "#9ca3af",
-                cursor: selectedMethod ? "pointer" : "not-allowed",
-              }}
-            >
-              {sending ? "⏳ جاري الدفع..." : selectedMethod ? `تأكيد الدفع — ${priceLYD.toFixed(0)} د.ل` : "اختر طريقة الدفع أولاً"}
-            </button>
 
             <button onClick={() => setShowPayment(false)} style={{ width: "100%", marginTop: 10, padding: "10px", background: "none", border: "1px solid #f3f4f6", borderRadius: 10, color: "#9ca3af", cursor: "pointer", fontSize: 13 }}>
               إغلاق
@@ -1368,6 +1360,10 @@ const s = {
     width: "100%", marginTop: 8, padding: "11px 14px", borderRadius: 12,
     border: "1px dashed #d1d5db", background: "#fafafa", color: "#374151",
     fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+  },
+  walletBox: {
+    marginBottom: 12, padding: "12px 14px", borderRadius: 12,
+    background: "#f0fdfa", border: "1px solid #99f6e4", color: "#115e59",
   },
   repriceBtn: {
     width: "100%", marginTop: 10, padding: "11px 14px", borderRadius: 12,
