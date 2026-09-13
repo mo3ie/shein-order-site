@@ -8,11 +8,15 @@ const PURPLE = "#7c3aed";
 
 // مفردات التصميم نفسها الموجودة في صفحة الطلب، حتى تُقرأ الصفحتان كتصميم واحد.
 const GRAD_HEAD = "linear-gradient(150deg,#7c3aed 0%,#5b4bf5 45%,#3b82f6 100%)";
-const PAGE      = "#f7f7fb";
-const INK       = "#16131f";
-const MUTED     = "#6b6478";
-const FAINT     = "#8b849c";
-const LINE      = "#ece9f6";
+const PAGE      = "var(--t-page)";
+const CARD      = "var(--t-card)";
+const INK       = "var(--t-ink)";
+const MUTED     = "var(--t-muted)";
+const FAINT     = "var(--t-faint)";
+const LINE      = "var(--t-line)";
+const CHIP      = "var(--t-chip)";
+const SOLID     = "var(--t-solid)";
+const ON_SOLID  = "var(--t-on-solid)";
 
 function payLabel(m) {
   return {
@@ -31,12 +35,12 @@ function statusLabel(s) {
   }[s] || s || "جديد";
 }
 function statusColor(s) {
-  if (["delivered","completed"].includes(s)) return { color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" };
-  if (["paid","confirmed"].includes(s))       return { color: "#7c3aed", bg: "#f5f3ff", border: "#e9d5ff" };
-  if (["shipped"].includes(s))                return { color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe" };
-  if (["ordered","processing"].includes(s))   return { color: "#d97706", bg: "#fffbeb", border: "#fde68a" };
-  if (["cancelled"].includes(s))              return { color: "#ef4444", bg: "#fff5f5", border: "#fecaca" };
-  return { color: "#6b7280", bg: "#f9fafb", border: "#e5e7eb" };
+  if (["delivered","completed"].includes(s)) return { color: "var(--t-green-ink)", bg: "var(--t-green-bg)", border: "var(--t-green-line)" };
+  if (["paid","confirmed"].includes(s))       return { color: "#a78bfa", bg: "var(--t-chip)", border: "var(--t-line)" };
+  if (["shipped"].includes(s))                return { color: "var(--t-blue-ink)", bg: "var(--t-blue-bg)", border: "var(--t-blue-line)" };
+  if (["ordered","processing"].includes(s))   return { color: "var(--t-amber-ink)", bg: "var(--t-amber-bg)", border: "var(--t-amber-line)" };
+  if (["cancelled"].includes(s))              return { color: "var(--t-red-ink)", bg: "var(--t-red-bg)", border: "var(--t-red-line)" };
+  return { color: "var(--t-muted)", bg: "var(--t-chip)", border: "var(--t-line)" };
 }
 function fmtDate(d) {
   if (!d) return "—";
@@ -76,31 +80,31 @@ function LoginPrompt({ onLogin }) {
         {/* أيقونة */}
         <div style={{ textAlign: "center", marginBottom: 24 }}>
           <div style={{ width: 72, height: 72, borderRadius: "50%", background: GRAD, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 28, boxShadow: "0 8px 24px rgba(124,58,237,0.35)" }}>📦</div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1e1b4b", margin: "0 0 4px" }}>طلباتي</h2>
-          <p style={{ fontSize: 13, color: "#9ca3af" }}>سجّل دخولك لعرض طلباتك</p>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: INK, margin: "0 0 4px" }}>طلباتي</h2>
+          <p style={{ fontSize: 13, color: FAINT }}>سجّل دخولك لعرض طلباتك</p>
         </div>
 
         {/* الكارد */}
-        <div style={{ background: "#fff", borderRadius: 20, padding: "28px 24px", boxShadow: "0 8px 32px rgba(0,0,0,0.08)", border: "1px solid #f3f4f6" }}>
+        <div style={{ background: CARD, borderRadius: 20, padding: "28px 24px", boxShadow: "0 8px 32px rgba(0,0,0,0.08)", border: `1px solid ${LINE}` }}>
           {err && (
-            <div style={{ background: "#fff5f5", border: "1px solid #fecaca", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#ef4444" }}>
+            <div style={{ background: "var(--t-red-bg)", border: "1px solid var(--t-red-line)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "var(--t-red-ink)" }}>
               {err}
             </div>
           )}
 
           {/* Google */}
-          <button onClick={handleGoogle} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "12px", borderRadius: 12, border: "1.5px solid #e5e7eb", background: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 600, color: "#374151", marginBottom: 14, transition: "border-color 0.2s" }}
+          <button onClick={handleGoogle} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "12px", borderRadius: 12, border: `1.5px solid ${LINE}`, background: CARD, cursor: "pointer", fontSize: 14, fontWeight: 600, color: INK, marginBottom: 14, transition: "border-color 0.2s" }}
             onMouseEnter={e => e.currentTarget.style.borderColor = PURPLE}
-            onMouseLeave={e => e.currentTarget.style.borderColor = "#e5e7eb"}
+            onMouseLeave={e => e.currentTarget.style.borderColor = "var(--t-line)"}
           >
             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" width={18} />
             الدخول عبر Google
           </button>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-            <div style={{ flex: 1, height: 1, background: "#f3f4f6" }} />
-            <span style={{ fontSize: 12, color: "#d1d5db" }}>أو</span>
-            <div style={{ flex: 1, height: 1, background: "#f3f4f6" }} />
+            <div style={{ flex: 1, height: 1, background: LINE }} />
+            <span style={{ fontSize: 12, color: FAINT }}>أو</span>
+            <div style={{ flex: 1, height: 1, background: LINE }} />
           </div>
 
           {/* Email + Password */}
@@ -120,7 +124,7 @@ function LoginPrompt({ onLogin }) {
             {loading ? "⏳ جاري الدخول..." : "تسجيل الدخول"}
           </button>
 
-          <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: "#9ca3af" }}>
+          <div style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: FAINT }}>
             ليس لديك حساب؟{" "}
             <a href="/signup" style={{ color: PURPLE, fontWeight: 700, textDecoration: "none" }}>إنشاء حساب</a>
           </div>
@@ -145,14 +149,14 @@ function OrderCard({ order }) {
     <a
       href={`/track?id=${order.id}`}
       style={{
-        background: "#fff", borderRadius: 18, padding: 13, display: "flex", gap: 12,
+        background: CARD, borderRadius: 18, padding: 13, display: "flex", gap: 12,
         boxShadow: "0 2px 10px rgba(22,19,31,0.05)", textDecoration: "none", color: INK,
       }}
     >
       {order.image_url ? (
         <img src={order.image_url} alt="" style={{ width: 62, height: 62, borderRadius: 13, objectFit: "cover", flexShrink: 0 }} />
       ) : (
-        <div style={{ width: 62, height: 62, borderRadius: 13, background: "linear-gradient(135deg,#f2f1f8,#e8e5f5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🛍️</div>
+        <div style={{ width: 62, height: 62, borderRadius: 13, background: CHIP, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🛍️</div>
       )}
 
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -284,9 +288,9 @@ export default function MyOrdersPage() {
                   onClick={() => setFilter(c.k)}
                   style={{
                     fontSize: 11.5, fontWeight: filter === c.k ? 800 : 600, cursor: "pointer",
-                    background: filter === c.k ? INK : "#fff",
-                    color: filter === c.k ? "#fff" : MUTED,
-                    border: filter === c.k ? "1px solid " + INK : "1px solid " + LINE,
+                    background: filter === c.k ? SOLID : CARD,
+                    color: filter === c.k ? ON_SOLID : MUTED,
+                    border: `1px solid ${filter === c.k ? SOLID : LINE}`,
                     borderRadius: 20, padding: "7px 15px", fontFamily: "inherit",
                   }}
                 >{c.t}</button>
@@ -297,7 +301,7 @@ export default function MyOrdersPage() {
           {loading ? (
             <div style={{ textAlign: "center", padding: 40, color: FAINT, fontSize: 13 }}>⏳ جاري التحميل...</div>
           ) : shown.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "56px 20px", background: "#fff", borderRadius: 18, boxShadow: "0 2px 10px rgba(22,19,31,0.05)" }}>
+            <div style={{ textAlign: "center", padding: "56px 20px", background: CARD, borderRadius: 18, boxShadow: "0 2px 10px rgba(22,19,31,0.05)" }}>
               <div style={{ fontSize: 44, marginBottom: 12 }}>📭</div>
               <p style={{ fontWeight: 800, marginBottom: 6 }}>
                 {orders.length === 0 ? "لا توجد طلبات بعد" : "لا طلبات في هذا التصنيف"}
@@ -322,7 +326,7 @@ export default function MyOrdersPage() {
       {/* ── شريط التنقّل السفلي ── */}
       <nav style={{
         position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0, zIndex: 60,
-        background: "#fff", borderTop: `1px solid ${LINE}`, boxShadow: "0 -4px 20px rgba(22,19,31,0.06)",
+        background: CARD, borderTop: `1px solid ${LINE}`, boxShadow: "0 -4px 20px rgba(22,19,31,0.06)",
       }}>
         <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", justifyContent: "space-around", padding: "9px 16px 14px" }}>
           {[
@@ -347,10 +351,10 @@ const inputStyle = {
   padding: "11px 14px",
   marginBottom: 12,
   borderRadius: 10,
-  border: "1.5px solid #e5e7eb",
+  border: `1.5px solid ${LINE}`,
   fontSize: 14,
   outline: "none",
-  color: "#111",
-  background: "#fff",
+  color: INK,
+  background: CARD,
   boxSizing: "border-box",
 };

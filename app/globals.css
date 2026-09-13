@@ -84,3 +84,68 @@ body {
     right: 0 !important;
   }
 }
+
+/* ── مفردات التصميم كمتغيّرات، ليقلب الوضع الداكن الصفحة دون لمس التدرّج ──
+   التدرّج البنفسجي هو الهوية فيبقى كما هو في الوضعين، وما تحته وحده ينقلب:
+   الأرضية، البطاقات، النصوص والحدود. فالثيمان يقرآن كتصميم واحد لا اثنين.
+   الضبط "فاتح" يفوز صراحةً على تفضيل النظام عبر data-theme. */
+:root {
+  --t-page:      #f7f7fb;
+  --t-card:      #ffffff;
+  --t-soft:      #fbfaff;
+  --t-ink:       #16131f;
+  --t-muted:     #6b6478;
+  --t-faint:     #8b849c;
+  --t-line:      #ece9f6;
+  --t-chip:      #f2f1f8;
+  --t-dash:      #d9d3ec;
+  /* لون مُصمت للأزرار الثانوية: نصّه دائمًا معاكس لأرضيته */
+  --t-solid:     #16131f;
+  --t-on-solid:  #ffffff;
+  /* صناديق التنبيه */
+  --t-blue-bg:   #eff6ff; --t-blue-line:   #bfdbfe; --t-blue-ink:   #1d4ed8;
+  --t-amber-bg:  #fffbeb; --t-amber-line:  #fde68a; --t-amber-ink:  #92400e;
+  --t-red-bg:    #fef2f2; --t-red-line:    #fca5a5; --t-red-ink:    #991b1b;
+  --t-green-bg:  #f0fdf4; --t-green-line:  #bbf7d0; --t-green-ink:  #15803d;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --t-page:      #0f0d16;
+    --t-card:      #191527;
+    --t-soft:      #1e1930;
+    --t-ink:       #f2f0f7;
+    --t-muted:     #a79fb6;
+    --t-faint:     #8f879f;
+    --t-line:      #2a2440;
+    --t-chip:      #241f36;
+    --t-dash:      #3a3352;
+    --t-solid:     #f2f0f7;
+    --t-on-solid:  #16131f;
+    --t-blue-bg:   #161f36; --t-blue-line:   #29406e; --t-blue-ink:   #93b4f8;
+    --t-amber-bg:  #2a1f10; --t-amber-line:  #5c431a; --t-amber-ink:  #f2c069;
+    --t-red-bg:    #2b1417; --t-red-line:    #6b2a30; --t-red-ink:    #f6a6a6;
+    --t-green-bg:  #10261a; --t-green-line:  #245c37; --t-green-ink:  #7ee0a3;
+  }
+}
+
+:root[data-theme="dark"] {
+  --t-page:      #0f0d16;
+  --t-card:      #191527;
+  --t-soft:      #1e1930;
+  --t-ink:       #f2f0f7;
+  --t-muted:     #a79fb6;
+  --t-faint:     #8f879f;
+  --t-line:      #2a2440;
+  --t-chip:      #241f36;
+  --t-dash:      #3a3352;
+  --t-solid:     #f2f0f7;
+  --t-on-solid:  #16131f;
+  --t-blue-bg:   #161f36; --t-blue-line:   #29406e; --t-blue-ink:   #93b4f8;
+  --t-amber-bg:  #2a1f10; --t-amber-line:  #5c431a; --t-amber-ink:  #f2c069;
+  --t-red-bg:    #2b1417; --t-red-line:    #6b2a30; --t-red-ink:    #f6a6a6;
+  --t-green-bg:  #10261a; --t-green-line:  #245c37; --t-green-ink:  #7ee0a3;
+}
+
+/* حقول الإدخال ترث ألوان الثيم، وكذلك النصّ الشبح داخلها. */
+input::placeholder, textarea::placeholder { color: var(--t-faint); }

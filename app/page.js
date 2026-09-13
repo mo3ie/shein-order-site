@@ -10,12 +10,18 @@ const BG        = "transparent";
 // التدرّج هو هوية الشاشة، والإجمالي يعيش داخله لا تحته: أول ما تراه العين هو
 // المبلغ بالدينار. وما تحته صفحة واحدة من بطاقات بيضاء على أرضية شبه بيضاء.
 const GRAD_HEAD = "linear-gradient(150deg,#7c3aed 0%,#5b4bf5 45%,#3b82f6 100%)";
-const PAGE      = "#f7f7fb";
-const INK       = "#16131f";
-const MUTED     = "#6b6478";
-const FAINT     = "#8b849c";
-const LINE      = "#ece9f6";
-const CHIP      = "#f2f1f8";
+const PAGE      = "var(--t-page)";
+const CARD      = "var(--t-card)";
+const SOFT      = "var(--t-soft)";
+const INK       = "var(--t-ink)";
+const MUTED     = "var(--t-muted)";
+const FAINT     = "var(--t-faint)";
+const LINE      = "var(--t-line)";
+const CHIP      = "var(--t-chip)";
+const DASH      = "var(--t-dash)";
+// زر مُصمت ونصّه: يبقى التباين صحيحًا في الوضعين (أسود على أبيض، والعكس).
+const SOLID     = "var(--t-solid)";
+const ON_SOLID  = "var(--t-on-solid)";
 
 // حبّة معلومة داخل الترويسة (على التدرّج، فلا لون أرضية لها إلا الشفاف الأبيض)
 const hChip = {
@@ -700,7 +706,7 @@ export default function OrderPage() {
         <div style={{ padding: "16px 16px 0" }}>
 
         {/* ── بطاقة الرابط ── */}
-        <div className="form-card" style={{ background: "#fff", borderRadius: 18, padding: "18px 16px", boxShadow: "0 2px 10px rgba(22,19,31,0.05)" }}>
+        <div className="form-card" style={{ background: CARD, borderRadius: 18, padding: "18px 16px", boxShadow: "0 2px 10px rgba(22,19,31,0.05)" }}>
 
           {/* Note: UAE */}
           <div style={s.noteBlue}>
@@ -785,7 +791,7 @@ export default function OrderPage() {
                 <div key={i} style={s.qtyRow}>
                   {it.image
                     ? <img src={it.image} alt="" style={s.qtyThumb} />
-                    : <div style={{ ...s.qtyThumb, background: "#f3f4f6" }} />}
+                    : <div style={{ ...s.qtyThumb, background: CHIP }} />}
 
                   {/* Titles from SHEIN run to 160 characters. Shown in full they
                       pushed one word per line on a phone and buried the price,
@@ -858,7 +864,7 @@ export default function OrderPage() {
             </div>
           )}
           {/* ── بطاقة بياناتك ── */}
-          <div style={{ background: "#fff", borderRadius: 18, padding: "18px 16px", boxShadow: "0 2px 10px rgba(22,19,31,0.05)", marginTop: 14 }}>
+          <div style={{ background: CARD, borderRadius: 18, padding: "18px 16px", boxShadow: "0 2px 10px rgba(22,19,31,0.05)", marginTop: 14 }}>
           <div style={{ fontWeight: 900, fontSize: 14.5, marginBottom: 12 }}>بياناتك وعنوان الاستلام</div>
 
           {/* Name */}
@@ -985,7 +991,7 @@ export default function OrderPage() {
               }}
             />
             <span style={{ fontSize: 26 }}>📷</span>
-            <span style={{ fontSize: 13, color: images.length ? PRIMARY : "#9ca3af", fontWeight: images.length ? 600 : 400 }}>
+            <span style={{ fontSize: 13, color: images.length ? PRIMARY : FAINT, fontWeight: images.length ? 600 : 400 }}>
               {images.length ? `${images.length} صورة مرفقة — أضف المزيد` : "إضافة صور (حتى 6)"}
             </span>
           </label>
@@ -1056,7 +1062,7 @@ export default function OrderPage() {
           </button>
 
           {/* Track */}
-          <div style={{ background: "#fff", borderRadius: 18, padding: "16px", boxShadow: "0 2px 10px rgba(22,19,31,0.05)", marginTop: 14 }}>
+          <div style={{ background: CARD, borderRadius: 18, padding: "16px", boxShadow: "0 2px 10px rgba(22,19,31,0.05)", marginTop: 14 }}>
             <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 10 }}>تتبّع طلباً سابقاً</div>
             <div style={{ display: "flex", gap: 8 }}>
               <input
@@ -1078,7 +1084,7 @@ export default function OrderPage() {
       {/* ── شريط التنقّل السفلي ── */}
       <nav style={{
         position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0, zIndex: 60,
-        background: "#fff", borderTop: `1px solid ${LINE}`,
+        background: CARD, borderTop: `1px solid ${LINE}`,
         boxShadow: "0 -4px 20px rgba(22,19,31,0.06)",
       }}>
         <div style={{ maxWidth: 480, margin: "0 auto", display: "flex", justifyContent: "space-around", padding: "9px 16px 14px" }}>
@@ -1132,7 +1138,7 @@ export default function OrderPage() {
                 <button
                   onClick={handleMobicash}
                   disabled={sending || mcCard.replace(/[^0-9]/g, "").length < 5}
-                  style={{ ...s.btn, background: mcCard.replace(/[^0-9]/g, "").length >= 5 ? "linear-gradient(135deg,#0284c7,#0ea5e9)" : "#e5e7eb", color: mcCard.replace(/[^0-9]/g, "").length >= 5 ? "#fff" : "#9ca3af", cursor: mcCard.replace(/[^0-9]/g, "").length >= 5 ? "pointer" : "not-allowed" }}
+                  style={{ ...s.btn, background: mcCard.replace(/[^0-9]/g, "").length >= 5 ? "linear-gradient(135deg,#0284c7,#0ea5e9)" : CHIP, color: mcCard.replace(/[^0-9]/g, "").length >= 5 ? "#fff" : FAINT, cursor: mcCard.replace(/[^0-9]/g, "").length >= 5 ? "pointer" : "not-allowed" }}
                 >
                   إرسال رمز التحقق →
                 </button>
@@ -1147,7 +1153,7 @@ export default function OrderPage() {
             ) : mcStep === "sending" ? (
               <div style={{ textAlign: "center", padding: "40px 0" }}>
                 <div style={{ width: 56, height: 56, borderRadius: "50%", border: "4px solid #e0f2fe", borderTopColor: "#0284c7", animation: "spin 0.8s linear infinite", margin: "0 auto 20px" }} />
-                <p style={{ color: "#6b7280", fontSize: 14 }}>⏳ جاري إرسال رمز التحقق...</p>
+                <p style={{ color: MUTED, fontSize: 14 }}>⏳ جاري إرسال رمز التحقق...</p>
               </div>
 
             ) : mcStep === "otp" ? (
@@ -1169,7 +1175,7 @@ export default function OrderPage() {
                 <button
                   onClick={handleMobicashVerify}
                   disabled={sending || mcOtp.length < 4}
-                  style={{ ...s.btn, background: mcOtp.length >= 4 ? "linear-gradient(135deg,#0284c7,#0ea5e9)" : "#e5e7eb", color: mcOtp.length >= 4 ? "#fff" : "#9ca3af", cursor: mcOtp.length >= 4 ? "pointer" : "not-allowed" }}
+                  style={{ ...s.btn, background: mcOtp.length >= 4 ? "linear-gradient(135deg,#0284c7,#0ea5e9)" : CHIP, color: mcOtp.length >= 4 ? "#fff" : FAINT, cursor: mcOtp.length >= 4 ? "pointer" : "not-allowed" }}
                 >
                   {sending ? "⏳ جاري التحقق..." : "تأكيد الدفع ✓"}
                 </button>
@@ -1187,7 +1193,7 @@ export default function OrderPage() {
                 <h3 style={s.modalTitle}>ادفع لي — أدخل رقم هاتفك</h3>
                 <p style={s.modalSub}>
                   أدخل رقم الهاتف المرتبط بحساب <strong>ادفع لي</strong><br />
-                  <span style={{ color: "#6b7280", fontSize: 12 }}>مثال: 0912345678</span>
+                  <span style={{ color: MUTED, fontSize: 12 }}>مثال: 0912345678</span>
                 </p>
                 <input
                   type="tel"
@@ -1201,7 +1207,7 @@ export default function OrderPage() {
                 <button
                   onClick={handleEdfaliPhoneSubmit}
                   disabled={edfaliPhone.replace(/\D/g, "").length < 9}
-                  style={{ ...s.btn, background: edfaliPhone.replace(/\D/g, "").length >= 9 ? "linear-gradient(135deg,#7c3aed,#9333ea)" : "#e5e7eb", color: edfaliPhone.replace(/\D/g, "").length >= 9 ? "#fff" : "#9ca3af", cursor: edfaliPhone.replace(/\D/g, "").length >= 9 ? "pointer" : "not-allowed" }}
+                  style={{ ...s.btn, background: edfaliPhone.replace(/\D/g, "").length >= 9 ? "linear-gradient(135deg,#7c3aed,#9333ea)" : CHIP, color: edfaliPhone.replace(/\D/g, "").length >= 9 ? "#fff" : FAINT, cursor: edfaliPhone.replace(/\D/g, "").length >= 9 ? "pointer" : "not-allowed" }}
                 >
                   إرسال رمز التحقق →
                 </button>
@@ -1217,7 +1223,7 @@ export default function OrderPage() {
               <div style={{ textAlign: "center", padding: "40px 0" }}>
                 <div style={{ width: 56, height: 56, borderRadius: "50%", border: "4px solid #ede9fe", borderTopColor: "#7c3aed", animation: "spin 0.8s linear infinite", margin: "0 auto 20px" }} />
                 <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-                <p style={{ color: "#6b7280", fontSize: 14 }}>⏳ جاري إرسال رمز التحقق...</p>
+                <p style={{ color: MUTED, fontSize: 14 }}>⏳ جاري إرسال رمز التحقق...</p>
               </div>
 
             ) : edfaliStep === "otp" ? (
@@ -1240,7 +1246,7 @@ export default function OrderPage() {
                 <button
                   onClick={handleEdfaliVerify}
                   disabled={sending || edfaliOtp.length < 4}
-                  style={{ ...s.btn, background: edfaliOtp.length === 4 ? "linear-gradient(135deg,#7c3aed,#9333ea)" : "#e5e7eb", color: edfaliOtp.length === 4 ? "#fff" : "#9ca3af", cursor: edfaliOtp.length === 4 ? "pointer" : "not-allowed" }}
+                  style={{ ...s.btn, background: edfaliOtp.length === 4 ? "linear-gradient(135deg,#7c3aed,#9333ea)" : CHIP, color: edfaliOtp.length === 4 ? "#fff" : FAINT, cursor: edfaliOtp.length === 4 ? "pointer" : "not-allowed" }}
                 >
                   {sending ? "⏳ جاري التحقق..." : "تأكيد الدفع ✓"}
                 </button>
@@ -1254,7 +1260,7 @@ export default function OrderPage() {
             ) : (<>
 
             {/* المبلغ أولاً وبأكبر خط في الورقة، ثم الطرق تحته صفًّا صفًّا. */}
-            <div style={{ background: "#fff", borderRadius: 18, padding: "15px 16px", boxShadow: "0 2px 10px rgba(22,19,31,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div style={{ background: CARD, borderRadius: 18, padding: "15px 16px", boxShadow: "0 2px 10px rgba(22,19,31,0.05)", display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
               <div>
                 <div style={{ fontSize: 11.5, color: MUTED, marginBottom: 3 }}>المبلغ المستحق</div>
                 <div style={{ fontSize: 11, color: FAINT }}>
@@ -1371,14 +1377,14 @@ const s = {
     border: `1.5px solid ${LINE}`,
     fontSize: 14,
     color: INK,
-    background: "#fff",
+    background: CARD,
     fontFamily: "inherit",
     boxSizing: "border-box",
     transition: "border-color 0.15s, box-shadow 0.15s",
   },
   inputErr: {
     borderColor: "#f87171",
-    background: "#fff5f5",
+    background: "var(--t-red-bg)",
   },
   btn: {
     width: "100%",
@@ -1400,17 +1406,17 @@ const s = {
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    border: "1.5px dashed #d9d3ec",
+    border: `1.5px dashed ${DASH}`,
     borderRadius: 14,
     padding: "22px 16px",
     cursor: "pointer",
-    background: "#fbfaff",
+    background: SOFT,
     transition: "border-color 0.15s",
     marginBottom: 4,
   },
   uploadBoxErr: {
     borderColor: "#f87171",
-    background: "#fff5f5",
+    background: "var(--t-red-bg)",
   },
   verifyBtn: {
     width: "100%", padding: "15px 16px", marginTop: 4, borderRadius: 14,
@@ -1420,14 +1426,14 @@ const s = {
   },
   okBox: {
     marginTop: 12, padding: "12px 14px", borderRadius: 14,
-    background: "#f0fdf4", border: "1px solid #bbf7d0", color: "#15803d",
+    background: "var(--t-green-bg)", border: "1px solid var(--t-green-line)", color: "var(--t-green-ink)",
     fontSize: 12.5, lineHeight: 1.8, fontWeight: 600,
   },
   // Waiting is part of the design, not an empty screen: the place in line, the
   // expected time, and that the page may be closed.
   queueBox: {
     marginTop: 12, padding: "15px 16px", borderRadius: 16,
-    background: "#fff", boxShadow: "0 2px 10px rgba(22,19,31,0.05)",
+    background: CARD, boxShadow: "0 2px 10px rgba(22,19,31,0.05)",
     color: INK, fontSize: 12.5, lineHeight: 1.85,
     border: `1px solid ${LINE}`,
   },
@@ -1435,7 +1441,7 @@ const s = {
   queueSub: { color: MUTED, fontSize: 12, lineHeight: 1.9, marginTop: 3 },
   qtyBox: {
     marginTop: 14, padding: "16px", borderRadius: 18,
-    background: "#fff", boxShadow: "0 2px 10px rgba(22,19,31,0.05)",
+    background: CARD, boxShadow: "0 2px 10px rgba(22,19,31,0.05)",
   },
   qtyTitle: { fontWeight: 900, fontSize: 14.5, color: INK, marginBottom: 4 },
   qtyNote: { fontSize: 12, color: MUTED, lineHeight: 1.85, margin: "0 0 10px" },
@@ -1478,7 +1484,7 @@ const s = {
   },
   qtyBtn: {
     width: 30, height: 26, borderRadius: 10, border: "none",
-    background: "#fff", color: PRIMARY, fontSize: 15, lineHeight: 1,
+    background: CARD, color: PRIMARY, fontSize: 15, lineHeight: 1,
     cursor: "pointer", fontWeight: 800,
     fontFamily: "inherit", padding: 0, flexShrink: 0,
     boxShadow: "0 1px 3px rgba(22,19,31,0.08)",
@@ -1486,7 +1492,7 @@ const s = {
   qtyVal: { minWidth: 20, textAlign: "center", fontWeight: 900, fontSize: 14, color: INK, padding: "3px 0" },
   geoBtn: {
     width: "100%", marginTop: 2, marginBottom: 4, padding: "13px 14px", borderRadius: 13,
-    border: "1.5px dashed #d9d3ec", background: "#fbfaff", color: PRIMARY,
+    border: `1.5px dashed ${DASH}`, background: SOFT, color: PRIMARY,
     fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit",
   },
   // The wallet gets its own colour: it is the fastest path and the only one
@@ -1498,46 +1504,46 @@ const s = {
   },
   repriceBtn: {
     width: "100%", marginTop: 10, padding: "13px 14px", borderRadius: 13,
-    border: "none", background: INK, color: "#fff",
+    border: "none", background: SOLID, color: ON_SOLID,
     fontSize: 13.5, fontWeight: 800, fontFamily: "inherit",
   },
   qtyOk: {
     marginTop: 10, marginBottom: 0, fontSize: 12.5, lineHeight: 1.8,
-    color: "#15803d", background: "#f0fdf4", border: "1px solid #bbf7d0",
+    color: "var(--t-green-ink)", background: "var(--t-green-bg)", border: "1px solid var(--t-green-line)",
     borderRadius: 13, padding: "11px 12px",
   },
   qtyWarn: {
     marginTop: 10, marginBottom: 0, fontSize: 12.5, lineHeight: 1.8,
-    color: "#92400e", background: "#fffbeb", border: "1px solid #fde68a",
+    color: "var(--t-amber-ink)", background: "var(--t-amber-bg)", border: "1px solid var(--t-amber-line)",
     borderRadius: 13, padding: "11px 12px",
   },
   noteBlue: {
-    background: "#eff6ff",
-    border: "1px solid #bfdbfe",
+    background: "var(--t-blue-bg)",
+    border: "1px solid var(--t-blue-line)",
     borderRadius: 13,
     padding: "12px 14px",
     fontSize: 12.5,
-    color: "#1d4ed8",
+    color: "var(--t-blue-ink)",
     lineHeight: 1.8,
     marginBottom: 16,
   },
   noteYellow: {
-    background: "#fffbeb",
-    border: "1px solid #fcd34d",
+    background: "var(--t-amber-bg)",
+    border: "1px solid var(--t-amber-line)",
     borderRadius: 13,
     padding: "12px 14px",
     fontSize: 12.5,
-    color: "#92400e",
+    color: "var(--t-amber-ink)",
     lineHeight: 1.8,
     marginBottom: 12,
   },
   noteRed: {
-    background: "#fef2f2",
-    border: "1px solid #fca5a5",
+    background: "var(--t-red-bg)",
+    border: "1px solid var(--t-red-line)",
     borderRadius: 13,
     padding: "12px 14px",
     fontSize: 12.5,
-    color: "#991b1b",
+    color: "var(--t-red-ink)",
     lineHeight: 1.8,
     margin: "10px 0",
   },
@@ -1557,7 +1563,7 @@ const s = {
     marginTop: 16,
     padding: "16px",
     borderRadius: 18,
-    background: "#fff",
+    background: CARD,
     boxShadow: "0 2px 10px rgba(22,19,31,0.05)",
   },
   priceRow: {
@@ -1598,7 +1604,7 @@ const s = {
     padding: "13px 14px",
     marginBottom: 9,
     borderRadius: 15,
-    background: "#fff",
+    background: CARD,
     border: `1.5px solid ${LINE}`,
     cursor: "pointer",
     fontSize: 14,
