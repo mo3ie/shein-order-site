@@ -13,12 +13,14 @@ import AdminShell from "@/app/components/AdminShell";
  * from. Everything here is read-only — it prices carts, it never orders.
  */
 const RATE_FALLBACK = 9.5;
-const COMMISSION = 0.01;
+// العمولة تُقرأ من الإعدادات كبقية الموقع، فالتشخيص يطابق ما يراه الزبون.
+const COMMISSION_FALLBACK = 0.01;
 
 export default function PriceTestPage() {
   const [token, setToken]   = useState(null);
   const [denied, setDenied] = useState(false);
   const [rate, setRate]     = useState(RATE_FALLBACK);
+  const [commission, setCommission] = useState(COMMISSION_FALLBACK);
 
   const [url, setUrl]       = useState("");
   const [noCache, setNoCache] = useState(true);
@@ -36,8 +38,11 @@ export default function PriceTestPage() {
       if (!t) { setDenied(true); return; }
       setToken(t);
     });
-    supabase.from("settings").select("exchange_rate").eq("id", 1).single()
-      .then(({ data }) => { if (data?.exchange_rate) setRate(Number(data.exchange_rate)); });
+    supabase.from("settings").select("exchange_rate, profit_rate").eq("id", 1).single()
+      .then(({ data }) => {
+        if (data?.exchange_rate) setRate(Number(data.exchange_rate));
+        if (data?.profit_rate != null) setCommission(Number(data.profit_rate) / 100);
+      });
   }, []);
 
   async function run(withQuantities) {
@@ -121,7 +126,7 @@ export default function PriceTestPage() {
   }
 
   const b = result?.breakdown;
-  const lyd = (usd) => (Number(usd || 0) * (1 + COMMISSION) * rate);
+  const lyd = (usd) => (Number(usd || 0) * (1 + commission) * rate);
 
   // The estimate the storefront would have shown: the baseline price plus each
   // extra unit at its own retail price.
@@ -133,12 +138,18 @@ export default function PriceTestPage() {
 
   return (
     <AdminShell role="admin" title="تشخيص الأسعار" subtitle="أسطر شي إن نفسها، والحساب الذي قرأها، وأين ذهب الوقت — للقراءة فقط." width={880}>
+      {/* حقل الرابط بعنوانه: بعد نقل العنوان إلى إطار اللوحة بقي الحقل يطفو
+          وحده في أعلى البطاقة بلا ما يعرّفه، فبدا في غير مكانه. */}
       <div style={S.card}>
+        <label style={{ display: "block", fontSize: 14, fontWeight: 800, marginBottom: 8 }}>
+          رابط السلة المشتركة
+        </label>
         <input
           placeholder="https://onelink.shein.com/..."
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          style={S.input}
+          onKeyDown={(e) => e.key === "Enter" && !busy && url.trim() && run(false)}
+          style={{ ...S.input, marginBottom: 12, textAlign: "left" }}
           dir="ltr"
         />
 
@@ -184,7 +195,7 @@ export default function PriceTestPage() {
                   <td style={S.vStrong}>${Number(result.price || 0).toFixed(2)}</td>
                 </tr>
                 <tr>
-                  <td style={S.k}>+ عمولة 1% × سعر الصرف {rate}</td>
+                  <td style={S.k}>+ عمولة {(commission * 100).toFixed(1)}% × سعر الصرف {rate}</td>
                   <td style={S.v}>{lyd(result.price).toFixed(2)} د.ل</td>
                 </tr>
                 {result.appTotal != null && (
@@ -380,8 +391,10 @@ function Line({ k, v, good, muted, zero }) {
 const S = {
   page: { minHeight: "100vh", background: "var(--t-page)", color: "var(--t-ink)", padding: 16,
           fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif", direction: "rtl" },
-  card: { maxWidth: 720, margin: "0 auto 14px", background: "var(--t-card)",
-          border: "1px solid var(--t-line)", borderRadius: 14, padding: 16 },
+  // البطاقة تملأ عرض إطار اللوحة: عرض ثابت 720 داخل حاوية 880 كان يترك
+  // البطاقة وحقلها منزاحين عن بقية الصفحة.
+  card: { margin: "0 0 14px", background: "var(--t-card)",
+          boxShadow: "0 2px 10px rgba(22,19,31,0.05)", borderRadius: 18, padding: 18 },
   h1: { fontSize: 20.5, margin: "0 0 6px" },
   h2: { fontSize: 16.5, margin: "0 0 10px" },
   h3: { fontSize: 15.5, margin: "16px 0 8px", color: "var(--t-muted)" },

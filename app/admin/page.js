@@ -38,6 +38,10 @@ export default function Admin() {
   const [savedProfit, setSavedProfit] = useState(false);
   const [openPrice, setOpenPrice]     = useState({});
   const [copiedId, setCopied]         = useState(null);
+  // التحديد الجماعي: العمل يأتي دفعات — عشرة طلبات تُشترى معًا وتُشحن معًا،
+  // وتغييرها واحدًا واحدًا عشر نقرات في عشر بطاقات.
+  const [picked, setPicked]           = useState([]);
+  const [bulkBusy, setBulkBusy]       = useState(false);
 
   useEffect(() => {
     supabase.from("settings").select("exchange_rate, profit_rate").eq("id", 1).single()
@@ -108,6 +112,63 @@ export default function Admin() {
     const { lyd, ship } = lydOf(o);
     return sum + (Number(o.final_total) || lyd + ship);
   }, 0);
+
+  const togglePick = (id) =>
+    setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+
+  /** تغيير حالة المحدّد دفعة واحدة — بلا رسائل واتساب، فعشر نوافذ لا تُفتح. */
+  async function bulkStatus(status) {
+    if (!picked.length) return;
+    if (status === "deleted" && !confirm(`نقل ${picked.length} طلب إلى المحذوفات؟`)) return;
+    setBulkBusy(true);
+    for (const id of picked) {
+      await adminFetch("/api/order", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status }),
+      });
+    }
+    setPicked([]);
+    setBulkBusy(false);
+    getOrders();
+  }
+
+  /** طباعة قائمة تجهيز للمحدّد: ورقة واحدة تُحمل إلى الطاولة. */
+  function printPicked() {
+    const rows = filtered.filter((o) => picked.includes(o.id));
+    if (!rows.length) return;
+    const body = rows.map((o) => {
+      const { lyd, ship } = lydOf(o);
+      const tot = Number(o.final_total) || lyd + ship;
+      return "<tr>"
+        + "<td>" + o.id.slice(0, 8) + "</td>"
+        + "<td>" + (o.name || "") + "</td>"
+        + "<td>" + (o.phone || "") + "</td>"
+        + "<td>" + (STATUS[o.status]?.label || o.status) + "</td>"
+        + "<td class='tot'>" + tot.toFixed(0) + "</td>"
+        + "<td>" + (o.delivery_address || "") + "</td>"
+        + "</tr>";
+    }).join("");
+
+    const html = "<html dir='rtl'><head><meta charset='utf-8'><title>قائمة تجهيز</title>"
+      + "<style>body{font-family:system-ui,sans-serif;padding:24px;color:#111}"
+      + "h1{font-size:20px;margin:0 0 4px}.sub{color:#666;font-size:12px;margin-bottom:18px}"
+      + "table{width:100%;border-collapse:collapse}"
+      + "th,td{border-bottom:1px solid #ddd;padding:8px 6px;font-size:12.5px;text-align:right}"
+      + "th{background:#f4f4f7;font-weight:700}.tot{font-weight:800}</style></head><body>"
+      + "<h1>قائمة تجهيز — ترند شي إن</h1>"
+      + "<div class='sub'>" + new Date().toLocaleString("ar-LY") + " · " + rows.length + " طلب</div>"
+      + "<table><thead><tr><th>#</th><th>الزبون</th><th>الهاتف</th><th>الحالة</th>"
+      + "<th>الإجمالي (د.ل)</th><th>العنوان</th></tr></thead><tbody>"
+      + body + "</tbody></table></body></html>";
+
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    w.print();
+  }
 
   /** تصدير ما هو معروض إلى CSV: المحاسبة تُنجز خارج اللوحة. */
   function exportCsv() {
@@ -238,6 +299,61 @@ export default function Admin() {
         </div>
       </div>
 
+      {/* ── شريط التحديد الجماعي ── */}
+      {filtered.length > 0 && (
+        <Card pad={13} style={{ marginBottom: 14, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <button
+            onClick={() => setPicked(picked.length === filtered.length ? [] : filtered.map((o) => o.id))}
+            style={{
+              display: "flex", alignItems: "center", gap: 9, background: "none", border: "none",
+              cursor: "pointer", color: INK, fontFamily: "inherit", fontSize: 13.5, fontWeight: 700, padding: 0,
+            }}
+          >
+            <span style={{
+              width: 22, height: 22, borderRadius: 7, flexShrink: 0,
+              border: `1.5px solid ${picked.length ? PRIMARY : LINE}`,
+              background: picked.length === filtered.length && filtered.length ? PRIMARY : CARD,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              {picked.length === filtered.length && filtered.length
+                ? <Icon path={I.check} size={13} color="#fff" stroke={2.6} />
+                : picked.length
+                  ? <span style={{ width: 10, height: 2.5, borderRadius: 2, background: PRIMARY }} />
+                  : null}
+            </span>
+            تحديد الكل
+          </button>
+
+          <span style={{ fontSize: 13, color: picked.length ? PRIMARY : FAINT, fontWeight: picked.length ? 800 : 600 }}>
+            {picked.length ? `${picked.length} محدّد` : "لا شيء محدّد"}
+          </span>
+
+          {/* الأفعال تظهر عند وجود تحديد فقط: شريط بلا معنى قبل ذلك. */}
+          {picked.length > 0 && (
+            <div style={{ display: "flex", gap: 7, flexWrap: "wrap", marginInlineStart: "auto" }}>
+              {can("shein_change_status") && [["ordered", "شراء", I.cart], ["shipped", "شحن", I.truck], ["delivered", "تسليم", I.check], ["completed", "إنهاء", I.box]].map(([s, label, icon]) => (
+                <Button key={s} kind="ghost" icon={icon} disabled={bulkBusy}
+                  onClick={() => bulkStatus(s)}
+                  style={{ width: "auto", padding: "10px 14px", fontSize: 13, opacity: bulkBusy ? 0.6 : 1 }}>
+                  {label}
+                </Button>
+              ))}
+              <Button kind="quiet" icon={I.download} onClick={printPicked}
+                style={{ width: "auto", padding: "10px 14px", fontSize: 13 }}>
+                طباعة
+              </Button>
+              {can("shein_delete_orders") && (
+                <Button kind="danger" icon={I.trash} disabled={bulkBusy}
+                  onClick={() => bulkStatus("deleted")}
+                  style={{ width: "auto", padding: "10px 14px", fontSize: 13, opacity: bulkBusy ? 0.6 : 1 }}>
+                  حذف
+                </Button>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
+
       {/* ── الطلبات ── */}
       {filtered.length === 0 ? (
         <Card style={{ textAlign: "center", padding: "56px 20px" }}>
@@ -259,9 +375,22 @@ export default function Admin() {
               <Card key={order.id} className="adm-card" pad={0} style={{ overflow: "hidden", animationDelay: `${idx * 0.03}s` }}>
                 {/* رأس البطاقة */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 16px", borderBottom: `1px solid ${LINE}` }}>
-                  <span style={{ width: 34, height: 34, borderRadius: 11, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <Icon path={cfg.icon} size={17} color={cfg.tone} />
-                  </span>
+                  {/* مربّع التحديد يحلّ محلّ أيقونة الحالة عند التحديد، فلا
+                      يزدحم الرأس ويبقى الطلب معروفًا من لونه. */}
+                  <button
+                    onClick={() => togglePick(order.id)}
+                    title="تحديد الطلب"
+                    style={{
+                      width: 34, height: 34, borderRadius: 11, flexShrink: 0, cursor: "pointer",
+                      border: `1.5px solid ${picked.includes(order.id) ? PRIMARY : "transparent"}`,
+                      background: picked.includes(order.id) ? PRIMARY : cfg.bg,
+                      display: "flex", alignItems: "center", justifyContent: "center", padding: 0,
+                    }}
+                  >
+                    <Icon path={picked.includes(order.id) ? I.check : cfg.icon} size={17}
+                      color={picked.includes(order.id) ? "#fff" : cfg.tone}
+                      stroke={picked.includes(order.id) ? 2.6 : 1.9} />
+                  </button>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 15, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{order.name}</div>
                     <div style={{ fontSize: 12, color: FAINT, fontFamily: "ui-monospace, monospace" }}>#{order.id.slice(0, 8)}</div>

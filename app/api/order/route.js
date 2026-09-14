@@ -215,12 +215,19 @@ export async function POST(req) {
     // settings row the site quotes from, so the stored number is the number the
     // customer was shown.
     let lydTotal = null;
+    let usedRate = null;
     try {
       const { data: settings } = await supabaseAdmin
-        .from("settings").select("exchange_rate").eq("id", 1).single();
+        .from("settings").select("exchange_rate, profit_rate").eq("id", 1).single();
       const rate = Number(settings?.exchange_rate);
+      // العمولة من الإعدادات لا من الشيفرة. كانت مكتوبة هنا 1% بينما اللوحة
+      // تحرّر رقمًا آخر، فكان زرّ العمولة يغيّر رقمًا لا يدخل حساب أحد.
+      const commission = Number.isFinite(Number(settings?.profit_rate))
+        ? Number(settings.profit_rate) / 100
+        : 0.01;
       if (Number.isFinite(rate) && rate > 0) {
-        lydTotal = Number((verifiedPrice * 1.01 * rate).toFixed(2));
+        usedRate = rate;
+        lydTotal = Number((verifiedPrice * (1 + commission) * rate).toFixed(2));
       }
     } catch (e) {
       console.error(`[order] exchange rate unavailable: ${e.message}`);
@@ -230,6 +237,12 @@ export async function POST(req) {
     // insert falls back to the base row rather than losing the order.
     const extraColumns = {
       ...(lydTotal != null ? { price_lyd: lydTotal, final_total: lydTotal } : {}),
+      // سعر الصرف المستعمل يُحفظ مع الطلب، فيبقى الرقم قابلاً للمراجعة مهما
+      // تغيّرت الإعدادات بعده.
+      ...(usedRate != null ? { exchange_rate: usedRate } : {}),
+      // سعر الصرف المستعمل يُحفظ مع الطلب: الرقم يبقى قابلاً للمراجعة بعد
+      // أي تغيير لاحق في الإعدادات.
+      ...(usedRate != null ? { exchange_rate: usedRate } : {}),
       ...(cartShotUrl ? { cart_shot_url: cartShotUrl } : {}),
       ...(breakdown || address || extraUsd
         ? { price_breakdown: { ...(breakdown || {}), quantities: quantities || [], note: note || null, images: images || [], source: priceSource } }

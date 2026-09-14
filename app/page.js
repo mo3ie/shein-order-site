@@ -47,6 +47,10 @@ export default function OrderPage() {
   const [geoState,          setGeoState]          = useState("idle");
   const [price,             setPrice]             = useState(null);
   const [exchangeRate,      setExchangeRate]      = useState(1);
+  // العمولة وسعر الصرف مصدرهما واحد: صفّ الإعدادات الذي يحرّره الأدمن.
+  // كانت العمولة مكتوبة هنا 1% بينما اللوحة تحرّر رقمًا آخر، فكان زرّ اللوحة
+  // يغيّر رقمًا لا يراه الزبون.
+  const [profitRate,        setProfitRate]        = useState(null);
   const [loading,           setLoading]           = useState(false);
   const [sending,           setSending]           = useState(false);
   const [preview,           setPreview]           = useState(null);
@@ -119,7 +123,8 @@ export default function OrderPage() {
   // Once SHEIN has priced the chosen quantities, that figure replaces the
   // estimate everywhere — including the button the customer pays from.
   const base      = exactPrice != null ? exactPrice : (price || 0) + extrasUSD;
-  const profit    = base * 0.01;
+  const commission = (profitRate ?? 1) / 100;   // حتى تصل الإعدادات: 1% كما كان
+  const profit    = base * commission;
   const totalUSD  = base + profit;
   const priceLYD  = exchangeRate ? totalUSD * exchangeRate : 0;
 
@@ -154,8 +159,12 @@ export default function OrderPage() {
   }, [resolveState, cartItems.length, stage]);
 
   useEffect(() => {
-    supabase.from("settings").select("exchange_rate").eq("id", 1).single()
-      .then(({ data }) => { if (data) setExchangeRate(Number(data.exchange_rate)); });
+    supabase.from("settings").select("exchange_rate, profit_rate").eq("id", 1).single()
+      .then(({ data }) => {
+        if (!data) return;
+        setExchangeRate(Number(data.exchange_rate));
+        if (data.profit_rate != null) setProfitRate(Number(data.profit_rate));
+      });
   }, []);
 
   // The session lives in the browser client, so the token has to be sent
@@ -739,7 +748,7 @@ export default function OrderPage() {
 
   // ─────────────────────────────────────────────────────────────────────────
   // سعر الصنف الواحد بالدينار: الزبون لا يرى دولاراً في أي مكان.
-  const lydOfUsd = (usd) => (Number(usd || 0) * 1.01) * (exchangeRate || 0);
+  const lydOfUsd = (usd) => (Number(usd || 0) * (1 + commission)) * (exchangeRate || 0);
 
   // ما وفّره العرض على السلة، إن قرأه شي إن من صفحة الدفع.
   const savedLyd = breakdown?.promotionsUsd
