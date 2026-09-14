@@ -41,7 +41,7 @@ export default function AuthCallback() {
 
   return (
     <main style={{
-      minHeight: "100vh", background: "#0b0f1a",
+      minHeight: "100vh", background: "var(--t-page)",
       display: "flex", alignItems: "center", justifyContent: "center",
     }}>
       <div style={{ textAlign: "center" }}>
@@ -51,7 +51,7 @@ export default function AuthCallback() {
           animation: "spin 0.8s linear infinite", margin: "0 auto 20px",
         }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <p style={{ color: "#9ca3af", fontSize: "15px" }}>⏳ جاري تسجيل الدخول...</p>
+        <p style={{ color: "var(--t-muted)", fontSize: "15px", fontWeight: 600 }}>جاري تسجيل الدخول...</p>
       </div>
     </main>
   );

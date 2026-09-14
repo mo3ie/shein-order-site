@@ -3,8 +3,11 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useLang } from "@/lib/i18n";
+import { Screen, Card, Field, Button, Icon, I, inputStyle, PRIMARY, INK, MUTED, FAINT, LINE, CARD } from "@/app/components/ui";
 
 function LoginForm() {
+  const { t } = useLang();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/account";
 
@@ -98,166 +101,111 @@ function LoginForm() {
     }
   };
 
-  return (
-    <main style={mainStyle}>
-      <div style={card}>
-        <h2 style={{ textAlign: "center", marginBottom: 4 }}>
-          {mode === "reset" ? "🔑 استعادة كلمة المرور" : mode === "otp" ? "🔐 الدخول برمز" : "👤 تسجيل الدخول"}
-        </h2>
+  const title = mode === "reset" ? t("استعادة كلمة المرور")
+    : mode === "otp" ? t("الدخول برمز") : t("تسجيل الدخول");
+  const sub = mode === "reset" ? t("نرسل رابط إعادة التعيين إلى بريدك.")
+    : mode === "otp" ? t("رمز لمرّة واحدة إلى بريدك — بلا كلمة مرور.")
+    : t("ادخل إلى حسابك لمتابعة طلباتك ومحفظتك.");
 
-        <input
-          placeholder="البريد الإلكتروني"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={input}
-          type="email"
-          disabled={mode === "otp" && otpSent}
-        />
+  return (
+    <Screen title={title} subtitle={sub} nav={false} width={440}>
+      <Card pad={18}>
+        {/* جوجل أولاً: أسرع طريق ولا كلمة مرور تُنسى. */}
+        <button onClick={loginWithGoogle} style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+          padding: 14, borderRadius: 13, border: `1.5px solid ${LINE}`, background: CARD,
+          cursor: "pointer", fontSize: 15, fontWeight: 700, color: INK, fontFamily: "inherit",
+        }}>
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" width={19} />
+          {t("الدخول عبر Google")}
+        </button>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "16px 0" }}>
+          <div style={{ flex: 1, height: 1, background: LINE }} />
+          <span style={{ fontSize: 12.5, color: FAINT }}>{t("أو")}</span>
+          <div style={{ flex: 1, height: 1, background: LINE }} />
+        </div>
+
+        <Field label={t("البريد الإلكتروني")}>
+          <input
+            type="email"
+            placeholder="name@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={mode === "otp" && otpSent}
+            style={{ ...inputStyle, direction: "ltr", textAlign: "left" }}
+          />
+        </Field>
 
         {mode === "login" && (
-          <input
-            placeholder="كلمة المرور"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-            style={input}
-            type="password"
-          />
+          <Field label={t("كلمة المرور")}>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+              style={inputStyle}
+            />
+          </Field>
         )}
 
         {mode === "otp" && otpSent && (
-          <input
-            placeholder="رمز التحقق"
-            value={otpCode}
-            onChange={(e) => setOtpCode(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleVerifyOtp()}
-            style={{ ...input, textAlign: "center", letterSpacing: "0.4em" }}
-            inputMode="numeric"
-          />
+          <Field label={t("الرمز المرسل")} hint={t("صالح لدقائق — تفقّد بريدك ومجلد الرسائل غير المرغوبة.")}>
+            <input
+              inputMode="numeric"
+              placeholder="······"
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleVerifyOtp()}
+              style={{ ...inputStyle, textAlign: "center", fontSize: 24, fontWeight: 800, letterSpacing: 8, direction: "ltr" }}
+            />
+          </Field>
         )}
 
-        {mode === "login" && (
-          <>
-            <button onClick={handleLogin} style={btnPrimary} disabled={loading}>
-              {loading ? "جاري الدخول..." : "تسجيل الدخول"}
-            </button>
+        <Button
+          onClick={mode === "reset" ? resetPassword : mode === "otp" ? (otpSent ? handleVerifyOtp : handleSendOtp) : handleLogin}
+          disabled={loading}
+          icon={mode === "login" ? I.lock : I.mail}
+          style={{ opacity: loading ? 0.65 : 1, marginTop: 4 }}
+        >
+          {loading ? t("لحظة...")
+            : mode === "reset" ? t("أرسل رابط الاستعادة")
+            : mode === "otp" ? (otpSent ? t("تأكيد الرمز") : t("أرسل الرمز"))
+            : t("دخول")}
+        </Button>
 
-            <button onClick={loginWithGoogle} style={btnGoogle}>
-              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                   alt="Google" width={18} style={{ marginLeft: 8 }} />
-              تسجيل عبر Google
-            </button>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, marginTop: 14, flexWrap: "wrap" }}>
+          {mode !== "login" ? (
+            <button onClick={() => { setMode("login"); setOtpSent(false); }} style={linkBtn}>{t("العودة لتسجيل الدخول")}</button>
+          ) : (<>
+            <button onClick={() => setMode("otp")} style={linkBtn}>{t("الدخول برمز بدل كلمة المرور")}</button>
+            <button onClick={() => setMode("reset")} style={linkBtn}>{t("نسيت كلمة المرور؟")}</button>
+          </>)}
+        </div>
+      </Card>
 
-            <div style={{ textAlign: "center", marginTop: 14, fontSize: 13 }}>
-              <button onClick={() => setMode("reset")} style={linkBtn}>
-                نسيت كلمة المرور؟
-              </button>
-              <span style={{ color: "#aaa", margin: "0 8px" }}>|</span>
-              <button onClick={() => setMode("otp")} style={linkBtn}>
-                الدخول برمز
-              </button>
-              <span style={{ color: "#aaa", margin: "0 8px" }}>|</span>
-              <a href="/signup" style={{ color: "#7c3aed", textDecoration: "none" }}>
-                إنشاء حساب
-              </a>
-            </div>
-          </>
-        )}
+      <Card pad={16} style={{ textAlign: "center" }}>
+        <span style={{ fontSize: 13.5, color: MUTED }}>{t("ليس لديك حساب؟")} </span>
+        <a href="/signup" style={{ fontSize: 13.5, color: PRIMARY, fontWeight: 800, textDecoration: "none" }}>{t("إنشاء حساب")}</a>
+      </Card>
 
-        {mode === "reset" && (
-          <>
-            <button onClick={resetPassword} style={btnPrimary} disabled={loading}>
-              {loading ? "جاري الإرسال..." : "إرسال رابط الاستعادة"}
-            </button>
-            <button onClick={() => setMode("login")} style={linkBtn}>
-              ← العودة لتسجيل الدخول
-            </button>
-          </>
-        )}
-
-        {mode === "otp" && (
-          <>
-            <button onClick={otpSent ? handleVerifyOtp : handleSendOtp} style={btnPrimary} disabled={loading}>
-              {loading ? "..." : otpSent ? "تأكيد الرمز" : "إرسال الرمز"}
-            </button>
-            <button onClick={() => { setMode("login"); setOtpSent(false); setOtpCode(""); }} style={linkBtn}>
-              ← العودة لتسجيل الدخول
-            </button>
-          </>
-        )}
+      {/* ما يطمئن قبل إدخال بيانات: أين تذهب وماذا تفيد. */}
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "0 4px" }}>
+        <Icon path={I.shield} size={17} color={PRIMARY} style={{ flexShrink: 0, marginTop: 2 }} />
+        <p style={{ fontSize: 12.5, color: FAINT, lineHeight: 1.85, margin: 0 }}>
+          {t("حسابك يحفظ طلباتك وعناوينك ورصيد محفظتك. لا نشارك بياناتك مع أحد.")}
+        </p>
       </div>
-    </main>
+    </Screen>
   );
 }
 
-const mainStyle = {
-  minHeight: "100vh",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  background: "transparent",
-  direction: "rtl",
-};
-
-const card = {
-  background: "var(--t-card)",
-  padding: "32px",
-  color: "#2c2c2c",
-  borderRadius: "16px",
-  width: "320px",
-  boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
-  border: "1px solid #eee",
-};
-
-const input = {
-  width: "100%",
-  padding: "11px 14px",
-  marginBottom: "12px",
-  borderRadius: "10px",
-  border: "1px solid #e0e0e0",
-  outline: "none",
-  fontSize: "14px",
-  color: "var(--t-ink)",
-  background: "var(--t-card)",
-  boxSizing: "border-box",
-};
-
-const btnPrimary = {
-  width: "100%",
-  padding: "12px",
-  borderRadius: "10px",
-  background: "#111",
-  color: "#fff",
-  border: "none",
-  cursor: "pointer",
-  fontWeight: "700",
-  fontSize: "14px",
-  marginBottom: "10px",
-};
-
-const btnGoogle = {
-  width: "100%",
-  padding: "11px",
-  borderRadius: "10px",
-  background: "var(--t-card)",
-  color: "#333",
-  border: "1px solid #ddd",
-  cursor: "pointer",
-  fontSize: "14px",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  marginBottom: "4px",
-};
-
 const linkBtn = {
-  background: "none",
-  border: "none",
-  color: "#888",
-  cursor: "pointer",
-  fontSize: "13px",
-  padding: 0,
+  background: "none", border: "none", color: PRIMARY, cursor: "pointer",
+  fontSize: 13, fontWeight: 700, padding: 0, fontFamily: "inherit",
 };
+
 
 export default function LoginPage() {
   return (

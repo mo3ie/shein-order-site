@@ -2,8 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useLang } from "@/lib/i18n";
+import { Screen, Card, Field, Button, EmptyState, Icon, I, inputStyle, GRAD_HEAD, PRIMARY, INK, MUTED, FAINT, LINE, CARD } from "@/app/components/ui";
 
 export default function SignupPage() {
+  const { t } = useLang();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -56,144 +59,71 @@ export default function SignupPage() {
     });
     if (oauthError) setError(oauthError.message);
   };
-
   if (done) {
     return (
-      <main style={mainStyle}>
-        <div style={card}>
-          <div style={{ textAlign: "center", fontSize: 48, marginBottom: 16 }}>📧</div>
-          <h2 style={{ textAlign: "center", marginBottom: 8, color: "var(--t-ink)" }}>تحقق من بريدك</h2>
-          <p style={{ textAlign: "center", color: "#666", fontSize: 14, lineHeight: 1.6 }}>
-            أرسلنا لك رابط تأكيد على <strong>{email}</strong>
-            <br />افتح الرابط لتفعيل حسابك
-          </p>
-          <a href="/login" style={{ ...btnPrimary, display: "block", textAlign: "center", marginTop: 20, textDecoration: "none" }}>
-            العودة لتسجيل الدخول
-          </a>
-        </div>
-      </main>
+      <Screen title={t("تحقّق من بريدك")} subtitle={t("خطوة واحدة وينتهي التسجيل.")} nav={false} width={440}>
+        <EmptyState
+          icon={I.mail}
+          title={t("أرسلنا رابط التأكيد")}
+          note={`${t("افتح الرابط المرسل إلى")} ${email} ${t("لتفعيل حسابك.")}`}
+          action={<a href="/login" style={{ display: "inline-block", padding: "14px 28px", borderRadius: 14, background: GRAD_HEAD, color: "#fff", fontWeight: 800, fontSize: 15, textDecoration: "none", boxShadow: "0 6px 18px rgba(124,58,237,0.28)" }}>{t("العودة لتسجيل الدخول")}</a>}
+        />
+      </Screen>
     );
   }
 
   return (
-    <main style={mainStyle}>
-      <div style={card}>
-        <h2 style={{ textAlign: "center", marginBottom: 20, color: "var(--t-ink)", fontWeight: 800 }}>
-          إنشاء حساب جديد
-        </h2>
-
-        <button onClick={loginWithGoogle} style={btnGoogle}>
-          <img
-            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-            alt="Google" width={18} style={{ marginLeft: 8 }}
-          />
-          التسجيل عبر Google
+    <Screen title={t("إنشاء حساب")} subtitle={t("حسابك يحفظ طلباتك وعناوينك ورصيد محفظتك.")} nav={false} width={440}>
+      <Card pad={18}>
+        <button onClick={loginWithGoogle} style={{
+          width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+          padding: 14, borderRadius: 13, border: `1.5px solid ${LINE}`, background: CARD,
+          cursor: "pointer", fontSize: 15, fontWeight: 700, color: INK, fontFamily: "inherit",
+        }}>
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" width={19} />
+          {t("المتابعة عبر Google")}
         </button>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "14px 0" }}>
-          <div style={{ flex: 1, height: 1, background: "#eee" }} />
-          <span style={{ color: "#bbb", fontSize: 12 }}>أو</span>
-          <div style={{ flex: 1, height: 1, background: "#eee" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "16px 0" }}>
+          <div style={{ flex: 1, height: 1, background: LINE }} />
+          <span style={{ fontSize: 12.5, color: FAINT }}>{t("أو")}</span>
+          <div style={{ flex: 1, height: 1, background: LINE }} />
         </div>
 
-        <input
-          placeholder="الاسم الكامل"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          style={input}
-          type="text"
-        />
-        <input
-          placeholder="البريد الإلكتروني"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={input}
-          type="email"
-        />
-        <input
-          placeholder="كلمة المرور (6 أحرف على الأقل)"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSignup()}
-          style={input}
-          type="password"
-        />
-
         {error && (
-          <p style={{ color: "#e53e3e", fontSize: 13, marginBottom: 10, textAlign: "center" }}>
-            ⚠️ {error}
-          </p>
+          <div style={{ display: "flex", gap: 9, alignItems: "flex-start", background: "var(--t-red-bg)", border: "1px solid var(--t-red-line)", color: "var(--t-red-ink)", borderRadius: 13, padding: "12px 14px", marginBottom: 14, fontSize: 13 }}>
+            <Icon path={I.alert} size={17} style={{ flexShrink: 0, marginTop: 1 }} />
+            <span>{error}</span>
+          </div>
         )}
 
-        <button onClick={handleSignup} style={btnPrimary} disabled={loading}>
-          {loading ? "جاري التسجيل..." : "إنشاء الحساب"}
-        </button>
+        <Field label={t("الاسم الكامل")}>
+          <input placeholder={t("أدخل اسمك الكامل")} value={fullName}
+            onChange={(e) => setFullName(e.target.value)} style={inputStyle} />
+        </Field>
 
-        <p style={{ textAlign: "center", fontSize: 13, color: "#888", marginTop: 14 }}>
-          لديك حساب؟{" "}
-          <a href="/login" style={{ color: "#7c3aed", textDecoration: "none", fontWeight: 600 }}>
-            سجّل دخولك
-          </a>
-        </p>
-      </div>
-    </main>
+        <Field label={t("البريد الإلكتروني")}>
+          <input type="email" placeholder="name@example.com" value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={{ ...inputStyle, direction: "ltr", textAlign: "left" }} />
+        </Field>
+
+        <Field label={t("كلمة المرور")} hint={t("ستة أحرف على الأقل.")}>
+          <input type="password" placeholder="••••••••" value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSignup()}
+            style={inputStyle} />
+        </Field>
+
+        <Button onClick={handleSignup} disabled={loading} icon={I.user} style={{ opacity: loading ? 0.65 : 1, marginTop: 4 }}>
+          {loading ? t("لحظة...") : t("إنشاء الحساب")}
+        </Button>
+      </Card>
+
+      <Card pad={16} style={{ textAlign: "center" }}>
+        <span style={{ fontSize: 13.5, color: MUTED }}>{t("لديك حساب بالفعل؟")} </span>
+        <a href="/login" style={{ fontSize: 13.5, color: PRIMARY, fontWeight: 800, textDecoration: "none" }}>{t("تسجيل الدخول")}</a>
+      </Card>
+    </Screen>
   );
 }
-
-const mainStyle = {
-  minHeight: "100vh",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  background: "transparent",
-  direction: "rtl",
-};
-
-const card = {
-  background: "var(--t-card)",
-  padding: "32px",
-  color: "#2c2c2c",
-  borderRadius: "16px",
-  width: "340px",
-  boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
-  border: "1px solid #eee",
-};
-
-const input = {
-  width: "100%",
-  padding: "11px 14px",
-  marginBottom: "12px",
-  borderRadius: "10px",
-  border: "1px solid #e0e0e0",
-  outline: "none",
-  fontSize: "14px",
-  color: "var(--t-ink)",
-  background: "var(--t-card)",
-  boxSizing: "border-box",
-};
-
-const btnPrimary = {
-  width: "100%",
-  padding: "12px",
-  borderRadius: "10px",
-  background: "#111",
-  color: "#fff",
-  border: "none",
-  cursor: "pointer",
-  fontWeight: "700",
-  fontSize: "14px",
-};
-
-const btnGoogle = {
-  width: "100%",
-  padding: "11px",
-  borderRadius: "10px",
-  background: "var(--t-card)",
-  color: "#333",
-  border: "1px solid #ddd",
-  cursor: "pointer",
-  fontSize: "14px",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-};
