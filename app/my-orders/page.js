@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { statusLabel, statusColor, fmtDate, payLabel } from "@/lib/orderStatus";
 import { useLang, useIsDesktop } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import TopBar from "@/app/components/TopBar";
@@ -21,36 +22,8 @@ const CHIP      = "var(--t-chip)";
 const SOLID     = "var(--t-solid)";
 const ON_SOLID  = "var(--t-on-solid)";
 
-function payLabel(m) {
-  return {
-    wallet: "المحفظة", mobicash: "موبي كاش", moamalat: "معاملات",
-    edfali: "ادفع لي", masarafi: "مصرفي باي", yusor: "يسر",
-  }[m] || m || null;
-}
 
 // ── مساعدات ──────────────────────────────────────────────────────────────────
-function statusLabel(s) {
-  return {
-    new: "جديد", paid: "مدفوع", confirmed: "مؤكد",
-    ordered: "قيد المعالجة", processing: "قيد المعالجة",
-    shipped: "في الشحن", delivered: "تم التسليم",
-    completed: "منجز", cancelled: "ملغي",
-  }[s] || s || "جديد";
-}
-function statusColor(s) {
-  if (["delivered","completed"].includes(s)) return { color: "var(--t-green-ink)", bg: "var(--t-green-bg)", border: "var(--t-green-line)" };
-  if (["paid","confirmed"].includes(s))       return { color: "#a78bfa", bg: "var(--t-chip)", border: "var(--t-line)" };
-  if (["shipped"].includes(s))                return { color: "var(--t-blue-ink)", bg: "var(--t-blue-bg)", border: "var(--t-blue-line)" };
-  if (["ordered","processing"].includes(s))   return { color: "var(--t-amber-ink)", bg: "var(--t-amber-bg)", border: "var(--t-amber-line)" };
-  if (["cancelled"].includes(s))              return { color: "var(--t-red-ink)", bg: "var(--t-red-bg)", border: "var(--t-red-line)" };
-  return { color: "var(--t-muted)", bg: "var(--t-chip)", border: "var(--t-line)" };
-}
-function fmtDate(d) {
-  if (!d) return "—";
-  const dt = new Date(d);
-  return dt.toLocaleDateString("ar-LY", { day: "2-digit", month: "long", year: "numeric" })
-    + " — " + dt.toLocaleTimeString("ar-LY", { hour: "2-digit", minute: "2-digit" });
-}
 
 // ── صفحة تسجيل الدخول المدمجة ─────────────────────────────────────────────
 function LoginPrompt({ onLogin }) {

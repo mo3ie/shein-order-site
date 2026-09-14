@@ -534,26 +534,6 @@ export default function OrderPage() {
     window.location.href = `/track?id=${trackId}`;
   };
 
-  // ── Stripe ───────────────────────────────────────────────────────────────
-  const handlePayment = async () => {
-    try {
-      setSending(true);
-      const imageUrl = await uploadImage();
-      const oid = await createOrder(imageUrl);
-      await supabase.from("payments").insert({ order_id: oid, method: "stripe", status: "pending", amount: totalUSD });
-      const res = await fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: totalUSD, orderId: oid }),
-      });
-      const data = await res.json();
-      window.location.href = data.url;
-    } catch (err) {
-      alert(err.message || "خطأ في الدفع");
-      setSending(false);
-    }
-  };
-
   /**
    * Pays for the order out of the SHEIN wallet.
    *

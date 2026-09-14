@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { statusLabel, statusColor } from "@/lib/orderStatus";
 import { Card, SectionTitle, Button, Icon, I, GRAD_HEAD, PRIMARY, INK, MUTED, FAINT, LINE, CHIP, CARD } from "@/app/components/ui";
 
 const GRAD   = "linear-gradient(135deg,#7c3aed,#3b82f6)";
@@ -496,25 +497,6 @@ function TrackContent() {
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-function statusLabel(s) {
-  return { new: "جديد", paid: "مدفوع", confirmed: "مؤكد", ordered: "تحت المعالجة", processing: "تحت المعالجة", shipped: "تم الشحن", delivered: "تم التسليم", cancelled: "ملغي" }[s] || s || "—";
-}
-function statusColor(s) {
-  if (["delivered"].includes(s))                         return "var(--t-green-ink)";
-  if (["paid","confirmed"].includes(s))                  return "#7c3aed";
-  if (["shipped"].includes(s))                           return "var(--t-blue-ink)";
-  if (["ordered","processing"].includes(s))              return "var(--t-amber-ink)";
-  if (["cancelled"].includes(s))                         return "var(--t-red-ink)";
-  return "var(--t-muted)";
-}
-function statusBg(s) {
-  if (["delivered"].includes(s))                         return "var(--t-green-bg)";
-  if (["paid","confirmed"].includes(s))                  return "var(--t-chip)";
-  if (["shipped"].includes(s))                           return "var(--t-blue-bg)";
-  if (["ordered","processing"].includes(s))              return "var(--t-amber-bg)";
-  if (["cancelled"].includes(s))                         return "var(--t-red-bg)";
-  return "var(--t-chip)";
-}
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = {

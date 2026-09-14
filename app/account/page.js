@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { statusLabel, statusColor, fmtDate, lydOf, isPaid, payLabel } from "@/lib/orderStatus";
 import { useLang, useIsDesktop } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import TopBar from "@/app/components/TopBar";
@@ -21,44 +22,10 @@ const FAINT     = "var(--t-faint)";
 const LINE      = "var(--t-line)";
 const CHIP      = "var(--t-chip)";
 
-const PAY_LABEL = {
-  wallet: "المحفظة", mobicash: "موبي كاش", edfali: "ادفع لي",
-  moamalat: "معاملات", masarafi: "مصرفي باي", yusor: "يسر باي",
-};
-
 /** What the customer owes, in the currency they pay in. */
-function lydOf(o) {
-  const v = o.final_total ?? o.price_lyd;
-  return v == null ? null : Number(v);
-}
 
 /** An order only counts as paid once a gateway (or the wallet) says so. */
-function isPaid(o) {
-  return !["new", "pending", null, undefined, ""].includes(o.status);
-}
 
-function statusLabel(s) {
-  return {
-    new: "جديد", paid: "مدفوع", confirmed: "مؤكد",
-    ordered: "قيد المعالجة", processing: "قيد المعالجة",
-    shipped: "في الشحن", delivered: "تم التسليم",
-    completed: "منجز", cancelled: "ملغي",
-  }[s] || s || "جديد";
-}
-function statusColor(s) {
-  if (["delivered","completed"].includes(s)) return { color: "var(--t-green-ink)", bg: "var(--t-green-bg)", border: "var(--t-green-line)" };
-  if (["paid","confirmed"].includes(s))       return { color: "#a78bfa", bg: "var(--t-chip)", border: "var(--t-line)" };
-  if (["shipped"].includes(s))                return { color: "var(--t-blue-ink)", bg: "var(--t-blue-bg)", border: "var(--t-blue-line)" };
-  if (["ordered","processing"].includes(s))   return { color: "var(--t-amber-ink)", bg: "var(--t-amber-bg)", border: "var(--t-amber-line)" };
-  if (["cancelled"].includes(s))              return { color: "var(--t-red-ink)", bg: "var(--t-red-bg)", border: "var(--t-red-line)" };
-  return { color: "var(--t-muted)", bg: "var(--t-chip)", border: "var(--t-line)" };
-}
-function fmtDate(d) {
-  if (!d) return "—";
-  const dt = new Date(d);
-  return dt.toLocaleDateString("ar-LY", { day: "2-digit", month: "long", year: "numeric" })
-    + " — " + dt.toLocaleTimeString("ar-LY", { hour: "2-digit", minute: "2-digit" });
-}
 
 function OrderCard({ order }) {
   const sc = statusColor(order.status);
@@ -178,7 +145,7 @@ export default function AccountPage() {
         const done = pays.find((p) => ["paid", "success", "completed"].includes(p.status));
         return {
           ...o,
-          payMethod: PAY_LABEL[done?.method || pays[0]?.method] || null,
+          payMethod: payLabel(done?.method || pays[0]?.method),
           itemCount: o.price_breakdown?.quantities?.length || null,
         };
       }).filter((o) =>
