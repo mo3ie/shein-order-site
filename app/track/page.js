@@ -4,15 +4,18 @@ import { Suspense } from "react";
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { Card, SectionTitle, Button, Icon, I, GRAD_HEAD, PRIMARY, INK, MUTED, FAINT, LINE, CHIP, CARD } from "@/app/components/ui";
 
 const GRAD   = "linear-gradient(135deg,#7c3aed,#3b82f6)";
 const PURPLE = "#7c3aed";
 
+// المراحل بأيقونات خطّية وملاحظة تشرح ما يجري في كل مرحلة، فالمسار يُقرأ
+// كحكاية لا كأربع دوائر.
 const STEPS = [
-  { key: "new",       label: "تم الاستلام",    icon: "📥", keys: ["new", "paid", "confirmed"] },
-  { key: "ordered",   label: "قيد المعالجة",   icon: "⚙️", keys: ["ordered", "processing"]    },
-  { key: "shipped",   label: "في الشحن",       icon: "🚚", keys: ["shipped"]                   },
-  { key: "delivered", label: "تم التسليم",     icon: "✅", keys: ["delivered"]                 },
+  { key: "new",       label: "تم الاستلام",  note: "وصلنا طلبك وسجّلناه",       icon: I.box,   keys: ["new", "paid", "confirmed"] },
+  { key: "ordered",   label: "قيد المعالجة", note: "نشتري سلتك من شي إن",      icon: I.cart,  keys: ["ordered", "processing"]    },
+  { key: "shipped",   label: "في الشحن",     note: "في طريقه إلى ليبيا",       icon: I.truck, keys: ["shipped"]                  },
+  { key: "delivered", label: "تم التسليم",   note: "استلمت طلبك — شكرًا لثقتك", icon: I.check, keys: ["delivered"]                },
 ];
 
 function getStep(status) {
@@ -92,9 +95,9 @@ function TrackContent() {
     return (
       <div style={styles.page}>
         <div style={{ ...styles.card, textAlign: "center", maxWidth: 420 }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: "var(--t-ink)", marginBottom: 8 }}>تتبع طلبك</h2>
-          <p style={{ fontSize: 13, color: "var(--t-faint)", marginBottom: 20 }}>أدخل رقم الطلب لمتابعة حالته</p>
+          <span style={{ width: 54, height: 54, borderRadius: 18, background: CHIP, display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}><Icon path={I.search} size={24} color={PRIMARY} /></span>
+          <h2 style={{ fontSize: 21, fontWeight: 900, marginBottom: 8 }}>تتبّع طلبك</h2>
+          <p style={{ fontSize: 14, color: FAINT, marginBottom: 20, lineHeight: 1.8 }}>أدخل رقم الطلب لمتابعة حالته خطوة بخطوة.</p>
           <div style={{ display: "flex", gap: 8 }}>
             <input
               placeholder="رقم الطلب"
@@ -115,7 +118,7 @@ function TrackContent() {
     return (
       <div style={{ ...styles.page, flexDirection: "column", gap: 12 }}>
         <div style={{ width: 48, height: 48, borderRadius: "50%", border: `4px solid var(--t-line)`, borderTopColor: PURPLE, animation: "spin 0.8s linear infinite" }} />
-        <p style={{ color: "var(--t-faint)", fontSize: 14 }}>جاري تحميل بيانات الطلب...</p>
+        <p style={{ color: FAINT, fontSize: 14.5, fontWeight: 600 }}>جاري تحميل بيانات الطلب...</p>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     );
@@ -126,7 +129,7 @@ function TrackContent() {
     return (
       <div style={styles.page}>
         <div style={{ ...styles.card, textAlign: "center", maxWidth: 420 }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>❌</div>
+          <span style={{ width: 54, height: 54, borderRadius: 18, background: "var(--t-red-bg)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}><Icon path={I.alert} size={24} color="var(--t-red-ink)" /></span>
           <h2 style={{ fontSize: 18, fontWeight: 800, color: "var(--t-red-ink)", marginBottom: 8 }}>الطلب غير موجود</h2>
           <p style={{ fontSize: 13, color: "var(--t-faint)", marginBottom: 20 }}>تحقق من رقم الطلب وأعد المحاولة</p>
           <div style={{ display: "flex", gap: 8 }}>
@@ -190,7 +193,7 @@ function TrackContent() {
       {/* ════════════════════════════════════════════
           وصل الطباعة — مخفي في الشاشة، ظاهر عند الطباعة
           ════════════════════════════════════════════ */}
-      <div id="print-receipt" style={{ fontFamily: "'Segoe UI', Tahoma, Arial, sans-serif", direction: "rtl", maxWidth: 480, margin: "0 auto", padding: "24px 28px", color: "#111", background: "var(--t-card)" }}>
+      <div id="print-receipt" style={{ fontFamily: "'Segoe UI', Tahoma, Arial, sans-serif", direction: "rtl", maxWidth: 480, margin: "0 auto", padding: "24px 28px", color: "var(--t-ink)", background: "var(--t-card)" }}>
 
         {/* رأس الوصل */}
         <div style={{ textAlign: "center", marginBottom: 20, borderBottom: "3px solid #7c3aed", paddingBottom: 16 }}>
@@ -335,141 +338,155 @@ function TrackContent() {
       {/* ════════════════════════════════════════════
           المحتوى العادي على الشاشة
           ════════════════════════════════════════════ */}
-      <div id="screen-content" style={{ width: "100%", maxWidth: 480, display: "flex", flexDirection: "column", gap: 14, animation: "pop 0.3s ease" }}>
+      <div id="screen-content" style={{ width: "100%", maxWidth: 480, display: "flex", flexDirection: "column", gap: 13, animation: "pop 0.3s ease" }}>
 
-        {/* ── رقم الطلب ── */}
-        <div style={styles.card}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <p style={{ fontWeight: 700, fontSize: 15, color: "var(--t-ink)" }}>📦 رقم الطلب</p>
-            <span style={{ fontSize: 11, background: statusBg(order.status), color: statusColor(order.status), padding: "4px 12px", borderRadius: 20, fontWeight: 700 }}>
+        {/* ── الحالة والمبلغ في بطاقة واحدة متدرّجة: أول ما يسأل عنه صاحب الطلب ── */}
+        <div style={{ background: GRAD_HEAD, color: "#fff", borderRadius: 18, padding: "18px 18px 20px", position: "relative", overflow: "hidden", boxShadow: "0 6px 18px rgba(124,58,237,0.25)" }}>
+          <div style={{ position: "absolute", insetInlineEnd: -40, top: -50, width: 170, height: 170, borderRadius: "50%", background: "rgba(255,255,255,0.09)" }} />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", marginBottom: 16 }}>
+            <span style={{ fontSize: 13, opacity: 0.85 }}>{STEPS[currentStep]?.label}</span>
+            <span style={{ fontSize: 12, fontWeight: 800, background: "rgba(255,255,255,0.2)", borderRadius: 20, padding: "5px 12px" }}>
               {statusLabel(order.status)}
             </span>
           </div>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", background: "var(--t-chip)", borderRadius: 12, padding: "12px 14px" }}>
-            <span style={{ flex: 1, fontFamily: "monospace", fontSize: 12, color: "var(--t-ink)", wordBreak: "break-all" }}>{id}</span>
-            <button
-              onClick={handleCopy}
-              style={{ padding: "7px 16px", borderRadius: 10, border: "none", background: copied ? "var(--t-green-ink)" : GRAD, color: "var(--t-card)", cursor: "pointer", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap", transition: "background 0.2s", minWidth: 80 }}
-            >
-              {copied ? "✓ تم النسخ" : "نسخ"}
-            </button>
-          </div>
-        </div>
-
-        {/* ── شريط التقدم ── */}
-        <div style={styles.card}>
-          <p style={{ fontWeight: 700, fontSize: 14, color: "var(--t-ink)", marginBottom: 16 }}>حالة الطلب</p>
-
-          <div style={{ position: "relative", marginBottom: 20 }}>
-            <div style={{ position: "absolute", top: 16, right: 16, left: 16, height: 3, background: "var(--t-line)", borderRadius: 10 }} />
-            <div style={{ position: "absolute", top: 16, right: 16, width: `${(currentStep / (STEPS.length - 1)) * (100 - 8)}%`, height: 3, background: GRAD, borderRadius: 10, transition: "width 0.6s ease" }} />
-
-            <div style={{ display: "flex", justifyContent: "space-between", position: "relative" }}>
-              {STEPS.map((step, i) => {
-                const done   = i <= currentStep;
-                const active = i === currentStep;
-                return (
-                  <div key={step.key} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
-                    <div style={{
-                      width: 34, height: 34, borderRadius: "50%",
-                      background: done ? GRAD : "var(--t-line)",
-                      border: active ? "3px solid var(--t-accent-line)" : "3px solid transparent",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 14,
-                      boxShadow: active ? "0 0 0 4px rgba(124,58,237,0.15)" : "none",
-                      transition: "all 0.4s",
-                      position: "relative", zIndex: 1,
-                    }}>
-                      {done ? <span style={{ color: "var(--t-card)", fontSize: 12, fontWeight: 800 }}>✓</span> : <span style={{ fontSize: 14 }}>{step.icon}</span>}
-                    </div>
-                    <p style={{ fontSize: 11, color: done ? PURPLE : "var(--t-faint)", marginTop: 6, fontWeight: done ? 700 : 400, textAlign: "center", lineHeight: 1.3 }}>
-                      {step.label}
-                    </p>
-                  </div>
-                );
-              })}
+          <div style={{ position: "relative" }}>
+            <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 4 }}>الإجمالي</div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
+              <span style={{ fontSize: 38, fontWeight: 900, letterSpacing: "-1.4px", lineHeight: 1 }}>
+                {order.final_total ?? order.price_lyd
+                  ? Number(order.final_total ?? order.price_lyd).toLocaleString("en-US", { maximumFractionDigits: 0 })
+                  : "—"}
+              </span>
+              <span style={{ fontSize: 15, fontWeight: 700, opacity: 0.85 }}>د.ل</span>
             </div>
           </div>
         </div>
 
-        {/* ── بيانات الطلب ── */}
-        <div style={styles.card}>
-          <p style={{ fontWeight: 700, fontSize: 14, color: "var(--t-ink)", marginBottom: 14 }}>تفاصيل الطلب</p>
+        {/* ── المسار: أين وصل الطلب ── */}
+        <Card pad={18}>
+          <SectionTitle icon={I.truck}>مسار طلبك</SectionTitle>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {STEPS.map((step, i) => {
+              const done   = i <= currentStep;
+              const active = i === currentStep;
+              return (
+                <div key={step.key} style={{ display: "flex", gap: 13, alignItems: "flex-start" }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", alignSelf: "stretch" }}>
+                    <span style={{
+                      width: 30, height: 30, borderRadius: "50%", flexShrink: 0,
+                      background: done ? GRAD_HEAD : "var(--t-chip)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      boxShadow: active ? "0 0 0 4px rgba(124,58,237,0.15)" : "none",
+                      color: done ? "#fff" : "var(--t-faint)",
+                    }}>
+                      <Icon path={done ? I.check : step.icon} size={15} stroke={2.2} />
+                    </span>
+                    {i < STEPS.length - 1 && (
+                      <span style={{ width: 2, flex: 1, minHeight: 26, background: i < currentStep ? PRIMARY : "var(--t-line)" }} />
+                    )}
+                  </div>
+                  <div style={{ paddingBottom: i < STEPS.length - 1 ? 18 : 0 }}>
+                    <div style={{ fontSize: 14.5, fontWeight: active ? 900 : 700, color: done ? INK : FAINT }}>{step.label}</div>
+                    <div style={{ fontSize: 12.5, color: FAINT, marginTop: 2 }}>{step.note}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+
+        {/* ── رقم الطلب: يُنسخ بضغطة، فهو مفتاح المتابعة ── */}
+        <Card pad={16}>
+          <SectionTitle icon={I.box} size={14.5}>رقم الطلب</SectionTitle>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", background: CHIP, borderRadius: 13, padding: "12px 14px" }}>
+            <span style={{ flex: 1, fontFamily: "ui-monospace, monospace", fontSize: 13, wordBreak: "break-all" }}>{id}</span>
+            <button onClick={handleCopy} style={{
+              padding: "9px 15px", borderRadius: 11, border: "none", cursor: "pointer",
+              background: copied ? "var(--t-green-bg)" : CARD, color: copied ? "var(--t-green-ink)" : PRIMARY,
+              fontSize: 12.5, fontWeight: 800, fontFamily: "inherit", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap",
+            }}>
+              <Icon path={copied ? I.check : I.copy} size={14} />
+              {copied ? "نُسخ" : "نسخ"}
+            </button>
+          </div>
+        </Card>
+
+        {/* ── تفاصيل الطلب ── */}
+        <Card pad={16}>
+          <SectionTitle icon={I.note} size={14.5}>تفاصيل الطلب</SectionTitle>
 
           {order.image_url && (
             <img
               src={order.image_url}
-              alt="صورة الطلب"
+              alt=""
               onClick={() => setPreview(order.image_url)}
-              style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 12, marginBottom: 14, cursor: "pointer", border: "1px solid var(--t-line)" }}
+              style={{ width: "100%", maxHeight: 180, objectFit: "cover", borderRadius: 13, marginBottom: 14, cursor: "pointer" }}
             />
           )}
 
-          <div style={{ display: "grid", gap: 10 }}>
+          <div style={{ display: "flex", flexDirection: "column" }}>
             {[
-              { label: "👤 الاسم",   value: order.name  },
-              { label: "📞 الهاتف",  value: order.phone },
-              { label: "💰 السعر",   value: order.price ? `${Number(order.price).toFixed(2)} $` : "—" },
-              { label: "📅 التاريخ", value: printDate   },
-              ...(order.shipping   ? [{ label: "🚚 الشحن",      value: `${Number(order.shipping).toFixed(2)} د.ل`    }] : []),
-              ...(order.final_total? [{ label: "🧾 الإجمالي",   value: `${Number(order.final_total).toFixed(2)} د.ل` }] : []),
-              ...(order.cart_link  ? [{ label: "🔗 رابط السلة", value: order.cart_link, link: true }] : []),
-            ].map(({ label, value, link }) => (
-              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "var(--t-chip)", borderRadius: 10 }}>
-                <span style={{ fontSize: 13, color: "var(--t-muted)", fontWeight: 500 }}>{label}</span>
-                {link
-                  ? <a href={value} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: PURPLE, fontWeight: 600, maxWidth: "55%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "none" }}>فتح الرابط ↗</a>
-                  : <span style={{ fontSize: 13, fontWeight: 700, color: "var(--t-ink)" }}>{value}</span>
-                }
+              { icon: I.user,  label: "الاسم",   value: order.name },
+              { icon: I.phone, label: "الهاتف",  value: order.phone },
+              { icon: I.clock, label: "التاريخ", value: printDate },
+              ...(order.delivery_address ? [{ icon: I.pin, label: "العنوان", value: order.delivery_address }] : []),
+              ...(order.shipping ? [{ icon: I.truck, label: "الشحن", value: `${Number(order.shipping).toFixed(0)} د.ل` }] : []),
+              ...(order.cart_link ? [{ icon: I.link, label: "سلة شي إن", value: order.cart_link, link: true }] : []),
+            ].map((row, i) => (
+              <div key={row.label} style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 0", borderTop: i ? `1px solid ${LINE}` : "none" }}>
+                <Icon path={row.icon} size={16} color={FAINT} style={{ flexShrink: 0 }} />
+                <span style={{ fontSize: 13, color: MUTED, flexShrink: 0 }}>{row.label}</span>
+                {row.link
+                  ? <a href={row.value} target="_blank" rel="noreferrer" style={{ marginInlineStart: "auto", fontSize: 13, color: PRIMARY, fontWeight: 700, textDecoration: "none" }}>فتح ↗</a>
+                  : <span style={{ marginInlineStart: "auto", fontSize: 13.5, fontWeight: 700, textAlign: "end" }}>{row.value}</span>}
               </div>
             ))}
           </div>
-        </div>
+        </Card>
 
-        {/* ── ربط بالحساب ── */}
+        {/* ── ربط الطلب بالحساب ── */}
         {!alreadyLinked && (
-          <div style={{ background: "var(--t-chip)", border: "1px solid var(--t-line)", borderRadius: 18, padding: "18px 20px" }}>
-            <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 12 }}>
-              <span style={{ fontSize: 24 }}>👤</span>
-              <div>
-                <p style={{ fontWeight: 700, fontSize: 14, color: "var(--t-ink)", marginBottom: 3 }}>
-                  {user ? "أضف هذا الطلب لحسابك" : "سجّل دخولك لمتابعة طلبك"}
-                </p>
-                <p style={{ fontSize: 12, color: "#7c3aed" }}>
-                  {user ? "ستجد طلبك في قائمة طلباتك تلقائياً" : "أنشئ حساباً وأضف هذا الطلب لمتابعته مع طلباتك"}
-                </p>
-              </div>
-            </div>
+          <Card pad={18} style={{ border: `1.5px solid var(--t-accent-line)` }}>
+            <SectionTitle icon={I.user} size={14.5}>
+              {user ? "أضف هذا الطلب لحسابك" : "سجّل دخولك لمتابعة طلبك"}
+            </SectionTitle>
+            <p style={{ fontSize: 13, color: MUTED, lineHeight: 1.85, margin: "0 0 13px" }}>
+              {user ? "ستجده بعدها في قائمة طلباتك تلقائيًا." : "أنشئ حسابًا وأضف هذا الطلب لتتابعه مع بقية طلباتك."}
+            </p>
             {claimed ? (
-              <div style={{ background: "var(--t-green-bg)", border: "1px solid var(--t-green-line)", borderRadius: 10, padding: "10px 14px", textAlign: "center", color: "var(--t-green-ink)", fontWeight: 700, fontSize: 13 }}>
-                ✅ تم إضافة الطلب لحسابك
+              <div style={{ display: "flex", gap: 9, alignItems: "center", background: "var(--t-green-bg)", border: "1px solid var(--t-green-line)", color: "var(--t-green-ink)", borderRadius: 13, padding: "12px 14px", fontSize: 13.5, fontWeight: 700 }}>
+                <Icon path={I.check} size={17} stroke={2.3} />
+                تم إضافة الطلب لحسابك
               </div>
-            ) : (
-              <>
-                {claimErr && <p style={{ color: "var(--t-red-ink)", fontSize: 12, marginBottom: 8 }}>⚠️ {claimErr}</p>}
-                <button
-                  onClick={handleClaim}
-                  disabled={claiming}
-                  style={{ width: "100%", padding: "11px", borderRadius: 12, border: "none", background: GRAD, color: "var(--t-card)", fontWeight: 700, fontSize: 13, cursor: "pointer", opacity: claiming ? 0.7 : 1, boxShadow: "0 4px 14px rgba(124,58,237,0.3)" }}
-                >
-                  {claiming ? "⏳ جاري الإضافة..." : user ? "إضافة لحسابي" : "تسجيل الدخول وإضافة الطلب"}
-                </button>
-              </>
-            )}
-          </div>
+            ) : (<>
+              {claimErr && (
+                <div style={{ display: "flex", gap: 9, alignItems: "flex-start", background: "var(--t-red-bg)", border: "1px solid var(--t-red-line)", color: "var(--t-red-ink)", borderRadius: 13, padding: "11px 13px", marginBottom: 11, fontSize: 13 }}>
+                  <Icon path={I.alert} size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+                  <span>{claimErr}</span>
+                </div>
+              )}
+              <Button onClick={handleClaim} disabled={claiming} icon={I.user} style={{ opacity: claiming ? 0.65 : 1 }}>
+                {claiming ? "جاري الإضافة..." : user ? "إضافة لحسابي" : "تسجيل الدخول وإضافة الطلب"}
+              </Button>
+            </>)}
+          </Card>
         )}
 
-        {/* ── أزرار ── */}
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={() => window.print()} style={{ ...styles.btnOutline, flex: 1 }}>🖨️ طباعة الوصل</button>
-          <a href="/" style={{ ...styles.btnOutline, flex: 1, textDecoration: "none", textAlign: "center" }}>طلب جديد</a>
+          <Button kind="ghost" onClick={() => window.print()} icon={I.download} style={{ flex: 1 }}>طباعة الوصل</Button>
+          <a href="/" style={{ flex: 1, textDecoration: "none" }}>
+            <Button kind="quiet" icon={I.plus} style={{ width: "100%" }}>طلب جديد</Button>
+          </a>
         </div>
 
+        <div style={{ textAlign: "center" }}>
+          <a href="/my-orders" style={{ fontSize: 13.5, color: PRIMARY, fontWeight: 700, textDecoration: "none" }}>كل طلباتي ←</a>
+        </div>
       </div>
 
       {/* ── معاينة الصورة ── */}
       {preview && (
-        <div onClick={() => setPreview(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, backdropFilter: "blur(4px)" }}>
+        <div onClick={() => setPreview(null)} style={{ position: "fixed", inset: 0, background: "rgba(22,19,31,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, backdropFilter: "blur(4px)" }}>
           <img src={preview} onClick={e => e.stopPropagation()} style={{ maxWidth: "92vw", maxHeight: "88vh", borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} />
           <button onClick={() => setPreview(null)} style={{ position: "absolute", top: 20, left: 20, background: "rgba(255,255,255,0.15)", border: "none", color: "var(--t-card)", width: 36, height: 36, borderRadius: "50%", fontSize: 18, cursor: "pointer" }}>✕</button>
         </div>
@@ -503,7 +520,8 @@ function statusBg(s) {
 const styles = {
   page: {
     minHeight: "100vh",
-    background: "transparent",
+    background: "var(--t-page)",
+    color: "var(--t-ink)",
     display: "flex",
     alignItems: "flex-start",
     justifyContent: "center",
@@ -514,8 +532,7 @@ const styles = {
     background: "var(--t-card)",
     borderRadius: 18,
     padding: "20px",
-    boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
-    border: "1px solid var(--t-line)",
+    boxShadow: "0 2px 10px rgba(22,19,31,0.05)",
   },
   input: {
     flex: 1,
@@ -524,15 +541,15 @@ const styles = {
     border: "1.5px solid var(--t-line)",
     fontSize: 14,
     outline: "none",
-    color: "#111",
+    color: "var(--t-ink)",
     background: "var(--t-card)",
   },
   btn: {
     padding: "11px 20px",
     borderRadius: 10,
     border: "none",
-    background: GRAD,
-    color: "var(--t-card)",
+    background: GRAD_HEAD,
+    color: "#fff",
     cursor: "pointer",
     fontWeight: 700,
     fontSize: 14,
