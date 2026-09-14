@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import AdminShell, { useAdminGuard, StatCard } from "@/app/components/AdminShell";
+import { Card, SectionTitle, Field, Button, Icon, I, inputStyle, PRIMARY, INK, MUTED, FAINT, LINE, CHIP, CARD } from "@/app/components/ui";
 
 const PERMISSION_LABELS = {
   shein_view_orders: "عرض طلبات شي إن",
@@ -98,123 +100,149 @@ export default function EmployeesPage() {
   }
 
   if (loading) return (
-    <main style={{ minHeight: "100vh", background: "#0a0a0a", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <p style={{ color: "#555" }}>⏳ جاري التحميل...</p>
-    </main>
+    <AdminShell role="admin" title="الموظفون">
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, padding: "80px 0" }}>
+        <span style={{ width: 42, height: 42, borderRadius: "50%", border: `3px solid ${LINE}`, borderTopColor: PRIMARY, animation: "spin .8s linear infinite" }} />
+        <p style={{ color: FAINT, fontSize: 14, fontWeight: 600 }}>جاري التحميل...</p>
+      </div>
+    </AdminShell>
   );
 
+  const GROUPS = [
+    { title: "طلبات شي إن", icon: I.cart, keys: ["shein_view_orders", "shein_change_status", "shein_delete_orders", "shein_set_shipping", "shein_edit_exchange_rate"] },
+    { title: "المتجر", icon: I.box, keys: ["store_view_orders", "store_manage_products", "store_view_customers"] },
+  ];
+
   return (
-    <main style={{ minHeight: "100vh", background: "#0a0a0a", color: "#fff", padding: "28px", direction: "rtl" }}>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "28px", paddingBottom: "20px", borderBottom: "1px solid #1f1f1f" }}>
-        <div>
-          <h1 style={{ fontSize: "20px", fontWeight: "800", background: "linear-gradient(90deg,#a855f7,#3b82f6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: 0 }}>
-            إدارة الموظفين
-          </h1>
-          <p style={{ color: "#555", fontSize: "13px", margin: "2px 0 0" }}>{employees.length} موظف</p>
-        </div>
-        <div style={{ display: "flex", gap: "10px" }}>
-          <button onClick={() => setShowModal(true)} style={{ background: "#7c3aed", color: "#fff", border: "none", padding: "10px 20px", borderRadius: "10px", cursor: "pointer", fontWeight: "700", fontSize: "14px" }}>
-            + إضافة موظف
-          </button>
-          <button onClick={() => router.push("/admin")} style={{ background: "#1a1a1a", color: "#aaa", border: "1px solid #333", padding: "10px 20px", borderRadius: "10px", cursor: "pointer", fontSize: "14px" }}>
-            ← العودة
-          </button>
-        </div>
+    <AdminShell
+      role="admin"
+      title="الموظفون"
+      subtitle="من يدخل اللوحة، وماذا يُسمح له أن يفعل فيها."
+      actions={
+        <Button onClick={() => setShowModal(true)} icon={I.plus} style={{ width: "auto", padding: "12px 20px", fontSize: 14 }}>
+          موظف جديد
+        </Button>
+      }
+    >
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12, marginBottom: 20 }}>
+        <StatCard icon={I.users} label="عدد الموظفين" value={employees.length} />
+        <StatCard icon={I.shield} label="صلاحيات ممنوحة" tone="var(--t-green-ink)"
+          value={employees.reduce((n, e) => n + Object.values(e.permissions || {}).filter(Boolean).length, 0)} />
       </div>
 
-      {/* Employees list */}
       {employees.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "60px", color: "#444" }}>
-          <p style={{ fontSize: "18px" }}>لا يوجد موظفون بعد</p>
-          <p style={{ fontSize: "13px" }}>اضغط &ldquo;+ إضافة موظف&rdquo; لإضافة أول موظف</p>
-        </div>
+        <Card style={{ textAlign: "center", padding: "56px 20px" }}>
+          <span style={{ width: 54, height: 54, borderRadius: 18, background: CHIP, display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+            <Icon path={I.users} size={24} color={PRIMARY} />
+          </span>
+          <p style={{ fontWeight: 800, fontSize: 16 }}>لا موظفين بعد</p>
+          <p style={{ fontSize: 13.5, color: FAINT, margin: "6px 0 20px" }}>أضف موظفًا وامنحه ما يحتاجه من صلاحيات فقط.</p>
+          <Button onClick={() => setShowModal(true)} icon={I.plus} style={{ width: "auto", margin: "0 auto", padding: "13px 24px" }}>
+            موظف جديد
+          </Button>
+        </Card>
       ) : (
-        <div style={{ display: "grid", gap: "20px" }}>
-          {employees.map(emp => (
-            <div key={emp.id} style={{ background: "#111", border: "1px solid #222", borderRadius: "16px", padding: "22px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
-                <div>
-                  <p style={{ margin: 0, fontWeight: "700", fontSize: "16px" }}>{emp.full_name}</p>
-                  <p style={{ margin: "3px 0 0", color: "#666", fontSize: "13px" }}>موظف</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(420px,1fr))", gap: 16 }}>
+          {employees.map((emp) => (
+            <Card key={emp.id} className="adm-card" pad={18}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                <span style={{ width: 44, height: 44, borderRadius: 15, background: "linear-gradient(150deg,#7c3aed,#3b82f6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, fontWeight: 900, flexShrink: 0 }}>
+                  {(emp.full_name || emp.email || "؟")[0].toUpperCase()}
+                </span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15.5, fontWeight: 800 }}>{emp.full_name || "بلا اسم"}</div>
+                  <div style={{ fontSize: 12.5, color: FAINT, direction: "ltr", textAlign: "start", overflow: "hidden", textOverflow: "ellipsis" }}>{emp.email}</div>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  {saving[emp.id] && <span style={{ color: "#a855f7", fontSize: "13px" }}>⏳ جاري الحفظ...</span>}
-                  <button onClick={() => removeEmployee(emp.id)} style={{ background: "#ef444415", color: "#ef4444", border: "1px solid #ef444430", padding: "7px 14px", borderRadius: "8px", cursor: "pointer", fontSize: "13px" }}>
-                    إزالة
-                  </button>
-                </div>
+                {saving[emp.id] && (
+                  <span style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${LINE}`, borderTopColor: PRIMARY, animation: "spin .8s linear infinite" }} />
+                )}
+                <button onClick={() => removeEmployee(emp.id)} title="إزالة الموظف"
+                  style={{ background: "var(--t-red-bg)", border: "none", borderRadius: 11, padding: "9px 11px", cursor: "pointer", color: "var(--t-red-ink)", display: "flex" }}>
+                  <Icon path={I.trash} size={16} />
+                </button>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "10px" }}>
-                {Object.entries(PERMISSION_LABELS).map(([key, label]) => {
-                  const val = emp.permissions?.[key] ?? false;
-                  return (
-                    <div
-                      key={key}
-                      onClick={() => updatePermission(emp.id, key, !val)}
-                      style={{
-                        display: "flex", alignItems: "center", gap: "10px",
-                        background: "#1a1a1a", borderRadius: "10px", padding: "10px 14px",
-                        cursor: "pointer", border: `1px solid ${val ? "#7c3aed44" : "#2a2a2a"}`,
-                        transition: "0.2s",
-                      }}
-                    >
-                      <div style={{
-                        width: "38px", height: "20px", borderRadius: "999px",
-                        background: val ? "#7c3aed" : "#333",
-                        position: "relative", flexShrink: 0, transition: "0.2s",
-                      }}>
-                        <div style={{
-                          position: "absolute", top: "3px",
-                          left: val ? "20px" : "3px",
-                          width: "14px", height: "14px",
-                          borderRadius: "50%", background: "#fff", transition: "0.2s",
-                        }} />
-                      </div>
-                      <span style={{ fontSize: "13px", color: val ? "#fff" : "#666" }}>{label}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+              {GROUPS.map((g) => (
+                <div key={g.title} style={{ marginBottom: 14 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 9 }}>
+                    <Icon path={g.icon} size={15} color={PRIMARY} />
+                    <span style={{ fontSize: 12.5, fontWeight: 800, color: MUTED }}>{g.title}</span>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                    {g.keys.map((key) => {
+                      const on = !!emp.permissions?.[key];
+                      return (
+                        <button key={key} onClick={() => updatePermission(emp.id, key, !on)}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 10, width: "100%", textAlign: "start",
+                            padding: "10px 12px", borderRadius: 12, cursor: "pointer", fontFamily: "inherit",
+                            border: `1.5px solid ${on ? PRIMARY : LINE}`,
+                            background: on ? CHIP : CARD, color: INK, fontSize: 13.5, fontWeight: on ? 700 : 500,
+                          }}>
+                          {/* مفتاح لا مربّع: الحالة تُقرأ من بعيد */}
+                          <span style={{
+                            width: 34, height: 20, borderRadius: 20, flexShrink: 0, position: "relative",
+                            background: on ? PRIMARY : LINE, transition: "background .16s",
+                          }}>
+                            <span style={{
+                              position: "absolute", top: 3, insetInlineStart: on ? 17 : 3,
+                              width: 14, height: 14, borderRadius: "50%", background: "#fff",
+                              transition: "inset-inline-start .16s",
+                            }} />
+                          </span>
+                          {PERMISSION_LABELS[key]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </Card>
           ))}
         </div>
       )}
 
-      {/* Add Employee Modal */}
+      {/* ── موظف جديد ── */}
       {showModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999 }}>
-          <div style={{ background: "#111", border: "1px solid #333", borderRadius: "20px", padding: "32px", width: "360px" }}>
-            <h2 style={{ margin: "0 0 20px", fontSize: "18px", fontWeight: "700" }}>إضافة موظف جديد</h2>
-            {formError && <p style={{ background: "#fee2e2", color: "#dc2626", padding: "10px", borderRadius: "8px", marginBottom: "14px", fontSize: "13px" }}>{formError}</p>}
-            <input placeholder="الاسم الكامل" value={form.full_name} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} style={inputStyle} />
-            <input placeholder="البريد الإلكتروني" type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={inputStyle} />
-            <input placeholder="كلمة المرور" type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} style={inputStyle} />
-            <div style={{ display: "flex", gap: "10px", marginTop: "6px" }}>
-              <button onClick={createEmployee} disabled={formLoading} style={{ flex: 1, padding: "12px", background: "#7c3aed", color: "#fff", border: "none", borderRadius: "10px", cursor: "pointer", fontWeight: "700" }}>
-                {formLoading ? "جاري الإنشاء..." : "إنشاء حساب"}
-              </button>
-              <button onClick={() => { setShowModal(false); setFormError(""); }} style={{ padding: "12px 18px", background: "#1a1a1a", color: "#aaa", border: "1px solid #333", borderRadius: "10px", cursor: "pointer" }}>
+        <div onClick={() => setShowModal(false)} style={{
+          position: "fixed", inset: 0, background: "rgba(22,19,31,0.6)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 20,
+        }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: CARD, borderRadius: 22, padding: 22, width: 420, maxWidth: "94vw", boxShadow: "0 24px 60px rgba(22,19,31,0.28)" }}>
+            <SectionTitle icon={I.users}>موظف جديد</SectionTitle>
+
+            {formError && (
+              <div style={{ display: "flex", gap: 9, alignItems: "flex-start", background: "var(--t-red-bg)", border: "1px solid var(--t-red-line)", color: "var(--t-red-ink)", borderRadius: 13, padding: "12px 14px", marginBottom: 14, fontSize: 13 }}>
+                <Icon path={I.alert} size={17} style={{ flexShrink: 0, marginTop: 1 }} />
+                <span>{formError}</span>
+              </div>
+            )}
+
+            <Field label="الاسم الكامل">
+              <input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                placeholder="اسم الموظف" style={inputStyle} />
+            </Field>
+            <Field label="البريد الإلكتروني">
+              <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="name@example.com" style={{ ...inputStyle, direction: "ltr", textAlign: "left" }} />
+            </Field>
+            <Field label="كلمة المرور" hint="يستطيع الموظف تغييرها بعد أول دخول.">
+              <input type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder="••••••••" style={inputStyle} />
+            </Field>
+
+            <div style={{ display: "flex", gap: 10, marginTop: 6 }}>
+              <Button onClick={createEmployee} disabled={formLoading} icon={I.plus}
+                style={{ flex: 1, opacity: formLoading ? 0.65 : 1 }}>
+                {formLoading ? "جاري الإنشاء..." : "إنشاء"}
+              </Button>
+              <Button kind="ghost" onClick={() => setShowModal(false)} style={{ width: "auto", padding: "0 22px" }}>
                 إلغاء
-              </button>
+              </Button>
             </div>
           </div>
         </div>
       )}
-    </main>
+    </AdminShell>
   );
 }
-
-const inputStyle = {
-  width: "100%",
-  padding: "11px 14px",
-  marginBottom: "12px",
-  borderRadius: "10px",
-  border: "1px solid #333",
-  background: "#1a1a1a",
-  color: "#fff",
-  fontSize: "14px",
-  outline: "none",
-  boxSizing: "border-box",
-};

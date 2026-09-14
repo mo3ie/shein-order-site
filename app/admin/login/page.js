@@ -3,7 +3,15 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import { Card, Field, Button, Icon, I, inputStyle, GRAD_HEAD, PAGE, CARD, PRIMARY, INK, MUTED, FAINT, LINE } from "@/app/components/ui";
 
+/**
+ * دخول لوحة الإدارة.
+ *
+ * شاشة موظفين لا شاشة زبائن: لا تنقّل ولا محفظة، فقط الدخول — وبتصميم الموقع
+ * نفسه بدل أرضية سوداء لا تتبع الثيم. وبعد الدخول يُقرأ الدور هنا صراحةً: من
+ * ليس مديرًا ولا موظفًا يُخرَج فورًا برسالة، بدل أن يقف أمام لوحة فارغة.
+ */
 export default function AdminLogin() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -13,12 +21,23 @@ export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    // Check if there's an error from the OAuth callback
     const params = new URLSearchParams(window.location.search);
     const err = params.get("error");
     if (err === "not_authorized") setError("ليس لديك صلاحية الوصول للوحة التحكم");
     else if (err) setError("حدث خطأ أثناء تسجيل الدخول");
   }, []);
+
+  async function routeByRole(userId) {
+    const { data: profile } = await supabase
+      .from("profiles").select("role").eq("id", userId).single();
+    if (profile?.role === "admin" || profile?.role === "employee") {
+      router.push("/admin");
+    } else {
+      await supabase.auth.signOut();
+      setLoading(false);
+      setError("هذا الحساب ليس له صلاحية دخول اللوحة");
+    }
+  }
 
   async function handleGoogle() {
     setError("");
@@ -33,137 +52,95 @@ export default function AdminLogin() {
     setError("");
     if (!email || !password) { setError("أدخل البريد وكلمة المرور"); return; }
     setLoading(true);
-
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (authError) {
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    if (authError || !data?.user) {
       setLoading(false);
       setError("بيانات الدخول غير صحيحة");
+      return;
     }
-    // onAuthStateChange handles the rest (check + redirect)
+    routeByRole(data.user.id);
   }
 
   return (
     <main style={{
-      minHeight: "100vh",
-      background: "#0b0f1a",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      direction: "rtl",
-      position: "relative",
-      overflow: "hidden",
+      minHeight: "100vh", background: PAGE, color: INK, direction: "rtl",
+      display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
     }}>
-      {/* Glow effects */}
-      <div style={{ position: "fixed", top: "-100px", left: "-100px", width: "400px", height: "400px", background: "rgba(124,58,237,0.15)", borderRadius: "50%", filter: "blur(120px)", pointerEvents: "none" }} />
-      <div style={{ position: "fixed", bottom: "-100px", right: "-100px", width: "400px", height: "400px", background: "rgba(59,130,246,0.15)", borderRadius: "50%", filter: "blur(120px)", pointerEvents: "none" }} />
+      <div style={{ width: "100%", maxWidth: 420 }}>
 
-      <div style={{
-        background: "#0f1320",
-        border: "1px solid rgba(124,58,237,0.3)",
-        borderRadius: "24px",
-        padding: "40px",
-        width: "360px",
-        boxShadow: "0 0 60px rgba(168,85,247,0.1)",
-        position: "relative",
-      }}>
-        {/* Logo */}
-        <div style={{ textAlign: "center", marginBottom: "30px" }}>
-          <h1 style={{
-            fontSize: "32px", fontWeight: "900", letterSpacing: "4px",
-            background: "linear-gradient(90deg,#a855f7,#3b82f6)",
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-            margin: 0,
-          }}>TREND</h1>
-          <p style={{ color: "#4b5563", fontSize: "13px", margin: "6px 0 0" }}>لوحة التحكم</p>
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <span style={{
+            width: 62, height: 62, borderRadius: 20, background: GRAD_HEAD, color: "#fff",
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            fontSize: 25, fontWeight: 900, boxShadow: "0 8px 24px rgba(124,58,237,0.3)", marginBottom: 14,
+          }}>T</span>
+          <h1 style={{ fontSize: 23, fontWeight: 900, margin: 0, letterSpacing: "-0.5px" }}>
+            إدارة <span style={{ color: PRIMARY }}>ترند</span>
+          </h1>
+          <p style={{ fontSize: 13.5, color: MUTED, margin: "6px 0 0" }}>لوحة الطلبات والإعدادات</p>
         </div>
 
-        <p style={{ color: "#9ca3af", fontSize: "14px", margin: "0 0 22px", fontWeight: "600" }}>
-          ⚡ تسجيل الدخول
-        </p>
+        <Card pad={20}>
+          {error && (
+            <div style={{ display: "flex", gap: 9, alignItems: "flex-start", background: "var(--t-red-bg)", border: "1px solid var(--t-red-line)", color: "var(--t-red-ink)", borderRadius: 13, padding: "12px 14px", marginBottom: 14, fontSize: 13 }}>
+              <Icon path={I.alert} size={17} style={{ flexShrink: 0, marginTop: 1 }} />
+              <span>{error}</span>
+            </div>
+          )}
 
-        {error && (
-          <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#f87171", padding: "10px 14px", borderRadius: "10px", marginBottom: "16px", fontSize: "13px" }}>
-            ⚠️ {error}
+          <Field label="البريد الإلكتروني">
+            <input type="email" value={email} placeholder="name@example.com"
+              onChange={(e) => setEmail(e.target.value)}
+              style={{ ...inputStyle, direction: "ltr", textAlign: "left" }} />
+          </Field>
+
+          <Field label="كلمة المرور">
+            <div style={{ position: "relative" }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password} placeholder="••••••••"
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                style={{ ...inputStyle, paddingInlineEnd: 46 }}
+              />
+              <button type="button" onClick={() => setShowPassword((s) => !s)}
+                aria-label="إظهار كلمة المرور"
+                style={{ position: "absolute", insetInlineEnd: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: FAINT, display: "flex", padding: 4 }}>
+                <Icon path={showPassword
+                  ? <><path d="M3 3l18 18" /><path d="M10.6 10.6a3 3 0 004.2 4.2" /><path d="M9.9 4.6A9.5 9.5 0 0112 4.5c5 0 9 4.5 9 7.5a12 12 0 01-2.3 3.3M6.2 6.7A12.4 12.4 0 003 12c0 3 4 7.5 9 7.5 1.2 0 2.3-.2 3.3-.6" /></>
+                  : <><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></>} size={17} />
+              </button>
+            </div>
+          </Field>
+
+          <Button onClick={handleLogin} disabled={loading} icon={I.lock} style={{ opacity: loading ? 0.65 : 1, marginTop: 4 }}>
+            {loading ? "جاري الدخول..." : "دخول اللوحة"}
+          </Button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "16px 0" }}>
+            <div style={{ flex: 1, height: 1, background: LINE }} />
+            <span style={{ fontSize: 12.5, color: FAINT }}>أو</span>
+            <div style={{ flex: 1, height: 1, background: LINE }} />
           </div>
-        )}
 
-        <input
-          placeholder="البريد الإلكتروني"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          type="email"
-          style={inputStyle}
-        />
-
-        <div style={{ position: "relative" }}>
-          <input
-            type={showPassword ? "text" : "password"}
-            placeholder="كلمة المرور"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && handleLogin()}
-            style={{ ...inputStyle, paddingLeft: "42px" }}
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(s => !s)}
-            style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: "16px" }}
-          >
-            {showPassword ? "🙈" : "👁️"}
+          <button onClick={handleGoogle} style={{
+            width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+            padding: 14, borderRadius: 13, border: `1.5px solid ${LINE}`, background: CARD,
+            cursor: "pointer", fontSize: 15, fontWeight: 700, color: INK, fontFamily: "inherit",
+          }}>
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" width={19} />
+            الدخول عبر Google
           </button>
+        </Card>
+
+        <div style={{ display: "flex", gap: 9, alignItems: "flex-start", padding: "16px 6px 0" }}>
+          <Icon path={I.shield} size={16} color={PRIMARY} style={{ flexShrink: 0, marginTop: 2 }} />
+          <p style={{ fontSize: 12.5, color: FAINT, lineHeight: 1.85, margin: 0 }}>
+            هذه الصفحة للموظفين. إن كنت زبونًا فالدخول من{" "}
+            <a href="/login" style={{ color: PRIMARY, fontWeight: 700, textDecoration: "none" }}>صفحة الحساب</a>.
+          </p>
         </div>
-
-        <button
-          onClick={handleLogin}
-          disabled={loading}
-          style={{
-            width: "100%", padding: "13px",
-            background: loading ? "#4b2a9a" : "linear-gradient(135deg,#7c3aed,#3b82f6)",
-            color: "#fff", border: "none", borderRadius: "12px",
-            cursor: loading ? "not-allowed" : "pointer",
-            fontWeight: "800", fontSize: "15px", marginTop: "4px",
-            boxShadow: loading ? "none" : "0 0 20px rgba(124,58,237,0.4)",
-            transition: "0.2s",
-          }}
-        >
-          {loading ? "⏳ جاري التحقق..." : "دخول →"}
-        </button>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "16px 0" }}>
-          <div style={{ flex: 1, height: "1px", background: "#1f1f2e" }} />
-          <span style={{ color: "#4b5563", fontSize: "12px" }}>أو</span>
-          <div style={{ flex: 1, height: "1px", background: "#1f1f2e" }} />
-        </div>
-
-        <button
-          onClick={handleGoogle}
-          style={{
-            width: "100%", padding: "12px",
-            background: "#fff", color: "#333",
-            border: "1px solid rgba(255,255,255,0.15)",
-            borderRadius: "12px", cursor: "pointer",
-            fontSize: "14px", fontWeight: "600",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
-          }}
-        >
-          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" width={18} />
-          تسجيل الدخول بـ Google
-        </button>
       </div>
     </main>
   );
 }
-
-const inputStyle = {
-  width: "100%",
-  padding: "12px 14px",
-  marginBottom: "12px",
-  borderRadius: "12px",
-  border: "1px solid rgba(124,58,237,0.2)",
-  background: "rgba(0,0,0,0.4)",
-  color: "#fff",
-  fontSize: "14px",
-  outline: "none",
-  boxSizing: "border-box",
-};

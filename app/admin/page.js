@@ -1,535 +1,472 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { adminFetch } from "@/lib/adminFetch";
-import { useRouter } from "next/navigation";
+import AdminShell, { useAdminGuard, StatCard } from "@/app/components/AdminShell";
+import { Card, SectionTitle, Button, Icon, I, inputStyle, PRIMARY, INK, MUTED, FAINT, LINE, CARD, CHIP, SOLID, ON_SOLID } from "@/app/components/ui";
+
+/**
+ * لوحة الطلبات.
+ *
+ * ما يفعله الموظف هنا كل يوم: يرى ما هو جديد، يفتح سلة الزبون، يشتريها، يضع
+ * الشحن، يبدّل الحالة، ويراسل الزبون. فرُتّبت الشاشة على هذا الترتيب: أرقام
+ * اليوم أعلى، ثم أدوات التصفية، ثم بطاقة لكل طلب تحمل ما يحتاجه ولا تخبّئه
+ * خلف نقرتين — ومعها تصدير CSV ومراسلة واتساب ومكالمة بضغطة.
+ */
+const STATUS = {
+  new:       { label: "جديد",       tone: "var(--t-amber-ink)", bg: "var(--t-amber-bg)", icon: I.box },
+  paid:      { label: "مدفوع",      tone: PRIMARY,              bg: "var(--t-chip)",     icon: I.wallet },
+  ordered:   { label: "تم الشراء",  tone: "var(--t-blue-ink)",  bg: "var(--t-blue-bg)",  icon: I.cart },
+  shipped:   { label: "تم الشحن",   tone: "#8b5cf6",            bg: "var(--t-chip)",     icon: I.truck },
+  delivered: { label: "تم التسليم", tone: "var(--t-green-ink)", bg: "var(--t-green-bg)", icon: I.check },
+};
 
 export default function Admin() {
-  const [orders, setOrders] = useState([]);
-  const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const router = useRouter();
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [shipping, setShipping] = useState({});
-  const [exchangeRate, setExchangeRate] = useState("");
-  const [profitRate, setProfitRate] = useState(3);
-  const [successId, setSuccessId] = useState(null);
-  const [saved, setSaved] = useState(false);
+  const { role, can, checking } = useAdminGuard();
+
+  const [orders, setOrders]           = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [search, setSearch]           = useState("");
+  const [filterStatus, setFilter]     = useState("all");
+  const [period, setPeriod]           = useState("all");   // all | today | week
+  const [selectedImage, setImage]     = useState(null);
+  const [shipping, setShipping]       = useState({});
+  const [exchangeRate, setRate]       = useState("");
+  const [profitRate, setProfit]       = useState(3);
+  const [saved, setSaved]             = useState(false);
   const [savedProfit, setSavedProfit] = useState(false);
-  const [role, setRole] = useState(null);
-  const [permissions, setPermissions] = useState(null);
-  const [expandedImages, setExpandedImages] = useState({});
-  const [expandedPrices, setExpandedPrices] = useState({});
-  const [copiedId, setCopiedId] = useState(null);
+  const [openPrice, setOpenPrice]     = useState({});
+  const [copiedId, setCopied]         = useState(null);
 
   useEffect(() => {
-    const checkUser = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) { router.push("/admin/login"); return; }
-      const { data: profile } = await supabase
-        .from("profiles").select("role, full_name").eq("id", data.user.id).single();
-      if (!profile || (profile.role !== "admin" && profile.role !== "employee")) {
-        router.push("/admin/login"); return;
-      }
-      setRole(profile.role);
-      if (profile.role === "employee") {
-        const { data: perms } = await supabase
-          .from("employee_permissions").select("*").eq("user_id", data.user.id).single();
-        setPermissions(perms);
-      }
-    };
-    checkUser();
-  }, []);
-
-  useEffect(() => {
-    const getSettings = async () => {
-      const { data } = await supabase.from("settings").select("exchange_rate, profit_rate").eq("id", 1).single();
-      if (data) {
-        setExchangeRate(data.exchange_rate);
-        if (data.profit_rate != null) setProfitRate(data.profit_rate);
-      }
-    };
-    getSettings();
+    supabase.from("settings").select("exchange_rate, profit_rate").eq("id", 1).single()
+      .then(({ data }) => {
+        if (!data) return;
+        setRate(data.exchange_rate);
+        if (data.profit_rate != null) setProfit(data.profit_rate);
+      });
   }, []);
 
   async function getOrders() {
+    setLoading(true);
     const res = await adminFetch("/api/order");
     const result = await res.json();
-    setOrders(result.data.filter((o) => o.status !== "deleted" && o.status !== "completed"));
+    setOrders((result.data || []).filter((o) => o.status !== "deleted" && o.status !== "completed"));
     setLoading(false);
   }
-
   useEffect(() => { getOrders(); }, []);
 
   async function updateStatus(id, newStatus, order) {
     await adminFetch("/api/order", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, status: newStatus })
+      body: JSON.stringify({ id, status: newStatus }),
     });
     getOrders();
-    if (["ordered", "shipped", "delivered"].includes(newStatus)) sendWhatsApp({ ...order, status: newStatus });
+    if (["ordered", "shipped", "delivered"].includes(newStatus)) {
+      window.open(waLink(order, newStatus), "_blank");
+    }
   }
 
-  function sendWhatsApp(order) {
-    let phone = order.phone.replace(/\D/g, "");
+  function waLink(order, status) {
+    let phone = String(order.phone || "").replace(/\D/g, "");
     if (phone.startsWith("0")) phone = "218" + phone.slice(1);
-    const msgs = { ordered: "تم شراء طلبك من شي إن 🛍️", shipped: "تم شحن طلبك وهو في الطريق 🚚", delivered: "تم تسليم طلبك 🎉" };
-    const text = msgs[order.status] || "تم استلام طلبك";
-    window.location.href = `https://wa.me/${phone}?text=${encodeURIComponent(`مرحباً ${order.name}\n${text}`)}`;
+    const msgs = {
+      ordered:   "تم شراء طلبك من شي إن وهو قيد التجهيز.",
+      shipped:   "تم شحن طلبك وهو في الطريق إليك.",
+      delivered: "تم تسليم طلبك — شكرًا لثقتك بنا.",
+    };
+    const text = msgs[status] || "بخصوص طلبك لدى ترند";
+    return `https://wa.me/${phone}?text=${encodeURIComponent(`مرحباً ${order.name}\n${text}`)}`;
   }
 
-  const can = (role, permissions, key) => role === "admin" || (permissions && permissions[key] === true);
-
-  const statusConfig = {
-    new:       { label: "جديد",      color: "#f59e0b", bg: "#fef3c7", border: "#f59e0b" },
-    ordered:   { label: "تم الشراء", color: "#3b82f6", bg: "#dbeafe", border: "#3b82f6" },
-    shipped:   { label: "تم الشحن",  color: "#8b5cf6", bg: "#ede9fe", border: "#8b5cf6" },
-    delivered: { label: "تم التسليم",color: "#10b981", bg: "#d1fae5", border: "#10b981" },
+  const lydOf = (o) => {
+    const base = Number(o.price || 0);
+    const total = base * (1 + Number(profitRate || 0) / 100);
+    const lyd = Number(exchangeRate || 0) ? total * Number(exchangeRate) : 0;
+    return { base, total, lyd, ship: Number(shipping[o.id] ?? o.shipping ?? 0) };
   };
 
-  const stats = [
-    { label: "إجمالي", value: orders.length, color: "#a855f7" },
-    { label: "جديد", value: orders.filter(o => o.status === "new").length, color: "#f59e0b" },
-    { label: "تم الشراء", value: orders.filter(o => o.status === "ordered").length, color: "#3b82f6" },
-    { label: "تم الشحن", value: orders.filter(o => o.status === "shipped").length, color: "#8b5cf6" },
-    { label: "تم التسليم", value: orders.filter(o => o.status === "delivered").length, color: "#10b981" },
-  ];
+  const inPeriod = (o) => {
+    if (period === "all") return true;
+    const age = Date.now() - new Date(o.created_at).getTime();
+    return period === "today" ? age < 864e5 : age < 7 * 864e5;
+  };
 
-  const filtered = orders.filter((o) =>
+  const filtered = useMemo(() => orders.filter((o) =>
     (filterStatus === "all" || o.status === filterStatus) &&
-    (o.name?.toLowerCase().includes(search.toLowerCase()) || o.phone?.includes(search))
-  );
+    inPeriod(o) &&
+    (!search.trim()
+      || o.name?.toLowerCase().includes(search.toLowerCase())
+      || o.phone?.includes(search)
+      || o.id?.startsWith(search.trim()))
+  ), [orders, filterStatus, period, search]);
 
-  if (loading) return (
-    <main style={{ minHeight: "100vh", background: "#080810", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: "16px" }}>
-      <div style={{ width: "48px", height: "48px", borderRadius: "50%", border: "3px solid #1e1e2e", borderTop: "3px solid #a855f7", animation: "spin 0.8s linear infinite" }} />
-      <p style={{ color: "#555", fontSize: "14px" }}>جاري التحميل...</p>
-      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
-    </main>
-  );
+  // مجموع ما ستحصّله هذه القائمة — رقم يريده المدير كل صباح.
+  const revenue = filtered.reduce((sum, o) => {
+    const { lyd, ship } = lydOf(o);
+    return sum + (Number(o.final_total) || lyd + ship);
+  }, 0);
+
+  /** تصدير ما هو معروض إلى CSV: المحاسبة تُنجز خارج اللوحة. */
+  function exportCsv() {
+    const rows = [["رقم الطلب", "الاسم", "الهاتف", "الحالة", "التاريخ", "السعر بالدولار", "الإجمالي بالدينار", "الشحن", "العنوان", "رابط السلة"]];
+    filtered.forEach((o) => {
+      const { base, lyd, ship } = lydOf(o);
+      rows.push([
+        o.id, o.name || "", o.phone || "", STATUS[o.status]?.label || o.status,
+        new Date(o.created_at).toLocaleString("ar-LY"),
+        base.toFixed(2), (Number(o.final_total) || lyd + ship).toFixed(2), String(ship),
+        o.delivery_address || "", o.cart_link || "",
+      ]);
+    });
+    const csv = "﻿" + rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `trend-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  if (checking || loading) {
+    return (
+      <AdminShell role={role} title="الطلبات">
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14, padding: "80px 0" }}>
+          <span style={{ width: 42, height: 42, borderRadius: "50%", border: `3px solid ${LINE}`, borderTopColor: PRIMARY, animation: "spin .8s linear infinite" }} />
+          <p style={{ color: FAINT, fontSize: 14, fontWeight: 600 }}>جاري التحميل...</p>
+        </div>
+      </AdminShell>
+    );
+  }
 
   return (
-    <main style={{ minHeight: "100vh", background: "#080810", color: "#fff", fontFamily: "'Segoe UI', sans-serif", direction: "rtl" }}>
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg) } }
-        @keyframes fadeIn { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:translateY(0) } }
-        @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:.5 } }
-        .order-card { animation: fadeIn 0.3s ease forwards; }
-        .order-card:hover { transform: translateY(-2px) !important; }
-        .stat-card:hover { border-color: var(--c) !important; }
-        .action-btn:hover { filter: brightness(1.15); transform: scale(1.03); }
-        input:focus { outline: none !important; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #0d0d18; }
-        ::-webkit-scrollbar-thumb { background: #2a2a3a; border-radius: 3px; }
-      `}</style>
-
-      {/* Header */}
-      <header style={{ background: "rgba(13,13,24,0.95)", backdropFilter: "blur(20px)", borderBottom: "1px solid #1a1a2e", padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-          <div style={{ width: "38px", height: "38px", borderRadius: "10px", background: "linear-gradient(135deg,#a855f7,#3b82f6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px" }}>T</div>
-          <div>
-            <h1 style={{ fontSize: "17px", fontWeight: "800", background: "linear-gradient(90deg,#a855f7,#3b82f6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", margin: 0, letterSpacing: "1px" }}>TREND ADMIN</h1>
-            <p style={{ color: "#444", fontSize: "11px", margin: 0 }}>لوحة إدارة الطلبات</p>
-          </div>
+    <AdminShell
+      role={role}
+      title="الطلبات"
+      subtitle={`${filtered.length} طلب معروض · ${revenue.toFixed(0)} د.ل`}
+      actions={
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Button kind="ghost" onClick={exportCsv} icon={I.download} style={{ width: "auto", padding: "11px 16px", fontSize: 13.5 }}>
+            تصدير CSV
+          </Button>
+          <Button kind="quiet" onClick={getOrders} icon={I.refresh} style={{ width: "auto", padding: "11px 16px", fontSize: 13.5 }}>
+            تحديث
+          </Button>
         </div>
-        <div style={{ display: "flex", gap: "8px" }}>
-          {role === "admin" && (
-            <button onClick={() => router.push("/admin/employees")} className="action-btn" style={{ background: "#1a1030", color: "#a855f7", border: "1px solid #3d1d6b", padding: "8px 14px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "600", transition: "all 0.2s" }}>
-              👥 الموظفون
-            </button>
-          )}
-          <button onClick={() => router.push("/admin/completed")} className="action-btn" style={{ background: "#0d2218", color: "#22c55e", border: "1px solid #14532d55", padding: "8px 14px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "600", transition: "all 0.2s" }}>
-            ✅ المنجزة
-          </button>
-          <button onClick={() => router.push("/admin/trash")} className="action-btn" style={{ background: "#1f0d0d", color: "#ef4444", border: "1px solid #7f1d1d55", padding: "8px 14px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "600", transition: "all 0.2s" }}>
-            🗑️ المحذوفات
-          </button>
-          <button onClick={async () => { await supabase.auth.signOut(); router.push("/admin/login"); }} className="action-btn" style={{ background: "transparent", color: "#666", border: "1px solid #222", padding: "8px 14px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", transition: "all 0.2s" }}>
-            خروج
-          </button>
-        </div>
-      </header>
+      }
+    >
+      {/* ── أرقام سريعة، وكل رقم مرشّح قابل للنقر ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))", gap: 12, marginBottom: 20 }}>
+        <StatCard icon={I.chart} label="كل الطلبات" value={orders.length}
+          active={filterStatus === "all"} onClick={() => setFilter("all")} />
+        {Object.entries(STATUS).filter(([k]) => k !== "paid").map(([key, cfg]) => (
+          <StatCard key={key} icon={cfg.icon} label={cfg.label} tone={cfg.tone}
+            value={orders.filter((o) => o.status === key).length}
+            active={filterStatus === key} onClick={() => setFilter(key)} />
+        ))}
+        <StatCard icon={I.wallet} label="إجمالي المعروض" value={revenue.toFixed(0)} unit="د.ل" tone="var(--t-green-ink)" />
+      </div>
 
-      <div style={{ padding: "24px 28px", maxWidth: "1400px", margin: "0 auto" }}>
-
-        {/* Stats Bar */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "12px", marginBottom: "24px" }}>
-          {stats.map((s) => (
-            <div key={s.label} className="stat-card" style={{ background: "#0d0d18", border: `1px solid #1a1a2e`, borderRadius: "12px", padding: "16px", textAlign: "center", transition: "border-color 0.2s", "--c": s.color }}>
-              <div style={{ fontSize: "26px", fontWeight: "800", color: s.color, lineHeight: 1 }}>{s.value}</div>
-              <div style={{ fontSize: "12px", color: "#555", marginTop: "4px" }}>{s.label}</div>
+      {/* ── الإعدادات المالية ── */}
+      {can("shein_edit_exchange_rate") && (
+        <Card pad={18} style={{ marginBottom: 18 }}>
+          <SectionTitle icon={I.bank}>الإعدادات المالية</SectionTitle>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 18 }}>
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 800, marginBottom: 8 }}>سعر الدولار (USD → LYD)</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input type="number" step="0.01" value={exchangeRate}
+                  onChange={(e) => setRate(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+                <Button kind="solid" style={{ width: "auto", padding: "0 20px" }}
+                  onClick={async () => {
+                    const { error } = await supabase.from("settings").update({ exchange_rate: Number(exchangeRate) }).eq("id", 1);
+                    if (!error) { setSaved(true); setTimeout(() => setSaved(false), 2000); }
+                  }}>
+                  {saved ? "تم" : "حفظ"}
+                </Button>
+              </div>
+              <p style={{ fontSize: 12, color: FAINT, margin: "8px 0 0", lineHeight: 1.8 }}>
+                يُطبَّق على كل تسعيرة جديدة فور حفظه.
+              </p>
             </div>
+
+            <div>
+              <label style={{ display: "block", fontSize: 13, fontWeight: 800, marginBottom: 8 }}>نسبة العمولة (%)</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input type="number" step="0.1" min="0" max="100" value={profitRate}
+                  onChange={(e) => setProfit(e.target.value)} style={{ ...inputStyle, flex: 1 }} />
+                <Button kind="solid" style={{ width: "auto", padding: "0 20px" }}
+                  onClick={async () => {
+                    const { error } = await supabase.from("settings").update({ profit_rate: Number(profitRate) }).eq("id", 1);
+                    if (!error) { setSavedProfit(true); setTimeout(() => setSavedProfit(false), 2000); }
+                  }}>
+                  {savedProfit ? "تم" : "حفظ"}
+                </Button>
+              </div>
+              <p style={{ fontSize: 12, color: FAINT, margin: "8px 0 0", lineHeight: 1.8 }}>
+                سلة بـ 100$ تصير {(100 * (1 + Number(profitRate) / 100)).toFixed(2)}$ ≈ {(100 * (1 + Number(profitRate) / 100) * Number(exchangeRate || 0)).toFixed(0)} د.ل
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* ── التصفية ── */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 18, flexWrap: "wrap", alignItems: "center" }}>
+        <div style={{ flex: 1, minWidth: 240, position: "relative" }}>
+          <span style={{ position: "absolute", insetInlineStart: 14, top: "50%", transform: "translateY(-50%)", display: "flex" }}>
+            <Icon path={I.search} size={16} color={FAINT} />
+          </span>
+          <input
+            placeholder="ابحث بالاسم أو الهاتف أو رقم الطلب..."
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            style={{ ...inputStyle, paddingInlineStart: 40 }}
+          />
+        </div>
+
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {[["all", "كل الفترات"], ["today", "اليوم"], ["week", "٧ أيام"]].map(([k, label]) => (
+            <button key={k} onClick={() => setPeriod(k)} style={{
+              padding: "10px 15px", borderRadius: 11, cursor: "pointer", fontFamily: "inherit", fontSize: 13.5,
+              fontWeight: period === k ? 800 : 600,
+              border: `1.5px solid ${period === k ? SOLID : LINE}`,
+              background: period === k ? SOLID : CARD, color: period === k ? ON_SOLID : MUTED,
+            }}>{label}</button>
           ))}
         </div>
+      </div>
 
-        {/* Settings Panel */}
-        {can(role, permissions, "shein_edit_exchange_rate") && (
-          <div style={{ background: "#0d0d18", border: "1px solid #1a1a2e", borderRadius: "16px", padding: "20px", marginBottom: "20px" }}>
-            <h3 style={{ margin: "0 0 16px", color: "#888", fontSize: "12px", fontWeight: "600", letterSpacing: "1.5px", textTransform: "uppercase" }}>⚙️ الإعدادات المالية</h3>
-            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
-
-              {/* Exchange Rate */}
-              <div style={{ flex: 1, minWidth: "240px" }}>
-                <label style={{ color: "#facc15", fontSize: "13px", fontWeight: "600", display: "block", marginBottom: "8px" }}>💱 سعر الدولار (USD → LYD)</label>
-                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                  <div style={{ flex: 1, position: "relative" }}>
-                    <input
-                      type="number" step="0.01" value={exchangeRate}
-                      onChange={(e) => setExchangeRate(e.target.value)}
-                      style={{ width: "100%", padding: "10px 14px", borderRadius: "10px", border: "1px solid #2a2a3a", background: "#13131f", color: "#fff", fontSize: "15px", fontWeight: "600", boxSizing: "border-box" }}
-                    />
-                    <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#facc15", fontSize: "12px", pointerEvents: "none" }}>د.ل</span>
-                  </div>
-                  <button onClick={async () => {
-                    const { error } = await supabase.from("settings").update({ exchange_rate: Number(exchangeRate) }).eq("id", 1);
-                    if (!error) { setSaved(true); setTimeout(() => setSaved(false), 2500); }
-                  }} className="action-btn" style={{ background: "linear-gradient(135deg,#facc15,#f59e0b)", color: "#000", padding: "10px 18px", borderRadius: "10px", border: "none", cursor: "pointer", fontWeight: "700", fontSize: "13px", whiteSpace: "nowrap", transition: "all 0.2s" }}>
-                    {saved ? "✅ تم" : "💾 حفظ"}
-                  </button>
-                </div>
-              </div>
-
-              <div style={{ width: "1px", background: "#1a1a2e" }} />
-
-              {/* Profit Rate */}
-              <div style={{ flex: 1, minWidth: "240px" }}>
-                <label style={{ color: "#f97316", fontSize: "13px", fontWeight: "600", display: "block", marginBottom: "8px" }}>💸 نسبة العمولة (%)</label>
-                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                  <div style={{ flex: 1, position: "relative" }}>
-                    <input
-                      type="number" step="0.1" min="0" max="100" value={profitRate}
-                      onChange={(e) => setProfitRate(e.target.value)}
-                      style={{ width: "100%", padding: "10px 14px", borderRadius: "10px", border: "1px solid #2a2a3a", background: "#13131f", color: "#fff", fontSize: "15px", fontWeight: "600", boxSizing: "border-box" }}
-                    />
-                    <span style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#f97316", fontSize: "12px", pointerEvents: "none" }}>%</span>
-                  </div>
-                  <button onClick={async () => {
-                    const { error } = await supabase.from("settings").update({ profit_rate: Number(profitRate) }).eq("id", 1);
-                    if (!error) { setSavedProfit(true); setTimeout(() => setSavedProfit(false), 2500); }
-                  }} className="action-btn" style={{ background: "linear-gradient(135deg,#f97316,#ea580c)", color: "#fff", padding: "10px 18px", borderRadius: "10px", border: "none", cursor: "pointer", fontWeight: "700", fontSize: "13px", whiteSpace: "nowrap", transition: "all 0.2s" }}>
-                    {savedProfit ? "✅ تم" : "💾 حفظ"}
-                  </button>
-                </div>
-                <p style={{ color: "#555", fontSize: "11px", margin: "6px 0 0" }}>
-                  مثال: السعر $100 → عمولة {Number(profitRate)}% = ${(100 * Number(profitRate) / 100).toFixed(2)} → الإجمالي ${(100 + 100 * Number(profitRate) / 100).toFixed(2)}
-                </p>
-              </div>
-
-            </div>
-          </div>
-        )}
-
-        {/* Search + Filters */}
-        <div style={{ display: "flex", gap: "12px", marginBottom: "20px", flexWrap: "wrap", alignItems: "center" }}>
-          <div style={{ flex: 1, minWidth: "220px", position: "relative" }}>
-            <span style={{ position: "absolute", right: "14px", top: "50%", transform: "translateY(-50%)", color: "#444" }}>🔍</span>
-            <input
-              placeholder="ابحث بالاسم أو رقم الهاتف..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ width: "100%", padding: "11px 40px 11px 14px", borderRadius: "10px", border: "1px solid #1a1a2e", background: "#0d0d18", color: "#fff", fontSize: "14px", boxSizing: "border-box" }}
-            />
-          </div>
-          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-            {[["all","الكل","#a855f7"],["new","جديد","#f59e0b"],["ordered","تم الشراء","#3b82f6"],["shipped","تم الشحن","#8b5cf6"],["delivered","تم التسليم","#10b981"]].map(([val,label,color]) => (
-              <button key={val} onClick={() => setFilterStatus(val)} style={{
-                padding: "8px 14px", borderRadius: "8px", border: `1px solid ${filterStatus===val ? color : "#1a1a2e"}`,
-                background: filterStatus===val ? color+"22" : "#0d0d18", color: filterStatus===val ? color : "#555",
-                cursor: "pointer", fontSize: "13px", fontWeight: filterStatus===val ? "700" : "400", transition: "all 0.2s"
-              }}>{label}</button>
-            ))}
-          </div>
-        </div>
-
-        {/* Orders Count */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
-          <h2 style={{ fontSize: "14px", color: "#555", margin: 0, fontWeight: "400" }}>
-            عرض <span style={{ color: "#fff", fontWeight: "700" }}>{filtered.length}</span> طلب
-          </h2>
-          <button onClick={getOrders} className="action-btn" style={{ background: "#0d0d18", color: "#555", border: "1px solid #1a1a2e", padding: "7px 12px", borderRadius: "8px", cursor: "pointer", fontSize: "12px", transition: "all 0.2s" }}>
-            🔄 تحديث
-          </button>
-        </div>
-
-        {/* Orders Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(340px,1fr))", gap: "16px" }}>
+      {/* ── الطلبات ── */}
+      {filtered.length === 0 ? (
+        <Card style={{ textAlign: "center", padding: "56px 20px" }}>
+          <span style={{ width: 54, height: 54, borderRadius: 18, background: CHIP, display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+            <Icon path={I.box} size={24} color={PRIMARY} />
+          </span>
+          <p style={{ fontWeight: 800, fontSize: 16 }}>لا طلبات في هذا التصنيف</p>
+          <p style={{ fontSize: 13.5, color: FAINT, marginTop: 6 }}>جرّب تصفية أخرى أو حدّث القائمة.</p>
+        </Card>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(380px,1fr))", gap: 16 }}>
           {filtered.map((order, idx) => {
-            const sc = statusConfig[order.status] || { label: order.status, color: "#555", bg: "#1a1a2e", border: "#555" };
-            const base = Number(order.price || 0);
-            const rate = Number(profitRate || 3) / 100;
-            const profit = base * rate;
-            const totalUSD = base + profit;
-            const priceLYD = Number(exchangeRate || 0) ? totalUSD * Number(exchangeRate) : 0;
-            const shippingValue = Number(shipping[order.id] || 0);
-            const finalTotal = priceLYD + shippingValue;
-            const imgExpanded = expandedImages[order.id];
-            const priceExpanded = expandedPrices[order.id];
+            const cfg = STATUS[order.status] || { label: order.status, tone: MUTED, bg: CHIP, icon: I.box };
+            const { base, total, lyd, ship } = lydOf(order);
+            const finalTotal = Number(order.final_total) || lyd + ship;
+            const qtys = order.price_breakdown?.quantities?.filter((q) => Number(q.wanted) > 1) || [];
 
             return (
-              <div key={order.id} className="order-card" style={{
-                background: "#0d0d18", border: `1px solid #1a1a2e`,
-                borderRight: `3px solid ${sc.color}`, borderRadius: "14px",
-                overflow: "hidden", transition: "all 0.25s", animationDelay: `${idx * 0.04}s`
-              }}>
-
-                {/* Card Header */}
-                <div style={{ padding: "14px 16px", borderBottom: "1px solid #1a1a2e", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ fontSize: "11px", color: "#444", fontFamily: "monospace" }}>#{order.id.slice(0,8)}</span>
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(order.id); setCopiedId(order.id); setTimeout(() => setCopiedId(null), 1500); }}
-                      style={{ background: "none", border: "none", color: copiedId === order.id ? "#22c55e" : "#333", cursor: "pointer", fontSize: "11px", padding: "2px 6px", borderRadius: "4px", transition: "color 0.2s" }}
-                    >
-                      {copiedId === order.id ? "✓ نُسخ" : "📋"}
-                    </button>
+              <Card key={order.id} className="adm-card" pad={0} style={{ overflow: "hidden", animationDelay: `${idx * 0.03}s` }}>
+                {/* رأس البطاقة */}
+                <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 16px", borderBottom: `1px solid ${LINE}` }}>
+                  <span style={{ width: 34, height: 34, borderRadius: 11, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Icon path={cfg.icon} size={17} color={cfg.tone} />
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{order.name}</div>
+                    <div style={{ fontSize: 12, color: FAINT, fontFamily: "ui-monospace, monospace" }}>#{order.id.slice(0, 8)}</div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <span style={{ fontSize: "11px", background: sc.color+"22", color: sc.color, padding: "3px 10px", borderRadius: "999px", fontWeight: "600" }}>
-                      {sc.label}
-                    </span>
-                    <div style={{ textAlign: "left" }}>
-                      <div style={{ fontSize: "10px", color: "#444" }}>
-                        {new Date(order.created_at).toLocaleDateString("ar-LY", { day:"2-digit", month:"2-digit", year:"numeric" })}
-                      </div>
-                      <div style={{ fontSize: "10px", color: "#333" }}>
-                        {new Date(order.created_at).toLocaleTimeString("ar-LY", { hour:"2-digit", minute:"2-digit" })}
-                      </div>
-                    </div>
-                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: cfg.tone, background: cfg.bg, borderRadius: 20, padding: "5px 11px", whiteSpace: "nowrap" }}>
+                    {cfg.label}
+                  </span>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(order.id); setCopied(order.id); setTimeout(() => setCopied(null), 1500); }}
+                    title="نسخ رقم الطلب"
+                    style={{ background: "none", border: "none", cursor: "pointer", color: copiedId === order.id ? "var(--t-green-ink)" : FAINT, padding: 4, display: "flex" }}
+                  >
+                    <Icon path={copiedId === order.id ? I.check : I.copy} size={16} />
+                  </button>
                 </div>
 
-                {/* Customer Info */}
-                <div style={{ padding: "14px 16px" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+                  {/* المبلغ والتاريخ */}
+                  <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 10 }}>
                     <div>
-                      <div style={{ fontSize: "15px", fontWeight: "700", color: "#fff" }}>{order.name}</div>
-                      <div style={{ fontSize: "13px", color: "#555", marginTop: "2px" }}>📞 {order.phone}</div>
+                      <div style={{ fontSize: 23, fontWeight: 900, letterSpacing: "-0.6px", lineHeight: 1 }}>
+                        {finalTotal > 0 ? finalTotal.toFixed(0) : "—"}
+                        <span style={{ fontSize: 12, fontWeight: 700, color: MUTED }}> د.ل</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: FAINT, marginTop: 4 }}>
+                        {base > 0 ? `${base.toFixed(2)}$ من شي إن` : "بلا سعر"}
+                      </div>
                     </div>
-                    <div style={{ textAlign: "left" }}>
-                      <div style={{ fontSize: "18px", fontWeight: "800", color: "#22c55e" }}>{finalTotal > 0 ? finalTotal.toFixed(0) : "—"} <span style={{ fontSize: "11px", fontWeight: "400", color: "#555" }}>د.ل</span></div>
-                      <div style={{ fontSize: "11px", color: "#444" }}>{base > 0 ? base.toFixed(2) + " $" : "—"}</div>
+                    <div style={{ textAlign: "end", fontSize: 12, color: FAINT, lineHeight: 1.7 }}>
+                      {new Date(order.created_at).toLocaleDateString("ar-LY", { day: "2-digit", month: "long" })}
+                      <br />
+                      {new Date(order.created_at).toLocaleTimeString("ar-LY", { hour: "2-digit", minute: "2-digit" })}
                     </div>
                   </div>
 
-                  {/* Cart Link */}
-                  {order.cart_link && (
-                    <a href={order.cart_link} target="_blank" rel="noreferrer" style={{
-                      display: "flex", alignItems: "center", gap: "8px", justifyContent: "center",
-                      padding: "9px 12px", borderRadius: "8px", background: "#13131f",
-                      border: "1px solid #2a2a3a", color: "#7dd3fc", textDecoration: "none",
-                      fontSize: "12px", fontWeight: "600", marginBottom: "10px",
-                      transition: "all 0.2s"
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background="#1a2a3a"; e.currentTarget.style.borderColor="#3b82f6"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background="#13131f"; e.currentTarget.style.borderColor="#2a2a3a"; }}
-                    >
-                      🛒 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "200px" }}>فتح سلة التسوق</span>
-                      <span style={{ color: "#444" }}>↗</span>
+                  {/* الاتصال بالزبون بضغطة، لا نسخ ولصق */}
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <a href={`tel:${order.phone}`} style={{ flex: 1, textDecoration: "none" }}>
+                      <Button kind="ghost" icon={I.phone} style={{ width: "100%", padding: "11px 10px", fontSize: 13 }}>
+                        {order.phone}
+                      </Button>
                     </a>
-                  )}
+                    <a href={waLink(order, order.status)} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
+                      <Button kind="quiet" icon={I.chat} style={{ width: "auto", padding: "11px 15px", fontSize: 13, color: "var(--t-green-ink)", background: "var(--t-green-bg)" }}>
+                        واتساب
+                      </Button>
+                    </a>
+                  </div>
 
-                  {/* Image Toggle */}
-                  {order.image_url && (
-                    <div style={{ marginBottom: "10px" }}>
-                      <button
-                        onClick={() => setExpandedImages(p => ({ ...p, [order.id]: !p[order.id] }))}
-                        style={{ display: "flex", alignItems: "center", gap: "6px", width: "100%", padding: "8px 12px", background: "#13131f", border: "1px solid #2a2a3a", borderRadius: "8px", color: "#888", cursor: "pointer", fontSize: "12px", fontWeight: "600", transition: "all 0.2s" }}
-                      >
-                        🖼️ صورة الطلب
-                        <span style={{ marginRight: "auto", transition: "transform 0.3s", transform: imgExpanded ? "rotate(180deg)" : "rotate(0deg)", display: "inline-block" }}>▾</span>
-                      </button>
-                      {imgExpanded && (
-                        <div style={{ marginTop: "8px", borderRadius: "8px", overflow: "hidden", border: "1px solid #1a1a2e" }}>
-                          <img
-                            src={order.image_url}
-                            style={{ width: "100%", maxHeight: "180px", objectFit: "cover", cursor: "zoom-in", display: "block" }}
-                            onClick={() => setSelectedImage(order.image_url)}
-                            title="اضغط للتكبير"
-                          />
-                        </div>
-                      )}
+                  {/* العنوان والخريطة */}
+                  {(order.delivery_address || order.delivery_geo) && (
+                    <div style={{ display: "flex", gap: 9, alignItems: "flex-start", background: CHIP, borderRadius: 13, padding: "11px 13px" }}>
+                      <Icon path={I.pin} size={16} color={PRIMARY} style={{ flexShrink: 0, marginTop: 2 }} />
+                      <div style={{ flex: 1, minWidth: 0, fontSize: 13, lineHeight: 1.8 }}>
+                        {order.delivery_address || "—"}
+                        {order.delivery_geo && (
+                          <>
+                            <br />
+                            <a href={`https://www.google.com/maps?q=${order.delivery_geo.lat},${order.delivery_geo.lng}`}
+                               target="_blank" rel="noreferrer"
+                               style={{ color: PRIMARY, fontWeight: 700, textDecoration: "none", fontSize: 12.5 }}>
+                              فتح على الخريطة ↗
+                            </a>
+                          </>
+                        )}
+                      </div>
                     </div>
                   )}
 
-                  {/* What SHEIN itself showed, so a price can be audited rather
-                      than trusted: its own lines, and a picture of the cart. */}
-                  {(order.price_breakdown || order.cart_shot_url || order.delivery_address) && (
-                    <div style={{ marginBottom: "10px", padding: "10px 12px", background: "#13131f", border: "1px solid #2a2a3a", borderRadius: "8px", fontSize: "12px", color: "#9aa0aa", lineHeight: 1.9 }}>
-                      {order.delivery_address && (
-                        <div style={{ marginBottom: 6 }}>
-                          📍 <strong style={{ color: "#ddd" }}>{order.delivery_address}</strong>
-                          {order.delivery_geo?.lat && (
-                            <>
-                              {" "}·{" "}
-                              <a
-                                href={`https://www.google.com/maps?q=${order.delivery_geo.lat},${order.delivery_geo.lng}`}
-                                target="_blank" rel="noreferrer"
-                                style={{ color: "#60a5fa" }}
-                              >على الخريطة</a>
-                            </>
-                          )}
-                        </div>
-                      )}
-                      {order.price_breakdown?.note && (
-                        <div style={{ marginBottom: 6, padding: "6px 8px", background: "#1a1a2e", borderRadius: 6, color: "#ddd" }}>
-                          📝 {order.price_breakdown.note}
-                        </div>
-                      )}
-                      {Array.isArray(order.price_breakdown?.images) && order.price_breakdown.images.length > 1 && (
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
-                          {order.price_breakdown.images.map((u, k) => (
-                            <img
-                              key={k}
-                              src={u}
-                              onClick={() => setSelectedImage(u)}
-                              style={{ width: 54, height: 54, objectFit: "cover", borderRadius: 6, cursor: "zoom-in", border: "1px solid #2a2a3a" }}
-                            />
-                          ))}
-                        </div>
-                      )}
-                      {Array.isArray(order.price_breakdown?.quantities)
-                        && order.price_breakdown.quantities.some((q) => Number(q.wanted) > 1) && (
-                        <div style={{ marginBottom: 6, color: "#fbbf24" }}>
-                          🔢 {order.price_breakdown.quantities
-                                .filter((q) => Number(q.wanted) > 1)
-                                .map((q) => `${String(q.name).slice(0, 22)} × ${q.wanted}`)
-                                .join(" · ")}
-                        </div>
-                      )}
-                      {order.price_breakdown && (
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "2px 10px" }}>
-                          <span>Retail</span><strong style={{ color: "#ddd" }}>${Number(order.price_breakdown.retailUsd ?? 0).toFixed(2)}</strong>
-                          <span>Shipping</span><strong style={{ color: "#ddd" }}>${Number(order.price_breakdown.shippingUsd ?? 0).toFixed(2)}</strong>
-                          <span>Promotions</span><strong style={{ color: "#4ade80" }}>${Number(order.price_breakdown.promotionsUsd ?? 0).toFixed(2)}</strong>
-                          <span style={{ opacity: 0.6 }}>Coupon (غير محسوب)</span>
-                          <span style={{ opacity: 0.6 }}>${Number(order.price_breakdown.couponUsd ?? 0).toFixed(2)}</span>
-
-                        </div>
-                      )}
-                      {order.cart_shot_url && (
-                        <div style={{ marginTop: 8, borderRadius: 8, overflow: "hidden", border: "1px solid #1a1a2e" }}>
-                          <img
-                            src={order.cart_shot_url}
-                            style={{ width: "100%", maxHeight: "200px", objectFit: "cover", objectPosition: "top", cursor: "zoom-in", display: "block" }}
-                            onClick={() => setSelectedImage(order.cart_shot_url)}
-                            title="لقطة السلة من تطبيق شي إن — اضغط للتكبير"
-                          />
-                        </div>
-                      )}
+                  {/* الكميات التي اختارها الزبون */}
+                  {qtys.length > 0 && (
+                    <div style={{ display: "flex", gap: 9, alignItems: "flex-start", background: "var(--t-amber-bg)", color: "var(--t-amber-ink)", borderRadius: 13, padding: "11px 13px", fontSize: 12.5, lineHeight: 1.8 }}>
+                      <Icon path={I.cart} size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+                      <span>{qtys.map((q) => `${String(q.name).slice(0, 26)} × ${q.wanted}`).join(" · ")}</span>
                     </div>
                   )}
 
-                  {/* Price Breakdown Toggle */}
-                  <div style={{ marginBottom: "10px" }}>
+                  {/* روابط وصور */}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {order.cart_link && (
+                      <a href={order.cart_link} target="_blank" rel="noreferrer" style={{ flex: 1, minWidth: 130, textDecoration: "none" }}>
+                        <Button kind="ghost" icon={I.link} style={{ width: "100%", padding: "11px 10px", fontSize: 13 }}>سلة شي إن</Button>
+                      </a>
+                    )}
+                    {order.cart_shot_url && (
+                      <Button kind="ghost" icon={I.search} onClick={() => setImage(order.cart_shot_url)}
+                        style={{ width: "auto", padding: "11px 14px", fontSize: 13 }}>لقطة السلة</Button>
+                    )}
+                    {order.image_url && (
+                      <Button kind="ghost" icon={I.note} onClick={() => setImage(order.image_url)}
+                        style={{ width: "auto", padding: "11px 14px", fontSize: 13 }}>صورة الزبون</Button>
+                    )}
+                  </div>
+
+                  {/* تفاصيل السعر */}
+                  <div>
                     <button
-                      onClick={() => setExpandedPrices(p => ({ ...p, [order.id]: !p[order.id] }))}
-                      style={{ display: "flex", alignItems: "center", gap: "6px", width: "100%", padding: "8px 12px", background: "#13131f", border: "1px solid #2a2a3a", borderRadius: "8px", color: "#888", cursor: "pointer", fontSize: "12px", fontWeight: "600", transition: "all 0.2s" }}
+                      onClick={() => setOpenPrice((p) => ({ ...p, [order.id]: !p[order.id] }))}
+                      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "11px 13px", background: CHIP, border: "none", borderRadius: 13, color: INK, cursor: "pointer", fontSize: 13, fontWeight: 700, fontFamily: "inherit" }}
                     >
-                      💰 تفاصيل السعر
-                      <span style={{ marginRight: "auto", transition: "transform 0.3s", transform: priceExpanded ? "rotate(180deg)" : "rotate(0deg)", display: "inline-block" }}>▾</span>
+                      <Icon path={I.chart} size={16} color={PRIMARY} />
+                      تفاصيل السعر
+                      <Icon path={I.back} size={15} color={FAINT}
+                        style={{ marginInlineStart: "auto", transform: openPrice[order.id] ? "rotate(-90deg)" : "rotate(90deg)", transition: "transform .18s" }} />
                     </button>
-                    {priceExpanded && (
-                      <div style={{ marginTop: "8px", background: "#13131f", borderRadius: "8px", border: "1px solid #1a1a2e", overflow: "hidden" }}>
+
+                    {openPrice[order.id] && (
+                      <div style={{ marginTop: 8, border: `1px solid ${LINE}`, borderRadius: 13, overflow: "hidden" }}>
                         {[
-                          ["السعر الأصلي", `${base.toFixed(2)} $`, "#fff"],
-                          [`العمولة (${profitRate}%)`, `${profit.toFixed(2)} $`, "#f97316"],
-                          ["الإجمالي USD", `${totalUSD.toFixed(2)} $`, "#3b82f6"],
-                          ["سعر الدولار", `${exchangeRate || "—"} د.ل`, "#facc15"],
-                          ["الإجمالي LYD", `${priceLYD.toFixed(2)} د.ل`, "#22c55e"],
-                          ["الشحن", `${shippingValue} د.ل`, "#a855f7"],
-                        ].map(([label, value, color]) => (
-                          <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", borderBottom: "1px solid #1a1a2e" }}>
-                            <span style={{ color: "#555", fontSize: "12px" }}>{label}</span>
-                            <span style={{ color, fontSize: "13px", fontWeight: "600" }}>{value}</span>
+                          ["سعر شي إن", `${base.toFixed(2)} $`],
+                          [`العمولة (${profitRate}%)`, `${(total - base).toFixed(2)} $`],
+                          ["الإجمالي بالدولار", `${total.toFixed(2)} $`],
+                          ["سعر الصرف", `${exchangeRate || "—"} د.ل`],
+                          ["الإجمالي بالدينار", `${lyd.toFixed(2)} د.ل`],
+                          ["الشحن", `${ship} د.ل`],
+                        ].map(([label, value]) => (
+                          <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "9px 13px", borderBottom: `1px solid ${LINE}`, fontSize: 13 }}>
+                            <span style={{ color: MUTED }}>{label}</span>
+                            <strong>{value}</strong>
                           </div>
                         ))}
-                        <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", background: "#0d1f18" }}>
-                          <span style={{ color: "#22c55e", fontSize: "13px", fontWeight: "700" }}>💰 الإجمالي النهائي</span>
-                          <span style={{ color: "#22c55e", fontSize: "15px", fontWeight: "800" }}>{finalTotal.toFixed(2)} د.ل</span>
+                        {order.price_breakdown && (
+                          <div style={{ padding: "9px 13px", borderBottom: `1px solid ${LINE}`, fontSize: 12.5, color: MUTED, lineHeight: 1.9 }}>
+                            قراءة شي إن: retail ${Number(order.price_breakdown.retailUsd ?? 0).toFixed(2)} ·
+                            shipping ${Number(order.price_breakdown.shippingUsd ?? 0).toFixed(2)} ·
+                            promotions ${Number(order.price_breakdown.promotionsUsd ?? 0).toFixed(2)}
+                            <br />
+                            <span style={{ opacity: 0.7 }}>coupon ${Number(order.price_breakdown.couponUsd ?? 0).toFixed(2)} (غير محسوب عمدًا)</span>
+                          </div>
+                        )}
+                        <div style={{ display: "flex", justifyContent: "space-between", padding: "11px 13px", background: "var(--t-green-bg)", color: "var(--t-green-ink)" }}>
+                          <strong style={{ fontSize: 13 }}>الإجمالي النهائي</strong>
+                          <strong style={{ fontSize: 15 }}>{finalTotal.toFixed(2)} د.ل</strong>
                         </div>
                       </div>
                     )}
                   </div>
 
-                  {/* Shipping Input */}
-                  {can(role, permissions, "shein_set_shipping") && (
-                    <div style={{ display: "flex", gap: "8px", marginBottom: "10px" }}>
+                  {/* الشحن */}
+                  {can("shein_set_shipping") && (
+                    <div style={{ display: "flex", gap: 8 }}>
                       <input
-                        placeholder="سعر الشحن (د.ل)"
-                        type="number" value={shipping[order.id] || ""}
-                        onChange={(e) => setShipping(p => ({ ...p, [order.id]: e.target.value }))}
-                        style={{ flex: 1, padding: "9px 12px", borderRadius: "8px", border: "1px solid #2a2a3a", background: "#13131f", color: "#fff", fontSize: "13px" }}
+                        placeholder="سعر الشحن (د.ل)" type="number"
+                        value={shipping[order.id] ?? order.shipping ?? ""}
+                        onChange={(e) => setShipping((p) => ({ ...p, [order.id]: e.target.value }))}
+                        style={{ ...inputStyle, flex: 1, padding: "11px 13px", fontSize: 14 }}
                       />
-                      <button
+                      <Button kind="solid" style={{ width: "auto", padding: "0 18px", fontSize: 13.5 }}
                         onClick={async () => {
-                          const res = await adminFetch("/api/order", {
+                          await adminFetch("/api/order", {
                             method: "PUT",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ id: order.id, shipping: shipping[order.id], exchange_rate: exchangeRate, price_lyd: priceLYD, final_total: finalTotal })
+                            body: JSON.stringify({
+                              id: order.id, shipping: shipping[order.id],
+                              exchange_rate: exchangeRate, price_lyd: lyd,
+                              final_total: lyd + Number(shipping[order.id] || 0),
+                            }),
                           });
-                          if (res.ok) { setSuccessId(order.id); setTimeout(() => setSuccessId(null), 2000); }
-                        }}
-                        style={{ padding: "9px 14px", borderRadius: "8px", border: "none", background: successId === order.id ? "#22c55e" : "#1a1a2e", color: successId === order.id ? "#fff" : "#888", cursor: "pointer", fontSize: "13px", fontWeight: "600", transition: "all 0.2s", whiteSpace: "nowrap" }}
-                      >
-                        {successId === order.id ? "✅" : "💾 حفظ"}
-                      </button>
+                          getOrders();
+                        }}>
+                        حفظ
+                      </Button>
                     </div>
                   )}
 
-                  {/* Status Buttons */}
-                  {can(role, permissions, "shein_change_status") && (
-                    <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginBottom: "8px" }}>
-                      {[["ordered","🛍️ شراء","#3b82f6"],["shipped","🚚 شحن","#8b5cf6"],["delivered","✅ تسليم","#10b981"],["completed","🏁 منجز","#22c55e"]].map(([s,l,c]) => (
-                        <button key={s} onClick={() => updateStatus(order.id, s, order)} className="action-btn" style={{
-                          flex: 1, padding: "7px 4px", borderRadius: "7px", border: `1px solid ${order.status===s ? c : "#1a1a2e"}`,
-                          background: order.status===s ? c+"22" : "#13131f", color: order.status===s ? c : "#555",
-                          cursor: "pointer", fontSize: "11px", fontWeight: order.status===s ? "700" : "400", transition: "all 0.2s"
-                        }}>{l}</button>
+                  {/* الحالة */}
+                  {can("shein_change_status") && (
+                    <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+                      {[["ordered", "شراء", I.cart], ["shipped", "شحن", I.truck], ["delivered", "تسليم", I.check], ["completed", "إنهاء", I.box]].map(([s, label, icon]) => (
+                        <button key={s} onClick={() => updateStatus(order.id, s, order)} style={{
+                          flex: 1, minWidth: 82, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                          padding: "10px 8px", borderRadius: 11, border: `1.5px solid ${order.status === s ? PRIMARY : LINE}`,
+                          background: order.status === s ? CHIP : CARD, color: order.status === s ? PRIMARY : MUTED,
+                          cursor: "pointer", fontSize: 12.5, fontWeight: 700, fontFamily: "inherit",
+                        }}>
+                          <Icon path={icon} size={15} />
+                          {label}
+                        </button>
                       ))}
                     </div>
                   )}
 
-                  {/* Bottom Actions */}
-                  <div style={{ display: "flex", gap: "6px" }}>
-                    <button onClick={() => sendWhatsApp(order)} className="action-btn" style={{ flex: 1, padding: "8px", borderRadius: "8px", border: "none", background: "#075e5422", color: "#25d366", cursor: "pointer", fontSize: "12px", fontWeight: "600", transition: "all 0.2s" }}>
-                      📱 واتساب
-                    </button>
-                    {can(role, permissions, "shein_delete_orders") && (
-                      <button onClick={() => updateStatus(order.id, "deleted", order)} className="action-btn" style={{ padding: "8px 12px", borderRadius: "8px", border: "none", background: "#ef444415", color: "#ef4444", cursor: "pointer", fontSize: "12px", fontWeight: "600", transition: "all 0.2s" }}>
-                        🗑️
-                      </button>
-                    )}
-                  </div>
+                  {can("shein_delete_orders") && (
+                    <Button kind="danger" icon={I.trash} style={{ padding: "10px", fontSize: 13 }}
+                      onClick={() => { if (confirm("نقل الطلب إلى المحذوفات؟")) updateStatus(order.id, "deleted", order); }}>
+                      حذف الطلب
+                    </Button>
+                  )}
                 </div>
-              </div>
+              </Card>
             );
           })}
         </div>
+      )}
 
-        {filtered.length === 0 && (
-          <div style={{ textAlign: "center", padding: "80px 20px", color: "#333" }}>
-            <div style={{ fontSize: "48px", marginBottom: "12px" }}>📭</div>
-            <p style={{ fontSize: "16px" }}>لا توجد طلبات</p>
-          </div>
-        )}
-      </div>
-
-      {/* Image Modal */}
+      {/* معاينة الصور */}
       {selectedImage && (
-        <div onClick={() => setSelectedImage(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, backdropFilter: "blur(6px)" }}>
-          <img src={selectedImage} onClick={e => e.stopPropagation()} style={{ maxWidth: "90vw", maxHeight: "90vh", borderRadius: "12px", boxShadow: "0 25px 80px rgba(0,0,0,0.8)" }} />
-          <button onClick={() => setSelectedImage(null)} style={{ position: "fixed", top: "20px", right: "20px", background: "#1a1a2e", border: "1px solid #333", color: "#fff", width: "36px", height: "36px", borderRadius: "50%", cursor: "pointer", fontSize: "16px", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        <div onClick={() => setImage(null)} style={{
+          position: "fixed", inset: 0, background: "rgba(22,19,31,0.75)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 20,
+        }}>
+          <img src={selectedImage} onClick={(e) => e.stopPropagation()} alt=""
+            style={{ maxWidth: "92vw", maxHeight: "88vh", borderRadius: 16, boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }} />
         </div>
       )}
-    </main>
+    </AdminShell>
   );
-}
-
-function getStatusColor(status) {
-  const map = { new: "#f59e0b", ordered: "#3b82f6", shipped: "#8b5cf6", delivered: "#10b981" };
-  return map[status] || "#444";
 }

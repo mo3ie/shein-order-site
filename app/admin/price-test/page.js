@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import AdminShell from "@/app/components/AdminShell";
 
 /**
  * Price diagnostics.
@@ -111,12 +112,11 @@ export default function PriceTestPage() {
 
   if (denied) {
     return (
-      <main style={S.page}>
+      <AdminShell title="تشخيص الأسعار">
         <div style={S.card}>
-          <h1 style={S.h1}>تشخيص الأسعار</h1>
           <p style={S.muted}>سجّل الدخول بحساب مشرف لعرض هذه الصفحة.</p>
         </div>
-      </main>
+      </AdminShell>
     );
   }
 
@@ -132,13 +132,8 @@ export default function PriceTestPage() {
   const diff = Number(result?.price || 0) - estimate;
 
   return (
-    <main style={S.page}>
+    <AdminShell role="admin" title="تشخيص الأسعار" subtitle="أسطر شي إن نفسها، والحساب الذي قرأها، وأين ذهب الوقت — للقراءة فقط." width={880}>
       <div style={S.card}>
-        <h1 style={S.h1}>🔍 تشخيص أسعار السلال</h1>
-        <p style={S.muted}>
-          يعرض أسطر شي إن نفسها، والحساب الذي قرأها، وأين ذهب الوقت. للقراءة فقط — لا ينشئ طلباً.
-        </p>
-
         <input
           placeholder="https://onelink.shein.com/..."
           value={url}
@@ -153,10 +148,10 @@ export default function PriceTestPage() {
         </label>
 
         <button onClick={() => run(false)} disabled={busy || !url.trim()} style={S.btn(busy || !url.trim())}>
-          {busy ? `⏳ جاري القياس... ${elapsed} ثانية` : "قِس السلة"}
+          {busy ? `جاري القياس · ${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}` : "قِس السلة"}
         </button>
 
-        {error && <div style={S.err}>❌ {error}</div>}
+        {error && <div style={S.err}>{error}</div>}
       </div>
 
       {result && (
@@ -248,7 +243,7 @@ export default function PriceTestPage() {
                   </tr>
                   <tr>
                     <td style={S.k}>Promotions {Number(baseline.breakdown?.promotionsUsd || 0).toFixed(2)} → {Number(b?.promotionsUsd || 0).toFixed(2)}</td>
-                    <td style={{ ...S.v, color: "#4ade80" }}>
+                    <td style={{ ...S.v, color: "var(--t-green-ink)" }}>
                       {(Number(b?.promotionsUsd || 0) - Number(baseline.breakdown?.promotionsUsd || 0)).toFixed(2)}
                     </td>
                   </tr>
@@ -265,7 +260,7 @@ export default function PriceTestPage() {
                   <tr style={S.sep}><td colSpan={2} /></tr>
                   <tr>
                     <td style={S.kStrong}>الفرق</td>
-                    <td style={{ ...S.vStrong, color: diff > 0 ? "#fca5a5" : "#4ade80" }}>
+                    <td style={{ ...S.vStrong, color: diff > 0 ? "var(--t-red-ink)" : "var(--t-green-ink)" }}>
                       {diff > 0 ? "+" : ""}{diff.toFixed(2)} $ &nbsp;({diff > 0 ? "+" : ""}{(lyd(result.price) - lyd(estimate)).toFixed(0)} د.ل)
                     </td>
                   </tr>
@@ -295,7 +290,7 @@ export default function PriceTestPage() {
                 <div key={i} style={S.item}>
                   {it.image
                     ? <img src={it.image} alt="" style={S.thumb} />
-                    : <div style={{ ...S.thumb, background: "#1a1a2e" }} />}
+                    : <div style={{ ...S.thumb, background: "var(--t-line)" }} />}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={S.itemName}>{it.name}</div>
                     <div style={S.itemMeta}>
@@ -312,7 +307,7 @@ export default function PriceTestPage() {
                 </div>
               ))}
               <button onClick={() => run(true)} disabled={busy} style={S.btn(busy)}>
-                {busy ? `⏳ جاري إعادة القياس... ${elapsed} ثانية` : "أعد القياس بهذه الكميات"}
+                {busy ? `جاري إعادة القياس · ${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}` : "أعد القياس بهذه الكميات"}
               </button>
             </>
           )}
@@ -355,7 +350,7 @@ export default function PriceTestPage() {
           ))}
         </div>
       )}
-    </main>
+    </AdminShell>
   );
 }
 
@@ -363,7 +358,7 @@ function Cell({ label, value, mono, small }) {
   return (
     <div style={S.cell}>
       <div style={S.cellLabel}>{label}</div>
-      <div style={{ ...S.cellValue, ...(mono ? { fontFamily: "monospace" } : {}), ...(small ? { fontSize: 12 } : {}) }}>
+      <div style={{ ...S.cellValue, ...(mono ? { fontFamily: "monospace" } : {}), ...(small ? { fontSize: 13.5 } : {}) }}>
         {value}
       </div>
     </div>
@@ -375,7 +370,7 @@ function Line({ k, v, good, muted, zero }) {
   return (
     <tr>
       <td style={muted ? S.kMuted : S.k}>{k}</td>
-      <td style={{ ...(muted ? S.vMuted : S.v), ...(good ? { color: "#4ade80" } : {}) }}>
+      <td style={{ ...(muted ? S.vMuted : S.v), ...(good ? { color: "var(--t-green-ink)" } : {}) }}>
         {zero && n === 0 ? zero : `$${n.toFixed(2)}`}
       </td>
     </tr>
@@ -383,57 +378,57 @@ function Line({ k, v, good, muted, zero }) {
 }
 
 const S = {
-  page: { minHeight: "100vh", background: "#0b0b14", color: "#e5e7eb", padding: 16,
+  page: { minHeight: "100vh", background: "var(--t-page)", color: "var(--t-ink)", padding: 16,
           fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif", direction: "rtl" },
-  card: { maxWidth: 720, margin: "0 auto 14px", background: "#13131f",
-          border: "1px solid #2a2a3a", borderRadius: 14, padding: 16 },
-  h1: { fontSize: 19, margin: "0 0 6px" },
-  h2: { fontSize: 15, margin: "0 0 10px" },
-  h3: { fontSize: 14, margin: "16px 0 8px", color: "#c7c9d1" },
-  muted: { fontSize: 12.5, color: "#8b8f9c", lineHeight: 1.8, margin: "0 0 12px" },
-  input: { width: "100%", padding: "11px 13px", borderRadius: 10, border: "1px solid #2a2a3a",
-           background: "#0f0f18", color: "#e5e7eb", fontSize: 13, marginBottom: 10, fontFamily: "inherit" },
-  check: { display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: "#9aa0aa", marginBottom: 12 },
+  card: { maxWidth: 720, margin: "0 auto 14px", background: "var(--t-card)",
+          border: "1px solid var(--t-line)", borderRadius: 14, padding: 16 },
+  h1: { fontSize: 20.5, margin: "0 0 6px" },
+  h2: { fontSize: 16.5, margin: "0 0 10px" },
+  h3: { fontSize: 15.5, margin: "16px 0 8px", color: "var(--t-muted)" },
+  muted: { fontSize: 14, color: "var(--t-faint)", lineHeight: 1.8, margin: "0 0 12px" },
+  input: { width: "100%", padding: "11px 13px", borderRadius: 10, border: "1px solid var(--t-line)",
+           background: "var(--t-chip)", color: "var(--t-ink)", fontSize: 14.5, marginBottom: 10, fontFamily: "inherit" },
+  check: { display: "flex", alignItems: "center", gap: 7, fontSize: 14, color: "var(--t-muted)", marginBottom: 12 },
   btn: (off) => ({ width: "100%", padding: "11px 14px", borderRadius: 10, border: "none",
-                   background: off ? "#2a2a3a" : "#6d28d9", color: off ? "#6b7280" : "#fff",
-                   fontSize: 13.5, fontWeight: 700, cursor: off ? "not-allowed" : "pointer",
+                   background: off ? "var(--t-line)" : "#7c3aed", color: off ? "var(--t-faint)" : "#fff",
+                   fontSize: 15, fontWeight: 700, cursor: off ? "not-allowed" : "pointer",
                    fontFamily: "inherit", marginTop: 10 }),
-  err: { marginTop: 10, padding: "9px 12px", borderRadius: 10, background: "#2a1414",
-         border: "1px solid #7f1d1d", color: "#fca5a5", fontSize: 12.5 },
+  err: { marginTop: 10, padding: "9px 12px", borderRadius: 10, background: "var(--t-red-bg)",
+         border: "1px solid var(--t-red-line)", color: "var(--t-red-ink)", fontSize: 14 },
   rowBetween: { display: "flex", alignItems: "center", justifyContent: "space-between" },
-  tag: { fontSize: 11.5, color: "#8b8f9c", background: "#0f0f18", border: "1px solid #2a2a3a",
+  tag: { fontSize: 13, color: "var(--t-faint)", background: "var(--t-chip)", border: "1px solid var(--t-line)",
          borderRadius: 20, padding: "3px 10px" },
-  tagSmall: { fontSize: 11, fontFamily: "monospace", color: "#a78bfa" },
+  tagSmall: { fontSize: 12.5, fontFamily: "monospace", color: "#7c3aed" },
   grid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, margin: "12px 0" },
-  cell: { background: "#0f0f18", border: "1px solid #2a2a3a", borderRadius: 10, padding: "9px 11px" },
-  cellLabel: { fontSize: 11, color: "#6b7280", marginBottom: 3 },
-  cellValue: { fontSize: 13, fontWeight: 600, wordBreak: "break-word" },
+  cell: { background: "var(--t-chip)", border: "1px solid var(--t-line)", borderRadius: 10, padding: "9px 11px" },
+  cellLabel: { fontSize: 12.5, color: "var(--t-faint)", marginBottom: 3 },
+  cellValue: { fontSize: 14.5, fontWeight: 600, wordBreak: "break-word" },
   table: { width: "100%", borderCollapse: "collapse", marginTop: 6 },
-  k: { padding: "6px 0", fontSize: 13, color: "#c7c9d1" },
-  v: { padding: "6px 0", fontSize: 13, textAlign: "left", fontFamily: "monospace" },
-  kStrong: { padding: "8px 0", fontSize: 13.5, fontWeight: 800 },
-  vStrong: { padding: "8px 0", fontSize: 15, fontWeight: 800, textAlign: "left", fontFamily: "monospace" },
-  kMuted: { padding: "6px 0", fontSize: 12.5, color: "#6b7280" },
-  vMuted: { padding: "6px 0", fontSize: 12.5, color: "#6b7280", textAlign: "left", fontFamily: "monospace" },
-  sep: { borderTop: "1px solid #2a2a3a" },
-  sumNote: { fontSize: 11.5, color: "#8b8f9c", fontWeight: 400 },
-  item: { display: "flex", gap: 10, alignItems: "flex-start", padding: "9px 0", borderTop: "1px solid #1e1e2c" },
-  thumb: { width: 46, height: 46, borderRadius: 8, objectFit: "cover", flexShrink: 0, border: "1px solid #2a2a3a" },
-  itemName: { fontSize: 12.5, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box",
+  k: { padding: "6px 0", fontSize: 14.5, color: "var(--t-muted)" },
+  v: { padding: "6px 0", fontSize: 14.5, textAlign: "left", fontFamily: "monospace" },
+  kStrong: { padding: "8px 0", fontSize: 15, fontWeight: 800 },
+  vStrong: { padding: "8px 0", fontSize: 16.5, fontWeight: 800, textAlign: "left", fontFamily: "monospace" },
+  kMuted: { padding: "6px 0", fontSize: 14, color: "var(--t-faint)" },
+  vMuted: { padding: "6px 0", fontSize: 14, color: "var(--t-faint)", textAlign: "left", fontFamily: "monospace" },
+  sep: { borderTop: "1px solid var(--t-line)" },
+  sumNote: { fontSize: 13, color: "var(--t-faint)", fontWeight: 400 },
+  item: { display: "flex", gap: 10, alignItems: "flex-start", padding: "9px 0", borderTop: "1px solid var(--t-line)" },
+  thumb: { width: 46, height: 46, borderRadius: 8, objectFit: "cover", flexShrink: 0, border: "1px solid var(--t-line)" },
+  itemName: { fontSize: 14, lineHeight: 1.5, overflow: "hidden", display: "-webkit-box",
               WebkitLineClamp: 2, WebkitBoxOrient: "vertical" },
-  itemMeta: { fontSize: 11.5, color: "#8b8f9c", marginTop: 3 },
+  itemMeta: { fontSize: 13, color: "var(--t-faint)", marginTop: 3 },
   qtyBox: { display: "flex", alignItems: "center", gap: 5, flexShrink: 0 },
-  qBtn: { width: 26, height: 26, borderRadius: 7, border: "1px solid #2a2a3a", background: "#0f0f18",
-          color: "#e5e7eb", fontSize: 15, lineHeight: 1, cursor: "pointer", padding: 0, fontFamily: "inherit" },
-  qVal: { minWidth: 18, textAlign: "center", fontWeight: 700, fontSize: 13 },
-  shot: { width: "100%", maxWidth: 300, borderRadius: 10, border: "1px solid #2a2a3a",
+  qBtn: { width: 26, height: 26, borderRadius: 7, border: "1px solid var(--t-line)", background: "var(--t-chip)",
+          color: "var(--t-ink)", fontSize: 16.5, lineHeight: 1, cursor: "pointer", padding: 0, fontFamily: "inherit" },
+  qVal: { minWidth: 18, textAlign: "center", fontWeight: 700, fontSize: 14.5 },
+  shot: { width: "100%", maxWidth: 300, borderRadius: 10, border: "1px solid var(--t-line)",
           display: "block", cursor: "zoom-in" },
-  note: { fontSize: 11.5, color: "#8b8f9c", lineHeight: 1.9, margin: "8px 0 0" },
+  note: { fontSize: 13, color: "var(--t-faint)", lineHeight: 1.9, margin: "8px 0 0" },
   phases: { display: "flex", flexWrap: "wrap", gap: 6 },
-  phase: { fontSize: 11.5, background: "#0f0f18", border: "1px solid #2a2a3a",
-           borderRadius: 8, padding: "4px 9px", color: "#9aa0aa" },
+  phase: { fontSize: 13, background: "var(--t-chip)", border: "1px solid var(--t-line)",
+           borderRadius: 8, padding: "4px 9px", color: "var(--t-muted)" },
   histRow: { display: "flex", alignItems: "center", gap: 10, padding: "7px 0",
-             borderTop: "1px solid #1e1e2c", fontSize: 12.5 },
-  histTime: { color: "#6b7280", fontFamily: "monospace", fontSize: 11.5 },
-  histLyd: { color: "#8b8f9c", minWidth: 78, textAlign: "left" },
+             borderTop: "1px solid var(--t-line)", fontSize: 14 },
+  histTime: { color: "var(--t-faint)", fontFamily: "monospace", fontSize: 13 },
+  histLyd: { color: "var(--t-faint)", minWidth: 78, textAlign: "left" },
 };
