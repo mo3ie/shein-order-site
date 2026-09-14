@@ -67,7 +67,7 @@ export default function MapPicker({ lat, lng, onSelect }) {
   return (
     <div>
       <div ref={mapRef} style={{ height: 240, borderRadius: 12, border: "1.5px solid #e5e7eb", overflow: "hidden" }} />
-      <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 6, textAlign: "center" }}>
+      <p style={{ fontSize: 12, color: "var(--t-faint)", marginTop: 6, textAlign: "center" }}>
         🗺️ انقر على الخريطة لتحديد موقعك
       </p>
     </div>

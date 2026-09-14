@@ -184,8 +184,8 @@ console.log("FINAL PHONE:", formattedPhone);
 
 const mainStyle = {
   minHeight: "100vh",
-  backgroundImage: "url('/bg.png')",
-  backgroundSize: "cover",
+  background: "var(--t-page)",
+  color: "var(--t-ink)",
   display: "flex",
   direction: "rtl",
   alignItems: "center",
@@ -193,18 +193,20 @@ const mainStyle = {
 };
 
 const card = {
-  width: "400px",
+  width: "420px",
+  maxWidth: "94vw",
   background: "var(--t-card)",
   padding: "20px",
   direction: "rtl",
-  color:"#000",
-  borderRadius: "16px",
+  color: "var(--t-ink)",
+  borderRadius: "20px",
+  boxShadow: "0 2px 10px rgba(22,19,31,0.05)",
 };
 
 const box = {
   background: "var(--t-line)",
   padding: "10px",
-  color:"#000",
+  color: "var(--t-ink)",
   direction: "rtl",
   borderRadius: "10px",
   marginBottom: "15px"
@@ -215,9 +217,9 @@ const input = {
   padding: "10px",
   direction: "rtl",
   marginTop: "10px",
-  color:"#000",
+  color: "var(--t-ink)",
   borderRadius: "8px",
-  border: "1px solid #ddd"
+  border: "1.5px solid var(--t-line)"
 };
 
 const btn = {
@@ -226,16 +228,20 @@ const btn = {
   marginTop: "10px",
   background: "var(--t-line)",
   border: "none",
-  color:"#000",
+  color: "var(--t-ink)",
   borderRadius: "10px",
 };
 
 const btnBlack = {
   width: "100%",
-  padding: "12px",
+  padding: "14px",
   marginTop: "10px",
-  background: "#000",
-  color: "#ffffff",
+  background: "var(--t-solid)",
+  color: "var(--t-on-solid)",
   border: "none",
-  borderRadius: "10px",
+  borderRadius: "13px",
+  fontSize: "15px",
+  fontWeight: 800,
+  fontFamily: "inherit",
+  cursor: "pointer",
 };
