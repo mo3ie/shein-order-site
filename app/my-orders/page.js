@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { statusLabel, statusColor, fmtDate, payLabel } from "@/lib/orderStatus";
+import { statusLabel, statusColor, fmtDate, payLabel, isPaid, minutesLeftToPay } from "@/lib/orderStatus";
 import { useLang, useIsDesktop } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import TopBar from "@/app/components/TopBar";
@@ -27,6 +27,9 @@ const ON_SOLID  = "var(--t-on-solid)";
 
 // ── صفحة تسجيل الدخول المدمجة ─────────────────────────────────────────────
 function LoginPrompt({ onLogin }) {
+  // الخطّاف داخل كل مكوّن يستعمل الترجمة: الصفحة الأم لا تمرّرها،
+  // وبدونه ينهار العرض بـ "t is not defined".
+  const { t, dir } = useLang();
   const [email,    setEmail]    = useState("");
   const [password, setPassword] = useState("");
   const [loading,  setLoading]  = useState(false);
@@ -114,12 +117,17 @@ function LoginPrompt({ onLogin }) {
 // كل طلب يحمل ما يعرّفه: المبلغ بالدينار، التاريخ، عدد الأصناف، طريقة الدفع،
 // والعنوان — لا أكثر، وبالدينار وحده (الدولار شأننا لا شأن الزبون).
 function OrderCard({ order }) {
+  // الخطّاف داخل كل مكوّن يستعمل الترجمة: الصفحة الأم لا تمرّرها،
+  // وبدونه ينهار العرض بـ "t is not defined".
+  const { t, dir } = useLang();
   const sc = statusColor(order.status);
   const lyd = order.final_total ?? order.price_lyd;
   const items = order.price_breakdown?.quantities?.length || null;
   const addr = order.delivery_address
     ? [order.delivery_address.city, order.delivery_address.area].filter(Boolean).join(" — ")
     : (order.address || "");
+  // دقائق متبقّية لدفع طلب غير مدفوع، أو null إن كان مدفوعًا.
+  const left = minutesLeftToPay(order);
 
   return (
     <a
@@ -156,6 +164,35 @@ function OrderCard({ order }) {
           {order.payMethod ? ` · ${order.payMethod}` : ""}
           {addr ? <><br />{addr}</> : null}
         </div>
+
+        {/* طلب لم يُدفع: طريق العودة إليه، ومهلته.
+            الطلب يُنشأ قبل الدفع، ومن أغلق الصفحة كان طلبه يبقى معلّقًا بلا
+            زرّ يكمل به. وبما أن غير المدفوع يُحذف بعد ساعة، تُعرض المهلة
+            صراحةً بدل أن يفاجأ باختفاء طلبه. */}
+        {left != null && (
+          <div style={{ marginTop: 10 }}>
+            <a
+              href={`/pay?order=${order.id}`}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                padding: "11px 14px", borderRadius: 13, background: GRAD_HEAD, color: "#fff",
+                fontSize: 14, fontWeight: 800, textDecoration: "none",
+                boxShadow: "0 4px 14px rgba(124,58,237,0.26)",
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="6" width="20" height="13" rx="2" /><path d="M2 10h20" />
+              </svg>
+              {t("أكمل الدفع")}
+            </a>
+            <div style={{ fontSize: 12, color: "var(--t-amber-ink)", textAlign: "center", marginTop: 7, fontWeight: 700 }}>
+              {left > 0
+                ? `${t("يُحذف الطلب بعد")} ${left} ${t("دقيقة")}`
+                : t("انتهت مهلة الدفع — سيُحذف هذا الطلب قريبًا")}
+            </div>
+          </div>
+        )}
       </div>
     </a>
   );

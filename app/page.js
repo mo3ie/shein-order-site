@@ -46,7 +46,13 @@ export default function OrderPage() {
   const [geo,               setGeo]               = useState(null);
   const [geoState,          setGeoState]          = useState("idle");
   const [price,             setPrice]             = useState(null);
-  const [exchangeRate,      setExchangeRate]      = useState(1);
+  // لا قيمة افتراضية لسعر الصرف.
+  //
+  // كان يبدأ بـ 1، فحين فشلت قراءة الإعدادات (عمود غير موجود) صار الدينار
+  // يساوي الدولار: سلة بـ 72 دولاراً عُرضت بـ 73 ديناراً. السعر الذي لا نعرف
+  // صرفه لا يُعرض أصلاً.
+  const [exchangeRate,      setExchangeRate]      = useState(null);
+  const [rateError,         setRateError]         = useState(false);
   // العمولة وسعر الصرف مصدرهما واحد: صفّ الإعدادات الذي يحرّره الأدمن.
   // كانت العمولة مكتوبة هنا 1% بينما اللوحة تحرّر رقمًا آخر، فكان زرّ اللوحة
   // يغيّر رقمًا لا يراه الزبون.
@@ -78,6 +84,9 @@ export default function OrderPage() {
   const [resolveState,      setResolveState]      = useState("idle"); // idle|checking|verified|failed
   const [resolveError,      setResolveError]      = useState("");
   const [itemCount,         setItemCount]         = useState(null);
+  // هل قرأنا كل أسطر السلة؟ إن لم نقرأها كلها فالكميات تُقفل: ضبط كمية على
+  // قائمة ناقصة يضعها على السطر الخطأ.
+  const [itemsComplete,     setItemsComplete]     = useState(true);
   const [resolvedLink,      setResolvedLink]      = useState("");
   const [elapsed,           setElapsed]           = useState(0);
   const [queue,             setQueue]             = useState(null);
@@ -126,7 +135,8 @@ export default function OrderPage() {
   const commission = (profitRate ?? 1) / 100;   // حتى تصل الإعدادات: 1% كما كان
   const profit    = base * commission;
   const totalUSD  = base + profit;
-  const priceLYD  = exchangeRate ? totalUSD * exchangeRate : 0;
+  const rateReady = Number.isFinite(Number(exchangeRate)) && Number(exchangeRate) > 0;
+  const priceLYD  = rateReady ? totalUSD * exchangeRate : 0;
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -159,10 +169,13 @@ export default function OrderPage() {
   }, [resolveState, cartItems.length, stage]);
 
   useEffect(() => {
-    supabase.from("settings").select("exchange_rate, profit_rate").eq("id", 1).single()
-      .then(({ data }) => {
-        if (!data) return;
-        setExchangeRate(Number(data.exchange_rate));
+    // "*" لا "عمود، عمود": عمود ناقص واحد كان يُفشل الاستعلام كله فيبقى سعر
+    // الصرف على قيمته الأولى.
+    supabase.from("settings").select("*").eq("id", 1).single()
+      .then(({ data, error }) => {
+        const rate = Number(data?.exchange_rate);
+        if (error || !Number.isFinite(rate) || rate <= 0) { setRateError(true); return; }
+        setExchangeRate(rate);
         if (data.profit_rate != null) setProfitRate(Number(data.profit_rate));
       });
   }, []);
@@ -288,6 +301,7 @@ export default function OrderPage() {
               setRepricing(false);
             } else {
               setCartItems(pd.items || []);
+              setItemsComplete(pd.itemsComplete !== false);
               setQuantities(Object.fromEntries((pd.items || []).map((it, i) => [i, it.quantity || 1])));
               setPrice(Number(pd.estimatedPrice));
               setResolvedLink(job.link);
@@ -344,6 +358,7 @@ export default function OrderPage() {
         setExactPrice(Number(d.estimatedPrice));
         setBreakdown(d.breakdown || null);
         if (d.itemCount != null) setItemCount(d.itemCount);
+        if (d.itemsComplete != null) setItemsComplete(d.itemsComplete !== false);
       };
       if (data.status !== "pending") { settle(data); return; }
 
@@ -391,7 +406,10 @@ export default function OrderPage() {
     if (!isValidLibyanPhone(phone))   errs.phone    = "رقم الهاتف غير صحيح — مثال: 0913456789";
     if (!city.trim())                 errs.city     = "أدخل المدينة";
     if (!area.trim())                 errs.area     = "أدخل المنطقة";
-    if (resolveState !== "verified" || !price) {
+    if (!rateReady) {
+      // بلا سعر صرف لا يُعرف المبلغ، فلا يُقبل طلب ولا يُفتح دفع.
+      errs.price = "تعذّر قراءة سعر الصرف. حدّث الصفحة أو راسلنا — لن نطلب منك الدفع برقم غير مؤكّد.";
+    } else if (resolveState !== "verified" || !price) {
       errs.price = "اضغط \"تحقق من السلة والسعر\" أولاً";
     } else if (quantityChanged && exactPrice == null) {
       // An estimate must never be the number someone pays.
@@ -433,6 +451,7 @@ export default function OrderPage() {
       saveJob(null);
       setQueue(null);
       setCartItems(data.items || []);
+      setItemsComplete(data.itemsComplete !== false);
       setBreakdown(data.breakdown || null);
       setQuantities(Object.fromEntries((data.items || []).map((it, i) => [i, it.quantity || 1])));
       setPrice(Number(data.estimatedPrice));
@@ -728,7 +747,7 @@ export default function OrderPage() {
 
   // ─────────────────────────────────────────────────────────────────────────
   // سعر الصنف الواحد بالدينار: الزبون لا يرى دولاراً في أي مكان.
-  const lydOfUsd = (usd) => (Number(usd || 0) * (1 + commission)) * (exchangeRate || 0);
+  const lydOfUsd = (usd) => rateReady ? (Number(usd || 0) * (1 + commission)) * exchangeRate : 0;
 
   // ما وفّره العرض على السلة، إن قرأه شي إن من صفحة الدفع.
   const savedLyd = breakdown?.promotionsUsd
@@ -755,7 +774,7 @@ export default function OrderPage() {
   // التقدير كان يُحسب بجمع سعر القطع الزائدة على سعر السلة، وهو رقم لا يعرف
   // عروض شي إن فيخرج أحيانًا أقل من الحقيقة — والزبون يقرؤه على أنه السعر.
   // فالأصدق ألّا يُعرض شيء: شرطة مكان المبلغ، وزر إعادة الحساب هو الطريق.
-  const totalReady = !(quantityChanged && exactPrice == null);
+  const totalReady = rateReady && !(quantityChanged && exactPrice == null);
   const totalText = totalReady
     ? priceLYD.toLocaleString("en-US", { maximumFractionDigits: 0 })
     : "—";
@@ -1062,8 +1081,26 @@ export default function OrderPage() {
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">{ICONS.cart}</svg>
                 {t("سلتك")}
               </span>
-              <span style={{ fontSize: 13, color: MUTED }}>{t("عدّل الكميات ثم أعد الحساب")}</span>
+              <span style={{ fontSize: 13, color: MUTED }}>
+                {itemsComplete ? t("عدّل الكميات ثم أعد الحساب") : `${itemCount || "?"} ${t("صنف")}`}
+              </span>
             </div>
+
+            {/* قائمة ناقصة: تُقال كما هي.
+                القراءة تجري من شاشة التطبيق، وقد يتعذّر قراءة سطر (صورة لم
+                تُحمَّل بعد مثلاً). حينها يبقى الإجمالي صحيحًا — فهو مقروء من
+                صفحة الدفع لا من هذه القائمة — لكن الكميات تُقفل، لأن ضبط كمية
+                على قائمة ناقصة يضعها على الصنف الخطأ. */}
+            {!itemsComplete && (
+              <div style={{ display: "flex", gap: 9, alignItems: "flex-start", background: "var(--t-amber-bg)", color: "var(--t-amber-ink)", border: "1px solid var(--t-amber-line)", borderRadius: 14, padding: "12px 14px", fontSize: 13, lineHeight: 1.85 }}>
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 2 }}>
+                  <circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.01" />
+                </svg>
+                <span>
+                  {t("تعذّر عرض كل أصناف سلتك هنا، فأُقفل تعديل الكميات حتى لا تُضبط على الصنف الخطأ. الإجمالي أعلاه صحيح — مقروء من صفحة الدفع في شي إن. لتعديل الكميات، غيّرها داخل تطبيق شي إن وأرسل الرابط من جديد.")}
+                </span>
+              </div>
+            )}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
               {cartItems.map((it, i) => (
@@ -1095,17 +1132,23 @@ export default function OrderPage() {
                   </div>
 
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, flexShrink: 0 }}>
-                    <button
-                      type="button"
-                      onClick={() => { setExactPrice(null); setQuantities(q => ({ ...q, [i]: Math.min(20, Number(q[i] ?? it.quantity ?? 1) + 1) })); }}
-                      className="stepper-btn" style={{ ...s.stepBtn, color: PRIMARY }}
-                    >+</button>
-                    <span style={{ fontSize: 14.5, fontWeight: 800 }}>{quantities[i] ?? it.quantity ?? 1}</span>
-                    <button
-                      type="button"
-                      onClick={() => { setExactPrice(null); setQuantities(q => ({ ...q, [i]: Math.max(1, Number(q[i] ?? it.quantity ?? 1) - 1) })); }}
-                      className="stepper-btn" style={{ ...s.stepBtn, color: MUTED }}
-                    >−</button>
+                    {itemsComplete ? (<>
+                      <button
+                        type="button"
+                        onClick={() => { setExactPrice(null); setQuantities(q => ({ ...q, [i]: Math.min(20, Number(q[i] ?? it.quantity ?? 1) + 1) })); }}
+                        className="stepper-btn" style={{ ...s.stepBtn, color: PRIMARY }}
+                      >+</button>
+                      <span style={{ fontSize: 14.5, fontWeight: 800 }}>{quantities[i] ?? it.quantity ?? 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => { setExactPrice(null); setQuantities(q => ({ ...q, [i]: Math.max(1, Number(q[i] ?? it.quantity ?? 1) - 1) })); }}
+                        className="stepper-btn" style={{ ...s.stepBtn, color: MUTED }}
+                      >−</button>
+                    </>) : (
+                      <span style={{ fontSize: 14.5, fontWeight: 800, padding: "6px 10px", background: CHIP, borderRadius: 11 }}>
+                        ×{it.quantity ?? 1}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}

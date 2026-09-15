@@ -47,6 +47,7 @@ function publicPayload(result) {
       image: i.imageBase64 ? `data:image/png;base64,${i.imageBase64}` : null,
     })),
     breakdown: result.breakdown || null,
+    itemsComplete: result.itemsComplete !== false,
   };
 }
 

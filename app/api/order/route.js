@@ -39,6 +39,39 @@ export async function GET(req) {
       .eq("status", "deleted")
       .lt("created_at", thirtyDaysAgo.toISOString());
 
+    // 🧹 الطلب غير المدفوع يُحذف بعد ساعة.
+    //
+    // الطلب يُنشأ قبل الدفع (البوابة تحتاج رقم طلب تُحوّل إليه)، فمحاولة دفع
+    // مهجورة كانت تترك صفًّا إلى الأبد: يظهر للأدمن كطلب لم يُشترَ، ويخلط
+    // الحسابات. كان يُخفى بعد ساعة فقط؛ الآن يُحذف فعلاً. والمدفوع لا يُمسّ —
+    // الشرط على الحالة "new" وحدها.
+    const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const { data: stale } = await supabaseAdmin
+      .from("orders")
+      .select("id")
+      .eq("status", "new")
+      .lt("created_at", hourAgo);
+
+    if (stale?.length) {
+      // حالة "new" وحدها ليست دليلاً كافيًا: لو نجح الدفع وفشل تحديث الحالة
+      // لحظتها، لبقي الطلب "new" وهو مدفوع فعلاً. فالشرط الحقيقي هو ألّا يوجد
+      // صفّ دفع ناجح — عندها فقط يُحذف.
+      const ids = stale.map((o) => o.id);
+      const { data: paidRows } = await supabaseAdmin
+        .from("payments")
+        .select("order_id")
+        .in("order_id", ids)
+        .in("status", ["paid", "success", "completed"]);
+      const paid = new Set((paidRows || []).map((p) => p.order_id));
+      const doomed = ids.filter((id) => !paid.has(id));
+
+      if (doomed.length) {
+        await supabaseAdmin.from("payments").delete().in("order_id", doomed);
+        await supabaseAdmin.from("orders").delete().in("id", doomed);
+        console.log(`[order] removed ${doomed.length} unpaid order(s) older than an hour`);
+      }
+    }
+
     // ✅ حالة 1: جلب طلب واحد (التتبع)
     if (id) {
       const { data, error } = await supabaseAdmin

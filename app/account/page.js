@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { statusLabel, statusColor, fmtDate, lydOf, isPaid, payLabel } from "@/lib/orderStatus";
+import { statusLabel, statusColor, fmtDate, lydOf, isPaid, payLabel, minutesLeftToPay } from "@/lib/orderStatus";
 import { useLang, useIsDesktop } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import TopBar from "@/app/components/TopBar";
@@ -28,6 +28,9 @@ const CHIP      = "var(--t-chip)";
 
 
 function OrderCard({ order }) {
+  // الخطّاف داخل كل مكوّن يستعمل الترجمة: الصفحة الأم لا تمرّرها،
+  // وبدونه ينهار العرض بـ "t is not defined".
+  const { t, dir } = useLang();
   const sc = statusColor(order.status);
 
   return (
@@ -75,6 +78,23 @@ function OrderCard({ order }) {
           {order.delivery_address ? <><br />📍 {order.delivery_address}</> : null}
           {order.shipping ? <><br />🚚 الشحن: {Number(order.shipping).toFixed(0)} د.ل</> : null}
         </div>
+
+        {/* طلب لم يُدفع: زرّ يُكمل به الدفع، ومهلته قبل الحذف. */}
+        {minutesLeftToPay(order) != null && (
+          <a
+            href={`/pay?order=${order.id}`}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              padding: "11px 14px", borderRadius: 13, background: GRAD, color: "#fff",
+              fontSize: 14, fontWeight: 800, textDecoration: "none", marginTop: 4,
+            }}
+          >
+            {t("أكمل الدفع")}
+            <span style={{ fontSize: 11.5, opacity: 0.85, fontWeight: 600 }}>
+              ({minutesLeftToPay(order)} {t("دقيقة")})
+            </span>
+          </a>
+        )}
 
         {/* رابط + زر تتبع */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 2 }}>
