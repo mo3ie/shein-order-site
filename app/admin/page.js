@@ -76,20 +76,37 @@ export default function Admin() {
   function waLink(order, status) {
     let phone = String(order.phone || "").replace(/\D/g, "");
     if (phone.startsWith("0")) phone = "218" + phone.slice(1);
+    // الرسالة تحمل ما يسأل عنه الزبون بعدها مباشرة: كم يبقى؟ فمدّة الشحن
+    // مكتوبة داخل رسالة الشحن نفسها بدل أن تأتي في رسالة تالية.
     const msgs = {
       ordered:   "تم شراء طلبك من شي إن وهو قيد التجهيز.",
-      shipped:   "تم شحن طلبك وهو في الطريق إليك.",
+      shipped:   "تم شحن طلبك وهو في الطريق إليك.\nمدّة الشحن المتوقّعة من 10 إلى 15 يومًا، ونتواصل معك فور وصوله.",
       delivered: "تم تسليم طلبك — شكرًا لثقتك بنا.",
     };
     const text = msgs[status] || "بخصوص طلبك لدى ترند";
     return `https://wa.me/${phone}?text=${encodeURIComponent(`مرحباً ${order.name}\n${text}`)}`;
   }
 
+  /**
+   * حساب الطلب بأرقام لحظته لا بأرقام اليوم.
+   *
+   * كل طلب يحمل سعر الصرف ونسبة العمولة اللذين سُعِّر بهما. وكان الحساب يستعمل
+   * قيم الإعدادات الحالية، فإن رفع الأدمن الدولار من 9 إلى 10 تغيّرت معه
+   * إجماليات طلبات الأمس — وهي مدفوعة بمبلغ آخر — فيختلّ الحساب. القيم الحالية
+   * لا تُستعمل إلا لطلب قديم لم يُحفظ معه سعره.
+   */
   const lydOf = (o) => {
     const base = Number(o.price || 0);
-    const total = base * (1 + Number(profitRate || 0) / 100);
-    const lyd = Number(exchangeRate || 0) ? total * Number(exchangeRate) : 0;
-    return { base, total, lyd, ship: Number(shipping[o.id] ?? o.shipping ?? 0) };
+    const rate = Number(o.exchange_rate) > 0 ? Number(o.exchange_rate) : Number(exchangeRate || 0);
+    const commission = o.profit_rate != null ? Number(o.profit_rate) : Number(profitRate || 0);
+    const total = base * (1 + commission / 100);
+    // الإجمالي المحفوظ وقت الطلب هو المرجع؛ الحساب هنا لطلب بلا إجمالي محفوظ.
+    const lyd = Number(o.price_lyd) > 0 ? Number(o.price_lyd) : (rate ? total * rate : 0);
+    return {
+      base, total, lyd, rate, commission,
+      frozen: Number(o.exchange_rate) > 0,
+      ship: Number(shipping[o.id] ?? o.shipping ?? 0),
+    };
   };
 
   const inPeriod = (o) => {
@@ -367,7 +384,7 @@ export default function Admin() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(380px,1fr))", gap: 16 }}>
           {filtered.map((order, idx) => {
             const cfg = STATUS[order.status] || { label: order.status, tone: MUTED, bg: CHIP, icon: I.box };
-            const { base, total, lyd, ship } = lydOf(order);
+            const { base, total, lyd, ship, rate, commission, frozen } = lydOf(order);
             const finalTotal = Number(order.final_total) || lyd + ship;
             const qtys = order.price_breakdown?.quantities?.filter((q) => Number(q.wanted) > 1) || [];
 
@@ -501,9 +518,9 @@ export default function Admin() {
                       <div style={{ marginTop: 8, border: `1px solid ${LINE}`, borderRadius: 13, overflow: "hidden" }}>
                         {[
                           ["سعر شي إن", `${base.toFixed(2)} $`],
-                          [`العمولة (${profitRate}%)`, `${(total - base).toFixed(2)} $`],
+                          [`العمولة (${commission}%)`, `${(total - base).toFixed(2)} $`],
                           ["الإجمالي بالدولار", `${total.toFixed(2)} $`],
-                          ["سعر الصرف", `${exchangeRate || "—"} د.ل`],
+                          [frozen ? "سعر الصرف وقت الطلب" : "سعر الصرف (حالي)", `${rate || "—"} د.ل`],
                           ["الإجمالي بالدينار", `${lyd.toFixed(2)} د.ل`],
                           ["الشحن", `${ship} د.ل`],
                         ].map(([label, value]) => (

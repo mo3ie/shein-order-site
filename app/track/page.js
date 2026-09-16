@@ -394,6 +394,24 @@ function TrackContent() {
           </div>
         </Card>
 
+        {/* مدّة الشحن، حين يكون الطلب في الشحن فعلاً.
+            هذا هو السؤال الوحيد الذي يأتي بعد "تم الشحن"، فيُجاب قبل أن يُسأل —
+            ولا يظهر في المراحل الأخرى حتى لا يصير ضجيجًا. */}
+        {order.status === "shipped" && (
+          <Card pad={16} style={{ background: "var(--t-blue-bg)", border: "1px solid var(--t-blue-line)", color: "var(--t-blue-ink)" }}>
+            <div style={{ display: "flex", gap: 11, alignItems: "flex-start" }}>
+              <Icon path={I.truck} size={19} style={{ flexShrink: 0, marginTop: 2 }} />
+              <div>
+                <div style={{ fontSize: 14.5, fontWeight: 800 }}>مدّة الشحن المتوقّعة</div>
+                <div style={{ fontSize: 13.5, lineHeight: 1.9, marginTop: 3 }}>
+                  من <strong>10 إلى 15 يومًا</strong> من تاريخ الشحن. نتواصل معك على رقمك فور وصول
+                  طلبك وتحديد رسوم الشحن الداخلي.
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* ── رقم الطلب: يُنسخ بضغطة، فهو مفتاح المتابعة ── */}
         <Card pad={16}>
           <SectionTitle icon={I.box} size={14.5}>رقم الطلب</SectionTitle>
