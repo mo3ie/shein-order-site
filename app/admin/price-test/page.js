@@ -31,6 +31,9 @@ export default function PriceTestPage() {
   const [qty, setQty]       = useState({});
   const [history, setHistory] = useState([]);
   const [baseline, setBaseline] = useState(null);   // the one-of-each measurement
+  // حالة خدمة التسعير: "غير متاحة" للزبون قد تعني الخدمة أو النفق أو المتصفح
+  // داخلها — هذا يقول أيّها.
+  const [health, setHealth] = useState(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -38,12 +41,26 @@ export default function PriceTestPage() {
       if (!t) { setDenied(true); return; }
       setToken(t);
     });
-    supabase.from("settings").select("exchange_rate, profit_rate").eq("id", 1).single()
+    supabase.from("settings").select("*").eq("id", 1).single()
       .then(({ data }) => {
         if (data?.exchange_rate) setRate(Number(data.exchange_rate));
         if (data?.profit_rate != null) setCommission(Number(data.profit_rate) / 100);
       });
   }, []);
+
+  const checkHealth = async (tok) => {
+    const use = tok || token;
+    if (!use) return;
+    setHealth({ checking: true });
+    try {
+      const r = await fetch("/api/admin/resolver-health", { headers: { authorization: `Bearer ${use}` } });
+      setHealth(await r.json());
+    } catch (e) {
+      setHealth({ ok: false, detail: { error: e.message } });
+    }
+  };
+
+  useEffect(() => { if (token) checkHealth(token); }, [token]);
 
   async function run(withQuantities) {
     const link = url.trim();
@@ -140,6 +157,34 @@ export default function PriceTestPage() {
     <AdminShell role="admin" title="تشخيص الأسعار" subtitle="أسطر شي إن نفسها، والحساب الذي قرأها، وأين ذهب الوقت — للقراءة فقط." width={880}>
       {/* حقل الرابط بعنوانه: بعد نقل العنوان إلى إطار اللوحة بقي الحقل يطفو
           وحده في أعلى البطاقة بلا ما يعرّفه، فبدا في غير مكانه. */}
+      {/* حالة الخدمة قبل أي قياس: الزبون يرى "خدمة التسعير غير متاحة" ولا يعرف
+          أحد أين انقطع الخيط — الخدمة، أم النفق الذي يوصلها، أم المتصفح داخلها.
+          هذا السطر يقول أيّها، ويُعاد فحصه بضغطة. */}
+      <div style={{ ...S.card, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <span style={{
+          width: 11, height: 11, borderRadius: "50%", flexShrink: 0,
+          background: health?.checking ? "var(--t-amber-ink)" : health?.ok ? "var(--t-green-ink)" : "var(--t-red-ink)",
+        }} />
+        <div style={{ flex: 1, minWidth: 180 }}>
+          <div style={{ fontSize: 14, fontWeight: 800 }}>
+            {health?.checking ? "جاري فحص خدمة التسعير..."
+              : health?.ok ? "خدمة التسعير تعمل"
+              : "خدمة التسعير لا تستجيب"}
+          </div>
+          <div style={{ fontSize: 12.5, color: "var(--t-faint)", marginTop: 3, lineHeight: 1.8 }}>
+            {health?.checking ? "…"
+              : health?.ok
+                ? `استجابت في ${health.latencyMs}ms · المتصفح ${health.detail?.browser ? "جاهز" : "غير جاهز"}`
+                : health
+                  ? `HTTP ${health.httpStatus || "—"} · ${health.detail?.error || health.detail?.raw || "لا استجابة"}`
+                  : "—"}
+          </div>
+        </div>
+        <button onClick={() => checkHealth()} style={{ ...S.btn(false), width: "auto", padding: "10px 16px", marginTop: 0 }}>
+          إعادة الفحص
+        </button>
+      </div>
+
       <div style={S.card}>
         <label style={{ display: "block", fontSize: 14, fontWeight: 800, marginBottom: 8 }}>
           رابط السلة المشتركة
