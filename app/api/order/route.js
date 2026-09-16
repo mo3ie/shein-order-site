@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { resolveSharedCart, isSheinShareUrl } from "@/lib/resolver";
+import { sendPush, NOTICES } from "@/lib/sendPush";
 
 export const runtime = "nodejs";
 // Vercel caps function duration well below a full resolve (~75s). Order
@@ -360,6 +361,29 @@ const { data, error } = await supabaseAdmin
     final_total
   })
   .eq("id", id);
+
+  // خبر الحالة يصل هاتف الزبون.
+  //
+  // كان يعرف بحال طلبه إن فتح الموقع وسأل، أو إن راسله موظف على واتساب يدويًّا.
+  // تغيّر الحالة هنا هو اللحظة التي يستحقّ أن يُخبَر فيها، فيُرسل الإشعار من
+  // موضع التغيير نفسه — لا من الواجهة، حتى لا يضيع الخبر إن غُيّرت الحالة من
+  // مكان آخر. وفشل الإرسال لا يُفشل التحديث.
+  if (!error && ["ordered", "shipped", "delivered", "paid"].includes(status)) {
+    try {
+      const notice = { ordered: NOTICES.ordered, shipped: NOTICES.shipped,
+                       delivered: NOTICES.delivered, paid: NOTICES.paid }[status];
+      const { data: order } = await supabaseAdmin
+        .from("orders").select("user_id, final_total, price_lyd").eq("id", id).maybeSingle();
+
+      // الجهاز المرتبط بالطلب أولاً (قد يكون زبونًا بلا حساب)، ثم أجهزة صاحبه.
+      const sent = await sendPush({ orderId: id }, notice(order?.final_total ?? order?.price_lyd));
+      if (!sent.sent && order?.user_id) {
+        await sendPush({ userId: order.user_id }, notice(order?.final_total ?? order?.price_lyd));
+      }
+    } catch (e) {
+      console.error(`[order] status notification failed: ${e.message}`);
+    }
+  }
 
   return Response.json({ success: true, data, error });
 }

@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useLang, useIsDesktop } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
+import { pushState, enablePush, linkPush } from "@/lib/push";
 import TopBar from "@/app/components/TopBar";
 
 const PRIMARY   = "#7c3aed";
@@ -87,6 +88,8 @@ export default function OrderPage() {
   // هل قرأنا كل أسطر السلة؟ إن لم نقرأها كلها فالكميات تُقفل: ضبط كمية على
   // قائمة ناقصة يضعها على السطر الخطأ.
   const [itemsComplete,     setItemsComplete]     = useState(true);
+  // إذن الإشعارات: يُطلب عند الضغط على "تحقق" لا عند فتح الصفحة.
+  const [notify,            setNotify]            = useState("unsupported");
   const [resolvedLink,      setResolvedLink]      = useState("");
   const [elapsed,           setElapsed]           = useState(0);
   const [queue,             setQueue]             = useState(null);
@@ -137,6 +140,8 @@ export default function OrderPage() {
   const totalUSD  = base + profit;
   const rateReady = Number.isFinite(Number(exchangeRate)) && Number(exchangeRate) > 0;
   const priceLYD  = rateReady ? totalUSD * exchangeRate : 0;
+
+  useEffect(() => { setNotify(pushState()); }, []);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -371,6 +376,7 @@ export default function OrderPage() {
       // يلتحق بالمهمة نفسها بعدّادها، بدل أن يبدأ الزبون من الرابط من جديد.
       const started = Date.now();
       saveJob({ jobId: data.jobId, link, at: started, kind: "reprice" });
+      linkPush({ jobId: data.jobId });
 
       for (;;) {
         await new Promise(r => setTimeout(r, 4000));
@@ -488,6 +494,8 @@ export default function OrderPage() {
       // so a closed page or a dropped connection must not lose it: reopening
       // rejoins the same run instead of starting a second one.
       saveJob({ jobId: data.jobId, link, at: started0 });
+      // اربط جهاز الزبون بهذا القياس ليصله خبر انتهائه ولو أغلق المتصفح.
+      linkPush({ jobId: data.jobId });
 
       const started = started0;
       const LIMIT_MS = 5 * 60 * 1000;
@@ -584,6 +592,8 @@ export default function OrderPage() {
       setSending(true);
       const imageUrl = await uploadImage();
       const oid = await createOrder(imageUrl);
+      // اربط الجهاز بالطلب: أخبار الشراء والشحن والتسليم تصله على هاتفه.
+      linkPush({ orderId: oid });
       const res = await fetch("/api/wallet", {
         method: "POST",
         headers: { "content-type": "application/json", ...(await authHeaders()) },
@@ -622,6 +632,8 @@ export default function OrderPage() {
       setSending(true);
       const imageUrl = await uploadImage();
       const oid = await createOrder(imageUrl);
+      // اربط الجهاز بالطلب: أخبار الشراء والشحن والتسليم تصله على هاتفه.
+      linkPush({ orderId: oid });
       setOrderId(oid);
       setEdfaliOrderId(oid);
       await supabase.from("payments").insert({ order_id: oid, method: "edfali", status: "pending", amount: priceLYD });
@@ -672,6 +684,8 @@ export default function OrderPage() {
       setSending(true);
       const imageUrl = await uploadImage();
       const oid = await createOrder(imageUrl);
+      // اربط الجهاز بالطلب: أخبار الشراء والشحن والتسليم تصله على هاتفه.
+      linkPush({ orderId: oid });
       setOrderId(oid);
       setMcOrderId(oid);
       await supabase.from("payments").insert({ order_id: oid, method: "mobicash", status: "pending", amount: priceLYD });
@@ -721,6 +735,8 @@ export default function OrderPage() {
       setSending(true);
       const imageUrl = await uploadImage();
       const oid = await createOrder(imageUrl);
+      // اربط الجهاز بالطلب: أخبار الشراء والشحن والتسليم تصله على هاتفه.
+      linkPush({ orderId: oid });
       setOrderId(oid);
       await supabase.from("payments").insert({ order_id: oid, method: "moamalat", status: "pending", amount: priceLYD });
 
@@ -872,7 +888,12 @@ export default function OrderPage() {
     {stage === "link" && (
       <button
         type="button"
-        onClick={handleResolveCart}
+        onClick={async () => {
+          // الإذن يُطلب في اللحظة التي يفهمها الزبون: ضغط "تحقق" يعني انتظارًا،
+          // والانتظار هو ما يبرّر الإشعار. طلبه عند فتح الصفحة يُرفض ولا يُسأل ثانية.
+          if (pushState() === "default") { await enablePush({}); setNotify(pushState()); }
+          handleResolveCart();
+        }}
         disabled={resolveState === "checking" || !cartLink.trim()}
         style={{
           ...s.btn,
@@ -1097,7 +1118,30 @@ export default function OrderPage() {
                         : elapsed > 0 ? `${elapsed} ${t("ثانية")}` : t("~٥٠ ثانية")}
                   </span>
                 </div>
-                <div style={{ fontSize: 12.5, color: FAINT, lineHeight: 1.9, marginTop: 9 }}>{t("يمكنك إغلاق الصفحة — العملية تُكمل على خادمنا وتستأنف عند رجوعك.")}</div>
+                <div style={{ fontSize: 12.5, color: FAINT, lineHeight: 1.9, marginTop: 9 }}>
+                  {notify === "granted"
+                    ? t("يمكنك إغلاق الصفحة — سنُشعرك على هاتفك فور انتهاء القياس.")
+                    : t("يمكنك إغلاق الصفحة — العملية تُكمل على خادمنا وتستأنف عند رجوعك.")}
+                </div>
+
+                {/* من رفض الإذن أو لم يُسأل بعد: عرضٌ واحد هادئ، لا إلحاح. */}
+                {notify === "default" && (
+                  <button
+                    type="button"
+                    onClick={async () => { await enablePush({}); setNotify(pushState()); }}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                      width: "100%", marginTop: 10, padding: "11px 12px", borderRadius: 12,
+                      border: `1.5px solid ${LINE}`, background: CHIP, color: PRIMARY,
+                      fontSize: 13, fontWeight: 800, fontFamily: "inherit", cursor: "pointer",
+                    }}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8" /><path d="M13.7 21a2 2 0 01-3.4 0" />
+                    </svg>
+                    {t("أشعرني عند انتهاء القياس")}
+                  </button>
+                )}
               </div>
             )}
 

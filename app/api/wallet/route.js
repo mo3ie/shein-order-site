@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { sendPush, NOTICES } from "@/lib/sendPush";
 
 /**
  * The SHEIN wallet.
@@ -136,6 +137,15 @@ export async function POST(req) {
     await supabaseAdmin
       .from("orders").update({ user_id: user.id })
       .eq("id", body.order_id).is("user_id", null);
+
+    // وتأكيد على الهاتف: الزبون يدفع ثم يغلق الصفحة، فالإشعار يصله حيث هو
+    // بدل شاشة قد لا يعود إليها.
+    try {
+      const sent = await sendPush({ orderId: body.order_id }, NOTICES.paid(amount));
+      if (!sent.sent) await sendPush({ userId: user.id }, NOTICES.paid(amount));
+    } catch (e) {
+      console.error(`[wallet] payment notification failed: ${e.message}`);
+    }
   }
 
   return Response.json({ success: true, balance: next });
