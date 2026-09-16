@@ -236,8 +236,13 @@ export default function OrderPage() {
     // ١) أعد بناء السلة كما تركها الزبون.
     let saved = null;
     try { saved = JSON.parse(localStorage.getItem(CART_KEY) || "null"); } catch {}
-    // سلة عمرها أكثر من ساعتين: أسعار شي إن تتحرّك، فلا تُستعاد.
-    if (saved && Date.now() - (saved.at || 0) < 2 * 60 * 60 * 1000) {
+    // السلة المحفوظة تعيش نصف ساعة فقط.
+    //
+    // كانت ساعتين، فكان الزبون يعود بعد ساعة فيجد السلة والسعر كما تركهما —
+    // وأسعار شي إن وعروضها تتحرّك خلال ذلك. بعد المهلة تُنسى السلة ويرجع إلى
+    // شاشة الرابط ليقيس من جديد.
+    const CART_TTL_MS = 30 * 60 * 1000;
+    if (saved && Date.now() - (saved.at || 0) < CART_TTL_MS) {
       if (saved.link) setCartLink(saved.link);
       if (Array.isArray(saved.items) && saved.items.length) {
         setCartItems(saved.items);
@@ -544,6 +549,13 @@ export default function OrderPage() {
     });
     const result = await res.json();
     if (!result.success) throw new Error("فشل إنشاء الطلب");
+
+    // ما إن يصير للسلة طلب، تنتهي مهمّة هذه الشاشة.
+    //
+    // كانت السلة تبقى محفوظة، فيعود الزبون إلى صفحة الطلب فيجدها معلّقة بسعرها
+    // القديم كأنه لم يطلب شيئًا. الطلب صار له مكانه — "طلباتي" — ومنه يُكمل
+    // الدفع إن لم يكن أكمله.
+    try { localStorage.removeItem(CART_KEY); } catch {}
     return result.id;
   }
 
@@ -985,17 +997,68 @@ export default function OrderPage() {
           {stage === "link" && (<>
 
             <div style={s.card}>
-              {sectionTitle(ICONS.link, t("رابط السلة المشتركة"), 14.5)}
-              <input
-                placeholder="onelink.shein.com/..."
-                value={cartLink}
-                onChange={e => { setCartLink(e.target.value); setErrors(p => ({ ...p, cartLink: null })); }}
+              {sectionTitle(ICONS.link, t("رابط السلة المشتركة"), 15.5)}
+
+              {/* هذا الحقل هو الشاشة كلها.
+                  كل ما يفعله الزبون هنا يبدأ بلصق رابط، فالحقل يكبر ويأخذ إطارًا
+                  بنفسجيًّا وأيقونة وزرّ لصق — بدل سطر رمادي يشبه بقية السطور. */}
+              <div
+                onClick={() => document.getElementById("cart-link-input")?.focus()}
                 style={{
-                  ...s.input, marginBottom: 0, direction: "ltr", textAlign: "left",
-                  fontSize: 13.5, background: PAGE, padding: "12px 13px", borderRadius: 12,
-                  ...(errors.cartLink ? s.inputErr : {}),
+                  border: `2px ${cartLink.trim() ? "solid" : "dashed"} ${errors.cartLink ? "var(--t-red-line)" : cartLink.trim() ? PRIMARY : "var(--t-accent-line)"}`,
+                  borderRadius: 16, background: cartLink.trim() ? CARD : SOFT,
+                  padding: "14px 14px 12px", cursor: "text",
+                  transition: "border-color .15s, background .15s",
                 }}
-              />
+              >
+                <input
+                  id="cart-link-input"
+                  placeholder="onelink.shein.com/..."
+                  value={cartLink}
+                  onChange={e => { setCartLink(e.target.value); setErrors(p => ({ ...p, cartLink: null })); }}
+                  onKeyDown={e => { if (e.key === "Enter" && cartLink.trim()) handleResolveCart(); }}
+                  style={{
+                    width: "100%", border: "none", outline: "none", background: "transparent",
+                    color: INK, fontFamily: "inherit", fontSize: 15, fontWeight: 600,
+                    direction: "ltr", textAlign: "left", padding: 0, boxSizing: "border-box",
+                  }}
+                />
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+                  {/* اللصق بضغطة: الرابط في الحافظة أصلاً، قادمًا من تطبيق شي إن. */}
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        const text = await navigator.clipboard.readText();
+                        if (text?.trim()) {
+                          setCartLink(text.trim());
+                          setErrors(p => ({ ...p, cartLink: null }));
+                        }
+                      } catch { document.getElementById("cart-link-input")?.focus(); }
+                    }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 7, border: "none", cursor: "pointer",
+                      background: CHIP, color: PRIMARY, borderRadius: 11, padding: "9px 14px",
+                      fontSize: 13.5, fontWeight: 800, fontFamily: "inherit",
+                    }}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5h10" />
+                    </svg>
+                    {t("لصق الرابط")}
+                  </button>
+                  {cartLink.trim() && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setCartLink(""); setErrors(p => ({ ...p, cartLink: null })); }}
+                      style={{ border: "none", background: "none", color: FAINT, cursor: "pointer", fontSize: 13.5, fontWeight: 700, fontFamily: "inherit", padding: "9px 4px" }}
+                    >
+                      {t("مسح")}
+                    </button>
+                  )}
+                </div>
+              </div>
               {errors.cartLink
                 ? <p style={{ ...s.err, margin: "8px 0 0" }}>{errors.cartLink}</p>
                 : <div style={{ fontSize: 12.5, color: FAINT, lineHeight: 1.85, marginTop: 9 }}>{t("من داخل تطبيق شي إن: افتح سلتك ← زر المشاركة ← انسخ الرابط.")}</div>}
@@ -1982,6 +2045,10 @@ const s = {
   },
   modal: {
     background: PAGE,
+    // العرض على الهاتف يُفرض 100% من CSS، والحشو كان يُضاف فوقه لأن الصندوق
+    // لم يكن border-box — فتخرج البطاقات عن حافة الشاشة وتُقصّ مبالغها.
+    boxSizing: "border-box",
+    overflowX: "hidden",
     padding: "24px 20px",
     borderRadius: 22,
     width: 370,

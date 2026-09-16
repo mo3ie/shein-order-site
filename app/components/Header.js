@@ -24,7 +24,7 @@ export default function Header() {
   if (pathname.startsWith("/admin")) return null;
   // شاشات التطبيق الأربع ترسم ترويستها داخل التدرّج (الإجمالي أو الرصيد يعيش
   // فيها)، وشريط التنقّل السفلي يغني عن روابط الأعلى — فترويسة ثانية تكرار.
-  if (["/", "/my-orders", "/account", "/wallet"].includes(pathname)) return null;
+  if (["/", "/my-orders", "/account", "/wallet", "/success", "/pay", "/track", "/about", "/contact"].includes(pathname)) return null;
 
   return (
     <header style={{

@@ -210,18 +210,33 @@ export default function MyOrdersPage() {
 
   const loadOrders = async (u) => {
     setLoading(true);
+    // الطلبات أولاً، وصفوف الدفع بعدها على حدة.
+    //
+    // كان الاستعلام يجلبهما معًا ("orders, payments(...)")، وصفوف الدفع محميّة
+    // بـ RLS بلا سياسة قراءة — ففشل الاستعلام كلّه وظهرت الشاشة فارغة رغم وجود
+    // طلبات مدفوعة. السياسة أُضيفت، لكن الفصل يبقى: تعذّر قراءة طريقة الدفع
+    // يجب أن يُخفي طريقة الدفع لا الطلب نفسه.
     const { data } = await supabase
       .from("orders")
-      .select("*, payments(method,status,amount)")
+      .select("*")
       .eq("user_id", u.id)
       .order("created_at", { ascending: false });
+
+    let payRows = [];
+    if (data?.length) {
+      const { data: p } = await supabase
+        .from("payments")
+        .select("order_id, method, status")
+        .in("order_id", data.map((o) => o.id));
+      payRows = p || [];
+    }
 
     // An order row is created before the customer reaches the gateway, so a
     // payment they started and abandoned leaves one behind. Those are not
     // orders yet; an unpaid row is kept only long enough to finish paying it.
     const RESUME_WINDOW_MS = 60 * 60 * 1000;
     const rows = (data || []).map((o) => {
-      const pays = Array.isArray(o.payments) ? o.payments : [];
+      const pays = payRows.filter((p) => p.order_id === o.id);
       const done = pays.find((p) => ["paid", "success", "completed"].includes(p.status));
       return { ...o, payMethod: payLabel(done?.method || pays[0]?.method) || null };
     }).filter((o) =>

@@ -255,10 +255,8 @@ function TrackContent() {
           <div style={{ fontSize: 12, fontWeight: 700, color: "var(--t-ink)", marginBottom: 8 }}>تفاصيل السعر</div>
           <table className="rc-table" style={{ width: "100%", borderCollapse: "collapse" }}>
             <tbody>
-              <tr>
-                <th>السعر المدفوع (شي إن)</th>
-                <td style={{ fontWeight: 700 }}>{order.price ? `${Number(order.price).toFixed(2)} $` : "—"}</td>
-              </tr>
+              {/* سطر الدولار حُذف من الوصل: الزبون يدفع بالدينار، وسعر شي إن
+                  بالدولار شأن داخلي لنا لا يخصّ فاتورته. */}
               {order.shipping ? (
                 <tr>
                   <th>رسوم الشحن</th>

@@ -148,11 +148,22 @@ export default function AccountPage() {
         });
       }
 
+      // الطلبات وحدها، ثم صفوف الدفع على حدة: جلبهما معًا كان يُفشل الاستعلام
+      // كلّه حين تمنع RLS قراءة صفوف الدفع، فتظهر الشاشة بلا طلبات إطلاقًا.
       const { data } = await supabase
         .from("orders")
-        .select("*, payments(method,status,amount)")
+        .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
+
+      let payRows = [];
+      if (data?.length) {
+        const { data: p } = await supabase
+          .from("payments")
+          .select("order_id, method, status")
+          .in("order_id", data.map((o) => o.id));
+        payRows = p || [];
+      }
 
       // An order row is created before the customer reaches the gateway, so a
       // payment they started and abandoned leaves one behind. Those are not
@@ -161,7 +172,7 @@ export default function AccountPage() {
       // customer to finish paying it.
       const RESUME_WINDOW_MS = 60 * 60 * 1000;
       const rows = (data || []).map((o) => {
-        const pays = Array.isArray(o.payments) ? o.payments : [];
+        const pays = payRows.filter((p) => p.order_id === o.id);
         const done = pays.find((p) => ["paid", "success", "completed"].includes(p.status));
         return {
           ...o,

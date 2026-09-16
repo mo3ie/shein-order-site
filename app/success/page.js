@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { Card, SectionTitle, Button, Icon, I, GRAD_HEAD, PAGE, CARD, CHIP, PRIMARY, INK, MUTED, FAINT, LINE } from "@/app/components/ui";
+import { Card, SectionTitle, Button, Icon, I, BottomNav, GRAD_HEAD, PAGE, CARD, CHIP, PRIMARY, INK, MUTED, FAINT, LINE } from "@/app/components/ui";
 
 const GRAD = "linear-gradient(135deg,#7c3aed,#3b82f6)";
 
@@ -139,7 +139,7 @@ function SuccessContent() {
   const lyd = orderData?.final_total ?? orderData?.price_lyd;
 
   return (
-    <div style={{ minHeight: "100vh", background: PAGE, color: INK, direction: "rtl", paddingBottom: 40 }}>
+    <div style={{ minHeight: "100vh", background: PAGE, color: INK, direction: "rtl", paddingBottom: 96 }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes pop{0%{transform:scale(0.92);opacity:0}100%{transform:scale(1);opacity:1}}`}</style>
 
       <div className="form-inner" style={{ maxWidth: 460, margin: "0 auto" }}>
@@ -262,6 +262,10 @@ function SuccessContent() {
           </div>
         </div>
       </div>
+
+      {/* الشريط السفلي حاضر هنا أيضاً: الزبون بعد الدفع يريد طلباته أو طلبًا
+          جديدًا، ولا يليق أن تكون هذه الشاشة طريقًا مسدودًا. */}
+      <BottomNav active="orders" user={user} />
     </div>
   );
 }
