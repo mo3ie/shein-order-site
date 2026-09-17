@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { resolveSharedCart, isSheinShareUrl } from "@/lib/resolver";
 import { sendPush, NOTICES } from "@/lib/sendPush";
+import { findQuote } from "@/lib/priceQuote";
 
 export const runtime = "nodejs";
 // Vercel caps function duration well below a full resolve (~75s). Order
@@ -157,7 +158,22 @@ export async function POST(req) {
         { status: 400 }
       );
     }
-    try {
+    // القياس المحفوظ أوّلاً.
+    //
+    // الرقم هنا من قياسنا نحن لا من المتصفح، سواء قرأناه من السجلّ أو أعدنا
+    // القياس — فالثقة واحدة والأمان واحد. والفرق أن الزبون لا ينتظر دقائق على
+    // سلة قِيست قبل قليل، ولا يُردّ بـ"فشل الطلب" لأن ذاكرة الخدمة نسيت.
+    const quote = await findQuote(cart_link, Array.isArray(quantities) ? quantities : null);
+    if (quote) {
+      verifiedPrice = Number(quote.price_usd);
+      priceSource = quote.price_source || "quote";
+      breakdown = quote.breakdown || null;
+      cartShotUrl = quote.cart_shot_url || null;
+      console.log(
+        `[order] using stored quote ${quote.id} $${verifiedPrice}` +
+        ` measured ${new Date(quote.created_at).toISOString()} clientSaid=${price}`
+      );
+    } else try {
       // The app path takes minutes; 35s was sized for the old web reader and
       // would time out before a real cart was ever read.
       // Quantities go to the resolver, which sets them in SHEIN's own cart and

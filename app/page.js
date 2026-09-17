@@ -213,6 +213,7 @@ export default function OrderPage() {
   // لذا تُحفظ السلة كما هي (الرابط، الأصناف، الكميات، السعر، المرحلة)، ويُحفظ
   // رقم المهمة الجارية ولحظة بدئها، فيُستأنف القياس نفسه ويحسب العدّاد من
   // لحظة البدء الحقيقية لا من لحظة العودة.
+  const [restoreNotice, setRestoreNotice] = useState(null);
   const CART_KEY = "trend_cart_state";
   const restoredRef = useRef(false);
 
@@ -276,10 +277,25 @@ export default function OrderPage() {
     // ٢) وإن كان هناك قياس جارٍ، التحق به بدل بدء قياس ثانٍ على السلة نفسها.
     let job = null;
     try { job = JSON.parse(localStorage.getItem("trend_price_job") || "null"); } catch {}
-    if (!job?.jobId || !job?.link || Date.now() - (job.at || 0) > 15 * 60 * 1000) {
+
+    // نقرة الإشعار تحمل رقم القياس: هي أوثق من أي شيء محفوظ هنا، لأن الزبون
+    // قد يكون أغلق المتصفح طوال القياس فلم يُحدَّث المخزون المحلّي أصلاً.
+    let fromNotice = null;
+    try {
+      const q = new URLSearchParams(window.location.search).get("job");
+      if (q) {
+        fromNotice = q;
+        job = { jobId: q, link: job?.link || saved?.link || "", at: Date.now(), kind: job?.kind };
+        // امسح الرابط حتى لا يُعاد إحضار القياس نفسه مع كل تحديث للصفحة.
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+    } catch {}
+
+    if (!job?.jobId || (!fromNotice && (!job?.link || Date.now() - (job.at || 0) > 15 * 60 * 1000))) {
       saveJob(null);
       return () => { cancelled = true; };
     }
+    if (fromNotice) setRestoreNotice({ kind: "loading", text: "نُحضر نتيجة قياس سلتك…" });
 
     const isReprice = job.kind === "reprice";
     setCartLink(job.link);
@@ -298,6 +314,14 @@ export default function OrderPage() {
 
           if (!pd.success) {
             saveJob(null);
+            if (fromNotice) {
+              // القياس ذهب (مضى عليه وقت طويل): قُل ذلك صراحةً وأعِده إلى شاشة
+              // إضافة السلة. لا تتركه أمام سلّةٍ معلّقة لا تتغيّر ولا تُكمل.
+              setRestoreNotice({ kind: "expired", text: "انتهت صلاحية هذا القياس. أضف رابط سلتك من جديد — الأمر لا يستغرق سوى دقائق." });
+              setStage("link");
+              setResolveState("idle");
+              return;
+            }
             if (isReprice) { setRepricing(false); setRepriceError(pd.message || "تعذّر قراءة السعر الجديد."); }
             else { setResolveState("failed"); setResolveError(pd.message || "تعذّر التحقق من السعر."); }
             return;
@@ -318,6 +342,7 @@ export default function OrderPage() {
               setPrice(Number(pd.estimatedPrice));
               setResolvedLink(job.link);
               setResolveState("verified");
+              if (fromNotice) { setRestoreNotice(null); setStage("cart"); }
             }
             return;
           }
@@ -1040,6 +1065,30 @@ export default function OrderPage() {
   );
 
   const stageContent = (<>
+          {/* خبرُ ما جرى بينما كان الزبون غائبًا.
+              وصله إشعارٌ أن سلته جهزت، فلا يصحّ أن يفتح الموقع على شاشة فارغة
+              يظنّ معها أن قياسه ضاع. هنا يُقال له ما يحدث: نُحضرها الآن، أو
+              مضت صلاحيتها فليبدأ من جديد. */}
+          {restoreNotice && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "14px 16px", marginBottom: 12, borderRadius: 16,
+              fontSize: 15, fontWeight: 700, lineHeight: 1.6,
+              background: restoreNotice.kind === "expired" ? "rgba(239,68,68,.10)" : "rgba(124,58,237,.10)",
+              border: `1.5px solid ${restoreNotice.kind === "expired" ? "rgba(239,68,68,.35)" : "rgba(124,58,237,.35)"}`,
+              color: restoreNotice.kind === "expired" ? "#b91c1c" : "var(--t-ink, #1f2937)",
+            }}>
+              <span style={{ fontSize: 20 }}>{restoreNotice.kind === "expired" ? "⏳" : "🛒"}</span>
+              <span style={{ flex: 1 }}>{restoreNotice.text}</span>
+              {restoreNotice.kind === "expired" && (
+                <button
+                  onClick={() => setRestoreNotice(null)}
+                  style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "inherit", padding: 4 }}
+                  aria-label={t("إغلاق")}
+                >×</button>
+              )}
+            </div>
+          )}
           {stage === "link" && (<>
 
             <div style={s.card}>

@@ -30,7 +30,7 @@ export async function POST(req) {
 
   const result = await sendPush(
     { jobId },
-    ok ? NOTICES.priceReady(lyd) : NOTICES.priceFailed()
+    ok ? NOTICES.priceReady(lyd, jobId) : NOTICES.priceFailed()
   );
 
   // القياس انتهى، فالاشتراك لم يعد ينتظره: يُفكّ الربط ليبقى الجهاز مشتركًا

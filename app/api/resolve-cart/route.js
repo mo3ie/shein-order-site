@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { saveQuote } from "@/lib/priceQuote";
 import { startResolveJob, pollResolveJob, ResolverError, logResolve, isSheinShareUrl } from "@/lib/resolver";
 
 // The resolver drives a real browser; keep this route on the Node runtime and
@@ -148,6 +149,14 @@ export async function GET(req) {
     if (shareUrl && !(out.quantitiesApplied || []).length) {
       recent.set(shareUrl, { at: Date.now(), result: payload });
     }
+
+    // احفظ القياس لإنشاء الطلب. كان الطلب يعيد القياس متّكلاً على ذاكرة الخدمة
+    // (خمس عشرة دقيقة)، والزبون يقضي أطول من ذلك في اسمه وعنوانه وصورته
+    // ودفعه — فيسقط المخبّأ ويفشل الطلب على سلة قِيست للتوّ.
+    if (shareUrl) {
+      await saveQuote(shareUrl, out.quantitiesApplied || [], out);
+    }
+
     return Response.json({ success: true, ...payload });
   } catch (e) {
     const code = e instanceof ResolverError ? e.code : "RESOLVER_FAILED";
