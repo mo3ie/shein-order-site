@@ -225,6 +225,7 @@ export default function OrderPage() {
   // نبضةُ مؤقّت) يتبدّل عنوان الصورة تحت المتصفح وهو يحمّلها، فتظهر مكسورة —
   // ويتراكم لكل صورة عشراتُ الروابط بلا تحرير. الآن رابطٌ واحد لكل ملف يعيش
   // ما عاش الملف في القائمة.
+  const [priceCheckReason, setPriceCheckReason] = useState(null);
   const [imageUrls, setImageUrls] = useState([]);
   const [restoreNotice, setRestoreNotice] = useState(null);
   // لحظة قياس هذا السعر — من الخدمة نفسها (checkedAt) لا من ساعة المتصفح.
@@ -422,6 +423,8 @@ export default function OrderPage() {
         setBreakdown(d.breakdown || null);
         if (d.itemCount != null) setItemCount(d.itemCount);
         if (d.itemsComplete != null) setItemsComplete(d.itemsComplete !== false);
+        const fromPay = priceCheckReason === "stale";
+        setPriceCheckReason(null);
         // قُل للزبون إن شي إن غيّرت السعر، ولا تبدّله تحت يده بصمت.
         if (before > 0 && Math.abs(after - before) > 0.01) {
           setRestoreNotice({
@@ -430,6 +433,9 @@ export default function OrderPage() {
               ? "ارتفع سعر سلتك في شي إن منذ آخر قياس — راجع الإجمالي الجديد قبل الدفع."
               : "انخفض سعر سلتك في شي إن منذ آخر قياس — الإجمالي الجديد أمامك.",
           });
+        } else if (fromPay) {
+          // لم يتغيّر شيء: قُلها، وإلا ظنّ أن شيئًا لم يحدث وأعاد الضغط.
+          setRestoreNotice({ kind: "ok", text: "تم التحقق — السعر كما هو. يمكنك إتمام الدفع الآن." });
         } else {
           setRestoreNotice(null);
         }
@@ -448,7 +454,14 @@ export default function OrderPage() {
           `/api/resolve-cart?job=${encodeURIComponent(data.jobId)}&url=${encodeURIComponent(link)}`
         );
         const pd = await p.json();
-        if (!pd.success) { saveJob(null); setRepriceError(pd.message || "تعذّر قراءة السعر الجديد."); return; }
+        if (!pd.success) {
+          saveJob(null);
+          setRepriceError(pd.message || "تعذّر قراءة السعر الجديد.");
+          if (priceCheckReason === "stale") {
+            setRestoreNotice({ kind: "expired", text: "تعذّر التحقق من السعر الآن، فلم نُتمّ الدفع. حاول بعد قليل." });
+          }
+          return;
+        }
         if (pd.queue) setQueue({ ...pd.queue, averageMs: pd.averageMs });
         if (pd.status !== "pending") { settle(pd); return; }
         // Both devices can be busy, and a link is pinned to one account so the
@@ -466,6 +479,8 @@ export default function OrderPage() {
     } finally {
       setRepricing(false);
       setQueue(null);
+      // مهما انتهت المحاولة — نجاحًا أو إخفاقًا — لا تُترك أزرار الدفع معطّلة.
+      setPriceCheckReason(null);
     }
   }
 
@@ -668,11 +683,12 @@ export default function OrderPage() {
 
   const ensureFreshPrice = async () => {
     if (priceIsFresh()) return true;
-    setRestoreNotice({
-      kind: "loading",
-      text: "مضى وقت على قياس سلتك — نتحقّق من سعرها في شي إن الآن قبل الدفع.",
-    });
-    setStage("cart");
+    // يبقى الزبون حيث هو.
+    //
+    // نقلُه إلى شاشة السلة كان يبدو كأن ضغطته ضاعت: هو ضغط "ادفع" فوجد نفسه
+    // في مكان آخر بلا تفسير. التقدّم يُعرض هنا، فوق طرق الدفع، وهي معطّلة
+    // حتى ينتهي — يرى ما يجري ويعرف متى ينتهي.
+    setPriceCheckReason("stale");
     try { await handleReprice(); } catch {}
     return false;
   };
@@ -1144,13 +1160,18 @@ export default function OrderPage() {
               display: "flex", alignItems: "center", gap: 10,
               padding: "14px 16px", marginBottom: 12, borderRadius: 16,
               fontSize: 15, fontWeight: 700, lineHeight: 1.6,
-              background: restoreNotice.kind === "expired" ? "rgba(239,68,68,.10)" : "rgba(124,58,237,.10)",
-              border: `1.5px solid ${restoreNotice.kind === "expired" ? "rgba(239,68,68,.35)" : "rgba(124,58,237,.35)"}`,
-              color: restoreNotice.kind === "expired" ? "#b91c1c" : "var(--t-ink, #1f2937)",
+              background: restoreNotice.kind === "expired" ? "rgba(239,68,68,.10)"
+                : restoreNotice.kind === "ok" ? "rgba(16,185,129,.12)" : "rgba(124,58,237,.10)",
+              border: `1.5px solid ${restoreNotice.kind === "expired" ? "rgba(239,68,68,.35)"
+                : restoreNotice.kind === "ok" ? "rgba(16,185,129,.40)" : "rgba(124,58,237,.35)"}`,
+              color: restoreNotice.kind === "expired" ? "#b91c1c"
+                : restoreNotice.kind === "ok" ? "#065f46" : "var(--t-ink, #1f2937)",
             }}>
-              <span style={{ fontSize: 20 }}>{restoreNotice.kind === "expired" ? "⏳" : "🛒"}</span>
+              <span style={{ fontSize: 20 }}>
+                {restoreNotice.kind === "expired" ? "⏳" : restoreNotice.kind === "ok" ? "✅" : "🛒"}
+              </span>
               <span style={{ flex: 1 }}>{restoreNotice.text}</span>
-              {restoreNotice.kind === "expired" && (
+              {(restoreNotice.kind === "expired" || restoreNotice.kind === "ok") && (
                 <button
                   onClick={() => setRestoreNotice(null)}
                   style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "inherit", padding: 4 }}
@@ -1910,6 +1931,58 @@ export default function OrderPage() {
               </div>
             </div>
 
+            {/* إعادة التحقق من السعر قبل الدفع.
+                الزبون ضغط "ادفع" فوجد الأزرار معطّلة: لا بدّ أن يعرف لماذا، وكم
+                يبقى، وأن بإمكانه المضيّ في شأنه — القياس يكمل على خادمنا
+                والإشعار يلحقه أينما كان. */}
+            {repricing && priceCheckReason === "stale" && (
+              <div className="keep-motion" style={{
+                background: "rgba(124,58,237,.08)", border: "1.5px solid rgba(124,58,237,.35)",
+                borderRadius: 18, padding: "15px 16px", marginBottom: 14,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 9 }}>
+                  <span style={{ fontSize: 20 }}>⏳</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 900, lineHeight: 1.5, color: INK }}>
+                      {t("نتحقّق من سعر سلتك قبل الدفع")}
+                    </div>
+                    <div style={{ fontSize: 12.5, color: MUTED, marginTop: 2 }}>
+                      {t("مضى وقت على آخر قياس، وأسعار شي إن تتغيّر.")}
+                    </div>
+                  </div>
+                  <div style={{
+                    fontSize: 20, fontWeight: 900, letterSpacing: "-0.5px",
+                    fontVariantNumeric: "tabular-nums", color: PRIMARY,
+                  }}>
+                    {String(Math.floor(repriceSecs / 60)).padStart(2, "0")}:{String(repriceSecs % 60).padStart(2, "0")}
+                  </div>
+                </div>
+
+                <div style={{ height: 5, background: "var(--t-track)", borderRadius: 4, overflow: "hidden", position: "relative" }}>
+                  <div style={{ position: "absolute", insetBlock: 0, width: "45%", borderRadius: 4, background: GRAD_HEAD, animation: "sweep 1.7s ease-in-out infinite" }} />
+                </div>
+
+                <p style={{ fontSize: 12.5, color: FAINT, lineHeight: 1.9, margin: "9px 0 0" }}>
+                  {t("يستغرق ذلك دقيقتين إلى أربع عادةً.")}{" "}
+                  {notify === "granted"
+                    ? t("يمكنك إغلاق الصفحة — سيصلك إشعار على هاتفك فور انتهائه.")
+                    : t("ابقَ على هذه الصفحة حتى ينتهي، أو فعّل الإشعارات ليصلك الخبر.")}
+                </p>
+
+                {notify !== "granted" && pushState() !== "unsupported" && (
+                  <button
+                    type="button"
+                    onClick={async () => { await enablePush({}); setNotify(pushState()); }}
+                    style={{
+                      marginTop: 10, width: "100%", padding: "10px 12px", borderRadius: 12,
+                      border: `1.5px solid ${PRIMARY}`, background: "transparent", color: PRIMARY,
+                      fontSize: 13.5, fontWeight: 800, fontFamily: "inherit", cursor: "pointer",
+                    }}
+                  >🔔 {t("نبّهني عند انتهاء التحقق")}</button>
+                )}
+              </div>
+            )}
+
             <div style={{ fontSize: 14.5, fontWeight: 900, marginBottom: 10 }}>{t("اختر طريقة الدفع")}</div>
 
             {/* المحفظة أولًا وبلون أخضر مميّز: أسرع طريق وبلا رمز تحقق. */}
@@ -1932,11 +2005,13 @@ export default function OrderPage() {
                 {Number(wallet.balance || 0) + 0.001 >= priceLYD ? (
                   <button
                     onClick={handleWalletPay}
-                    disabled={walletBusy || sending}
+                    disabled={walletBusy || sending || repricing}
                     style={{ ...s.btn, marginTop: 12, background: "#0b5d56", color: "#fff", boxShadow: "none",
-                      opacity: (walletBusy || sending) ? 0.6 : 1 }}
+                      opacity: (walletBusy || sending || repricing) ? 0.6 : 1 }}
                   >
-                    {walletBusy ? "⏳ جاري الدفع..." : `${t("ادفع من المحفظة")} · ${priceLYD.toFixed(0)} ${t("د.ل")}`}
+                    {repricing ? t("بانتظار التحقق من السعر…")
+                      : walletBusy ? "⏳ جاري الدفع..."
+                      : `${t("ادفع من المحفظة")} · ${priceLYD.toFixed(0)} ${t("د.ل")}`}
                   </button>
                 ) : (
                   <p style={{ fontSize: 13, margin: "10px 0 0", lineHeight: 1.85, background: "rgba(255,255,255,0.16)", borderRadius: 11, padding: "9px 11px" }}>
@@ -1948,7 +2023,7 @@ export default function OrderPage() {
 
             {/* MobiCash is live in production, so it is no longer gated behind
                 an env flag or the admin account. */}
-            <button onClick={() => setMcStep("card")} disabled={sending} style={s.payBtn}>
+            <button onClick={() => setMcStep("card")} disabled={sending || repricing} style={{ ...s.payBtn, opacity: repricing ? 0.5 : 1 }}>
               <div style={s.payIcon}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="2" width="12" height="20" rx="2" /><path d="M11 18h2" /></svg>
               </div>
@@ -1960,7 +2035,7 @@ export default function OrderPage() {
             </button>
 
             {/* Moamalat — dedicated button */}
-            <button onClick={handleMoamalat} disabled={sending} style={s.payBtn}>
+            <button onClick={handleMoamalat} disabled={sending || repricing} style={{ ...s.payBtn, opacity: repricing ? 0.5 : 1 }}>
               <div style={s.payIcon}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10l9-6 9 6" /><path d="M5 10v9" /><path d="M19 10v9" /><path d="M3 19h18" /></svg>
               </div>
@@ -1973,7 +2048,7 @@ export default function OrderPage() {
 
             {/* ادفع لي آخر القائمة وبتنبيه: خادمها ما زال متعذّرًا، فلا يُقدَّم
                 للزبون طريقٌ يرجّح أن يفشل به قبل الطرق العاملة. */}
-            <button onClick={() => setEdfaliStep("phone")} disabled={sending} style={{ ...s.payBtn, opacity: 0.75 }}>
+            <button onClick={() => setEdfaliStep("phone")} disabled={sending || repricing} style={{ ...s.payBtn, opacity: repricing ? 0.4 : 0.75 }}>
               <div style={s.payIcon}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></svg>
               </div>
