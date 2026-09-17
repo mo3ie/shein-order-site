@@ -625,7 +625,9 @@ export default function OrderPage() {
       }),
     });
     const result = await res.json();
-    if (!result.success) throw new Error("فشل إنشاء الطلب");
+    // الخادم يقول ما جرى بالضبط — ولا معنى لابتلاع قوله وإبدال "فشل إنشاء
+    // الطلب" به: الزبون لا يعرف أيعيد المحاولة أم ينتظر أم يغيّر شيئًا.
+    if (!result.success) throw new Error(result.message || "تعذّر إنشاء الطلب. حاول مرة أخرى بعد قليل.");
 
     // ما إن يصير للسلة طلب، تنتهي مهمّة هذه الشاشة.
     //
