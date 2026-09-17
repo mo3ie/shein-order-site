@@ -14,7 +14,9 @@ export const maxDuration = 60;
  * enough to hold one.
  */
 const recent = new Map(); // shareUrl -> { at, result }
-const RECENT_TTL_MS = 30 * 60 * 1000;
+// عشر دقائق لا ثلاثون: هذا المخبّأ يُري الزبون سعرًا دون أن يقيس، وسعرٌ عمره
+// نصف ساعة قد لا يكون سعر شي إن الآن — فيبني الزبون قراره على رقم ماضٍ.
+const RECENT_TTL_MS = 10 * 60 * 1000;
 
 function cacheGet(url) {
   const hit = recent.get(url);

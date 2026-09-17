@@ -214,6 +214,12 @@ export default function OrderPage() {
   // رقم المهمة الجارية ولحظة بدئها، فيُستأنف القياس نفسه ويحسب العدّاد من
   // لحظة البدء الحقيقية لا من لحظة العودة.
   const [restoreNotice, setRestoreNotice] = useState(null);
+  // لحظة قياس هذا السعر — من الخدمة نفسها (checkedAt) لا من ساعة المتصفح.
+  //
+  // لو أخذناها من "الآن" لكذبت: ردٌّ يأتي من مخبّأ الموقع يصل بعد ثوانٍ من
+  // الضغط بينما قياسه أقدم من ذلك بكثير، فيبدو السعر طازجًا وهو ليس كذلك.
+  const [verifiedAt, setVerifiedAt] = useState(null);
+  const PRICE_FRESH_MS = 20 * 60 * 1000;
   const CART_KEY = "trend_cart_state";
   const restoredRef = useRef(false);
 
@@ -231,12 +237,12 @@ export default function OrderPage() {
       localStorage.setItem(CART_KEY, JSON.stringify({
         at: Date.now(),
         link: cartLink, stage, items: cartItems, quantities,
-        price, exactPrice, breakdown, itemCount, resolvedLink,
+        price, exactPrice, breakdown, itemCount, resolvedLink, verifiedAt,
         name, phone, city, area, addressNote, orderNote,
       }));
     } catch {}
   }, [cartLink, stage, cartItems, quantities, price, exactPrice, breakdown,
-      itemCount, resolvedLink, name, phone, city, area, addressNote, orderNote]);
+      itemCount, resolvedLink, verifiedAt, name, phone, city, area, addressNote, orderNote]);
 
   useEffect(() => {
     let cancelled = false;
@@ -260,6 +266,7 @@ export default function OrderPage() {
         setBreakdown(saved.breakdown ?? null);
         setItemCount(saved.itemCount ?? null);
         setResolvedLink(saved.resolvedLink || "");
+        setVerifiedAt(saved.verifiedAt ?? null);
         setResolveState("verified");
         setStage(saved.stage === "details" ? "details" : "cart");
       }
@@ -334,6 +341,8 @@ export default function OrderPage() {
             if (pd.itemCount != null) setItemCount(pd.itemCount);
             if (isReprice) {
               setExactPrice(Number(pd.estimatedPrice));
+              setVerifiedAt(pd.checkedAt ? Date.parse(pd.checkedAt) : Date.now());
+              setRestoreNotice(null);
               setRepricing(false);
             } else {
               setCartItems(pd.items || []);
@@ -341,6 +350,7 @@ export default function OrderPage() {
               setQuantities(Object.fromEntries((pd.items || []).map((it, i) => [i, it.quantity || 1])));
               setPrice(Number(pd.estimatedPrice));
               setResolvedLink(job.link);
+              setVerifiedAt(pd.checkedAt ? Date.parse(pd.checkedAt) : Date.now());
               setResolveState("verified");
               if (fromNotice) { setRestoreNotice(null); setStage("cart"); }
             }
@@ -392,10 +402,24 @@ export default function OrderPage() {
       }
       const settle = (d) => {
         saveJob(null);
-        setExactPrice(Number(d.estimatedPrice));
+        const before = Number(exactPrice ?? price ?? 0);
+        const after = Number(d.estimatedPrice);
+        setExactPrice(after);
+        setVerifiedAt(d.checkedAt ? Date.parse(d.checkedAt) : Date.now());
         setBreakdown(d.breakdown || null);
         if (d.itemCount != null) setItemCount(d.itemCount);
         if (d.itemsComplete != null) setItemsComplete(d.itemsComplete !== false);
+        // قُل للزبون إن شي إن غيّرت السعر، ولا تبدّله تحت يده بصمت.
+        if (before > 0 && Math.abs(after - before) > 0.01) {
+          setRestoreNotice({
+            kind: "expired",
+            text: after > before
+              ? "ارتفع سعر سلتك في شي إن منذ آخر قياس — راجع الإجمالي الجديد قبل الدفع."
+              : "انخفض سعر سلتك في شي إن منذ آخر قياس — الإجمالي الجديد أمامك.",
+          });
+        } else {
+          setRestoreNotice(null);
+        }
       };
       if (data.status !== "pending") { settle(data); return; }
 
@@ -495,6 +519,7 @@ export default function OrderPage() {
       setPrice(Number(data.estimatedPrice));
       setItemCount(data.itemCount ?? null);
       setResolvedLink(link);
+      setVerifiedAt(data.checkedAt ? Date.parse(data.checkedAt) : Date.now());
       setResolveState("verified");
     };
     const fail = (msg) => {
@@ -611,6 +636,32 @@ export default function OrderPage() {
     return result.id;
   }
 
+  /**
+   * لا يُدفَع إلا على سعر قِيس قريبًا.
+   *
+   * الزبون قد يترك التبويب مفتوحًا ساعتين ثم يضغط "ادفع": السعر أمامه كما
+   * تركه، بينما شي إن غيّرت عرضها أو سعرها في تلك الساعتين — فنحاسبه على رقم
+   * ماضٍ ونتحمّل نحن الفرق. ومهلةُ التخزين وحدها لا تكفي حارسًا: هي تُفحص عند
+   * استعادة الصفحة لا وهي مفتوحة أمامه.
+   *
+   * فالقاعدة: قبل كل دفعة نسأل عن عمر القياس. الطازج يمضي، والقديم يُقاس من
+   * جديد بالكميات نفسها — بواجهة التقدّم المعروفة — ثم يرى الزبون السعر
+   * الجديد ويقرّر عليه. لا نكتم تغيّرًا ولا ندفع ثمنه.
+   */
+  const priceIsFresh = () =>
+    Number.isFinite(Number(verifiedAt)) && Date.now() - Number(verifiedAt) < PRICE_FRESH_MS;
+
+  const ensureFreshPrice = async () => {
+    if (priceIsFresh()) return true;
+    setRestoreNotice({
+      kind: "loading",
+      text: "مضى وقت على قياس سلتك — نتحقّق من سعرها في شي إن الآن قبل الدفع.",
+    });
+    setStage("cart");
+    try { await handleReprice(); } catch {}
+    return false;
+  };
+
   // ── Track ────────────────────────────────────────────────────────────────
   const handleTrack = () => {
     if (!trackId) return;
@@ -626,6 +677,7 @@ export default function OrderPage() {
    */
   const handleWalletPay = async () => {
     if (walletBusy) return;
+    if (!(await ensureFreshPrice())) return;
     const due = Number(priceLYD.toFixed(2));
     if (!wallet || Number(wallet.balance) + 0.001 < due) {
       alert("رصيد المحفظة لا يكفي. اشحن المحفظة أولاً.");
@@ -678,6 +730,7 @@ export default function OrderPage() {
   };
 
   const handleEdfali = async (ePhone) => {
+    if (!(await ensureFreshPrice())) { setEdfaliStep("phone"); return; }
     try {
       setSending(true);
       const imageUrl = await uploadImage();
@@ -729,6 +782,7 @@ export default function OrderPage() {
   const handleMobicash = async () => {
     const card = mcCard.replace(/\D/g, "");
     if (card.length < 5) { alert("أدخل رقم بطاقة موبي كاش"); return; }
+    if (!(await ensureFreshPrice())) { setMcStep("card"); return; }
     try {
       setMcStep("sending");
       setSending(true);
@@ -781,6 +835,7 @@ export default function OrderPage() {
   const TRENDSTORE = "https://trendstore-ly.com";
 
   const handleMoamalat = async () => {
+    if (!(await ensureFreshPrice())) return;
     try {
       setSending(true);
       const imageUrl = await uploadImage();
