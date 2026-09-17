@@ -9,7 +9,15 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
  *
  * محمي بنفس رمز الأدمن؛ لا يُفصح عن عنوان الخدمة ولا رمزها للمتصفح.
  */
-const RESOLVER_URL = process.env.RESOLVER_URL || "http://localhost:8787";
+import { resolverUrl } from "@/lib/resolver";
+
+/**
+ * العنوان يُقرأ من نفس المصدر الذي يستعمله التسعير — أي من الإعدادات.
+ *
+ * كان يُقرأ هنا من متغيّر البيئة وحده، فصارت اللوحة تفحص نفقًا غير الذي تمرّ
+ * منه طلبات الزبائن فعلاً: تقول "سليم" والخدمة واقفة، أو العكس. فحصٌ يكذب أسوأ
+ * من لا فحص.
+ */
 const RESOLVER_TOKEN = process.env.RESOLVER_AUTH_TOKEN || "";
 
 async function requireStaff(req) {
@@ -31,7 +39,8 @@ export async function GET(req) {
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 12000);
-    const res = await fetch(`${RESOLVER_URL}/health`, {
+    const base = await resolverUrl();
+    const res = await fetch(`${base}/health`, {
       headers: RESOLVER_TOKEN ? { authorization: `Bearer ${RESOLVER_TOKEN}` } : {},
       signal: controller.signal,
     });
@@ -43,6 +52,8 @@ export async function GET(req) {
 
     return Response.json({
       ok: res.ok && body?.status === "ok",
+      // أيّ نفق تمرّ منه الطلبات الآن — لتُقرأ حالة العطل لا حالة عنوان قديم.
+      via: base.replace(/^https?:\/\//, ""),
       httpStatus: res.status,
       latencyMs: Date.now() - started,
       // 502 من النفق يعني: الخدمة تعمل لكن لا أحد يصل إليها.
