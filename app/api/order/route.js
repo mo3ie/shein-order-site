@@ -266,6 +266,7 @@ export async function POST(req) {
     // customer was shown.
     let lydTotal = null;
     let usedRate = null;
+    let usedCommission = null;
     try {
       const { data: settings } = await supabaseAdmin
         .from("settings").select("exchange_rate, profit_rate").eq("id", 1).single();
@@ -277,6 +278,9 @@ export async function POST(req) {
         : 0.01;
       if (Number.isFinite(rate) && rate > 0) {
         usedRate = rate;
+        // النسبة تُحفظ كما تُقرأ من الإعدادات (مئوية)، لأن لوحة الإدارة تعرضها
+        // كذلك وتعيد الحساب بها.
+        usedCommission = Number(commission * 100);
         lydTotal = Number((verifiedPrice * (1 + commission) * rate).toFixed(2));
       }
     } catch (e) {
@@ -293,9 +297,6 @@ export async function POST(req) {
       // ونسبة العمولة كذلك: الطلب يُسعَّر بأرقام لحظته، ويبقى بها مهما تغيّرت
       // الإعدادات بعده. بلا ذلك يعيد الأدمن حساب طلبات الأمس بسعر اليوم.
       ...(usedCommission != null ? { profit_rate: usedCommission } : {}),
-      // سعر الصرف المستعمل يُحفظ مع الطلب: الرقم يبقى قابلاً للمراجعة بعد
-      // أي تغيير لاحق في الإعدادات.
-      ...(usedRate != null ? { exchange_rate: usedRate } : {}),
       ...(cartShotUrl ? { cart_shot_url: cartShotUrl } : {}),
       ...(breakdown || address || extraUsd
         ? { price_breakdown: { ...(breakdown || {}), quantities: quantities || [], note: note || null, images: images || [], source: priceSource } }
