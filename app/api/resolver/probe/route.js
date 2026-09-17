@@ -23,8 +23,8 @@ export async function POST(req) {
     return Response.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
-  let url;
-  try { ({ url } = await req.json()); } catch { return Response.json({ ok: false, error: "bad body" }, { status: 400 }); }
+  let body, url;
+  try { body = await req.json(); url = body?.url; } catch { return Response.json({ ok: false, error: "bad body" }, { status: 400 }); }
 
   const clean = String(url || "").trim().replace(/\/+$/, "");
   let host;
@@ -39,21 +39,35 @@ export async function POST(req) {
     return Response.json({ ok: false, error: "host not allowed" }, { status: 400 });
   }
 
+  // مسارٌ محدَّد للفحص، لأن العطل قد يصيب مسارًا دون آخر: كان `/health` يمرّ
+  // بينما `/jobs` — وهو مسار الزبون فعلاً — يُردّ 502. ولا يُقبل إلا مسارا
+  // الخدمة المعروفان، فلا يصير هذا بابًا لجلب ما نشاء باسم الخادم.
+  const path = /^\/(health|jobs)(\/[\w-]{1,64})?$/.test(String(body?.path || ""))
+    ? String(body.path) : "/health";
+  const method = body?.method === "POST" ? "POST" : "GET";
+
   const started = Date.now();
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 12000);
-    const res = await fetch(`${clean}/health`, {
-      headers: { authorization: `Bearer ${expected}` },
+    const res = await fetch(`${clean}${path}`, {
+      method,
+      headers: {
+        authorization: `Bearer ${expected}`,
+        ...(method === "POST" ? { "content-type": "application/json" } : {}),
+      },
+      ...(method === "POST" ? { body: JSON.stringify(body?.payload ?? {}) } : {}),
       signal: controller.signal,
       cache: "no-store",
     });
     clearTimeout(timer);
     const text = await res.text();
-    let body = null;
-    try { body = JSON.parse(text); } catch { /* صفحة خطأ من وسيط، لا JSON */ }
+    let body2 = null;
+    try { body2 = JSON.parse(text); } catch { /* صفحة خطأ من وسيط، لا JSON */ }
     return Response.json({
-      ok: res.ok && body?.status === "ok",
+      // وصل الطلبُ الخدمةَ إن جاء ردٌّ JSON، ولو كان رفضًا: ما نقيسه الطريق.
+      reached: body2 !== null,
+      ok: res.ok && body2?.status === "ok",
       httpStatus: res.status,
       latencyMs: Date.now() - started,
     });
