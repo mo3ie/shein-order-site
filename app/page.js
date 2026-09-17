@@ -143,6 +143,12 @@ export default function OrderPage() {
   const priceLYD  = rateReady ? totalUSD * exchangeRate : 0;
 
   useEffect(() => {
+    const urls = images.map((f) => URL.createObjectURL(f));
+    setImageUrls(urls);
+    return () => urls.forEach((u) => { try { URL.revokeObjectURL(u); } catch {} });
+  }, [images]);
+
+  useEffect(() => {
     setNotify(pushState());
     // الإذن ممنوح لا يعني أن الجهاز مشترك: قد يُلغي المتصفح الاشتراك، أو يخفق
     // حفظه أوّل مرّة، فيبقى الزبون يرى "مفعّلة" ولا يصله خبر. نتثبّت عند كل فتح.
@@ -213,6 +219,13 @@ export default function OrderPage() {
   // لذا تُحفظ السلة كما هي (الرابط، الأصناف، الكميات، السعر، المرحلة)، ويُحفظ
   // رقم المهمة الجارية ولحظة بدئها، فيُستأنف القياس نفسه ويحسب العدّاد من
   // لحظة البدء الحقيقية لا من لحظة العودة.
+  // روابط معاينة الصور المرفقة — تُصنع مرّة وتُحرَّر.
+  //
+  // كانت تُصنع داخل الرسم نفسه، فمع كل إعادة رسم (حرفٌ يُكتب في الملاحظة،
+  // نبضةُ مؤقّت) يتبدّل عنوان الصورة تحت المتصفح وهو يحمّلها، فتظهر مكسورة —
+  // ويتراكم لكل صورة عشراتُ الروابط بلا تحرير. الآن رابطٌ واحد لكل ملف يعيش
+  // ما عاش الملف في القائمة.
+  const [imageUrls, setImageUrls] = useState([]);
   const [restoreNotice, setRestoreNotice] = useState(null);
   // لحظة قياس هذا السعر — من الخدمة نفسها (checkedAt) لا من ساعة المتصفح.
   //
@@ -1568,10 +1581,29 @@ export default function OrderPage() {
                   {images.map((f, i) => (
                     <div key={i} style={{ position: "relative" }}>
                       <img
-                        src={URL.createObjectURL(f)}
-                        onClick={() => setPreview(URL.createObjectURL(f))}
+                        src={imageUrls[i]}
+                        alt={t("صورة مرفقة")}
+                        onClick={() => imageUrls[i] && setPreview(imageUrls[i])}
+                        onError={(e) => {
+                          // صورةٌ تعذّر عرضها تُقال، لا تُترك أيقونةً مكسورة.
+                          e.currentTarget.style.display = "none";
+                          const fb = e.currentTarget.parentNode.querySelector("[data-imgfallback]");
+                          if (fb) fb.style.display = "flex";
+                        }}
                         style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 12, cursor: "pointer", border: `1.5px solid ${LINE}` }}
                       />
+                      <div
+                        data-imgfallback
+                        style={{
+                          display: "none", width: 72, height: 72, borderRadius: 12,
+                          alignItems: "center", justifyContent: "center",
+                          flexDirection: "column", fontSize: 10, fontWeight: 700,
+                          background: CHIP, color: MUTED, border: `1.5px solid ${LINE}`,
+                        }}
+                      >
+                        <span style={{ fontSize: 18 }}>🖼️</span>
+                        {t("مرفقة")}
+                      </div>
                       <button type="button" onClick={() => setImages(prev => prev.filter((_, k) => k !== i))} style={s.imgRemove} aria-label={t("حذف الصورة")}>×</button>
                     </div>
                   ))}
