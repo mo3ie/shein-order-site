@@ -312,7 +312,9 @@ export default function OrderPage() {
       }
     } catch {}
 
-    if (!job?.jobId || (!fromNotice && (!job?.link || Date.now() - (job.at || 0) > 15 * 60 * 1000))) {
+    // خمس وعشرون دقيقة: تسع انتظار الطابور والقياس معًا، وإلا نسيَ المتصفحُ
+    // مهمّةً ما زالت تعمل وبدأ الزبون من الصفر بلا سبب.
+    if (!job?.jobId || (!fromNotice && (!job?.link || Date.now() - (job.at || 0) > 25 * 60 * 1000))) {
       saveJob(null);
       return () => { cancelled = true; };
     }
@@ -467,9 +469,13 @@ export default function OrderPage() {
         // Both devices can be busy, and a link is pinned to one account so the
         // request may wait for it. Ten minutes covers a queued run; the queue
         // position is on screen throughout.
-        if (Date.now() - started > 10 * 60 * 1000) {
-          saveJob(null);
-          setRepriceError("استغرقت قراءة السعر وقتاً أطول من المتوقع. حاول مرة أخرى.");
+        if (Date.now() - started > 20 * 60 * 1000) {
+          // المهمّة تبقى محفوظة: هي جارية، والعودة تلتحق بها.
+          setRepriceError(
+            notify === "granted"
+              ? "إعادة الحساب ما زالت جارية — سيصلك إشعار فور انتهائها."
+              : "إعادة الحساب ما زالت جارية. اترك الصفحة مفتوحة أو فعّل الإشعارات ليصلك الخبر."
+          );
           return;
         }
       }
@@ -578,7 +584,13 @@ export default function OrderPage() {
       linkPush({ jobId: data.jobId });
 
       const started = started0;
-      const LIMIT_MS = 5 * 60 * 1000;
+      // عشرون دقيقة لا خمس.
+      //
+      // القياس يعمل على جهازين، ولا يبدأ الثالث حتى يفرغ أحدهما. فسلّةٌ وصلت
+      // والجهازان مشغولان تنتظر في الطابور — قِيس انتظارٌ بلغ عشر دقائق — بينما
+      // كان المتصفح يستسلم عند الخامسة ويعلن الفشل، والقياس ماضٍ على الخادم.
+      // فيرى الزبون "تعذّر التحقق" على سلّة تُقاس الآن، ويبدأ من جديد بلا داعٍ.
+      const LIMIT_MS = 20 * 60 * 1000;
       for (;;) {
         await new Promise(r => setTimeout(r, 4000));
 
@@ -591,7 +603,16 @@ export default function OrderPage() {
         if (pd.queue) setQueue({ ...pd.queue, averageMs: pd.averageMs });
         if (pd.status !== "pending") return finish(pd);
         if (Date.now() - started > LIMIT_MS) {
-          return fail("استغرق التحقق وقتاً أطول من المتوقع. حاول مرة أخرى.");
+          // لا نمحو المهمّة: هي تعمل، والعودة إلى الصفحة تلتحق بها بدل أن
+          // تبدأ قياسًا ثانيًا على السلة نفسها.
+          setQueue(null);
+          setResolveState("failed");
+          setResolveError(
+            notify === "granted"
+              ? "القياس ما زال جارياً على خوادمنا — سيصلك إشعار فور انتهائه."
+              : "القياس ما زال جارياً على خوادمنا. اترك الصفحة مفتوحة أو فعّل الإشعارات ليصلك الخبر."
+          );
+          return;
         }
       }
     } catch {
