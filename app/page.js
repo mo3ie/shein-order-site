@@ -3,7 +3,8 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useLang, useIsDesktop } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
-import { pushState, enablePush, linkPush } from "@/lib/push";
+import { pushState, enablePush, linkPush, syncPush } from "@/lib/push";
+import { ensureSession, authHeaders, isAuthError } from "@/lib/session";
 import TopBar from "@/app/components/TopBar";
 
 const PRIMARY   = "#7c3aed";
@@ -141,7 +142,12 @@ export default function OrderPage() {
   const rateReady = Number.isFinite(Number(exchangeRate)) && Number(exchangeRate) > 0;
   const priceLYD  = rateReady ? totalUSD * exchangeRate : 0;
 
-  useEffect(() => { setNotify(pushState()); }, []);
+  useEffect(() => {
+    setNotify(pushState());
+    // الإذن ممنوح لا يعني أن الجهاز مشترك: قد يُلغي المتصفح الاشتراك، أو يخفق
+    // حفظه أوّل مرّة، فيبقى الزبون يرى "مفعّلة" ولا يصله خبر. نتثبّت عند كل فتح.
+    if (pushState() === "granted") syncPush({});
+  }, []);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -186,12 +192,8 @@ export default function OrderPage() {
   }, []);
 
   // The session lives in the browser client, so the token has to be sent
-  // explicitly — the server has no auth cookie to read.
-  const authHeaders = async () => {
-    const { data } = await supabase.auth.getSession();
-    const t = data?.session?.access_token;
-    return t ? { authorization: `Bearer ${t}` } : {};
-  };
+  // explicitly — the server has no auth cookie to read. `authHeaders` also
+  // verifies the token is still one the server accepts, and clears it if not.
   const loadWallet = async () => {
     const h = await authHeaders();
     if (!h.authorization) { setWallet(null); return; }
@@ -524,11 +526,28 @@ export default function OrderPage() {
     // Every attached photo goes up; the first is the order's headline image and
     // the rest ride along in the note so nothing the customer sent is lost.
     if (!images.length) return null;
+
+    // جلسة ميتة تُفشل الرفع بـ403 وإن كان المخزن يقبل الزوّار: المكتبة ترسل
+    // الرمز المخزَّن فيُرفض. فنتثبّت منها أولاً، ونمحوها إن كانت ميتة — عندها
+    // يرفع الزبون كزائر وينجح، بدل أن يقف أمام "فشل رفع الصورة" بلا سبب ظاهر.
+    await ensureSession();
+
     const urls = [];
     for (const file of images) {
-      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${file.name}`;
-      const { error } = await supabase.storage.from("orders-images").upload(`public/${fileName}`, file);
-      if (error) throw new Error("فشل رفع الصورة");
+      // اسم نظيف: أسماء ملفّات الهواتف تحمل مسافات وحروفًا عربية، ومفاتيح
+      // المخزن لا تقبلها كلها.
+      const ext = (file.name?.match(/[.][a-zA-Z0-9]+$/) || [".jpg"])[0].toLowerCase();
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}${ext}`;
+      let { error } = await supabase.storage.from("orders-images").upload(`public/${fileName}`, file);
+      if (error && isAuthError(error)) {
+        // إذنٌ مرفوض رغم التثبّت: الجلسة تالفة بما لا يُصلَح — امحُها وارفع كزائر.
+        try { await supabase.auth.signOut({ scope: "local" }); } catch {}
+        ({ error } = await supabase.storage.from("orders-images").upload(`public/${fileName}`, file));
+      }
+      if (error) {
+        console.error("[upload]", error.message || error);
+        throw new Error("تعذّر رفع الصورة. تحقّق من اتصالك وحاول مرة أخرى، أو أكمل الطلب بدون صورة.");
+      }
       urls.push(supabase.storage.from("orders-images").getPublicUrl(`public/${fileName}`).data.publicUrl);
     }
     uploadedUrlsRef.current = urls;
@@ -585,6 +604,12 @@ export default function OrderPage() {
     const due = Number(priceLYD.toFixed(2));
     if (!wallet || Number(wallet.balance) + 0.001 < due) {
       alert("رصيد المحفظة لا يكفي. اشحن المحفظة أولاً.");
+      return;
+    }
+    // الجلسة تُفحص قبل إنشاء الطلب لا بعده: لو ماتت بينهما لبقي طلبٌ بلا دفع
+    // ورسالةُ فشلٍ لا تقول للزبون إن عليه تسجيل الدخول من جديد.
+    if (!(await ensureSession())) {
+      alert("انتهت جلستك. سجّل الدخول من جديد ثم أعد المحاولة.");
       return;
     }
     try {
@@ -891,7 +916,7 @@ export default function OrderPage() {
         onClick={async () => {
           // الإذن يُطلب في اللحظة التي يفهمها الزبون: ضغط "تحقق" يعني انتظارًا،
           // والانتظار هو ما يبرّر الإشعار. طلبه عند فتح الصفحة يُرفض ولا يُسأل ثانية.
-          if (pushState() === "default") { await enablePush({}); setNotify(pushState()); }
+          await enablePush({}); setNotify(pushState());
           handleResolveCart();
         }}
         disabled={resolveState === "checking" || !cartLink.trim()}
