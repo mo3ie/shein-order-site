@@ -1,7 +1,12 @@
 // Edfali (ادفع لي) — Step 2: OnlineConfTrans confirms customer OTP
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
-const ENDPOINT = process.env.EDFALI_ENDPOINT || "http://62.240.55.2:6187/BCDUssd/NewEdfali.asmx";
+// العنوان من المصرف، وقابل للتغيير بلا نشر.
+//
+// كان عنوان IP خامًا على HTTP ومقيَّدًا بقائمة عناوين، فكان أي تغيير من المصرف
+// يوقف الدفع حتى يُنشر الموقع من جديد. أرسل المصرف نطاقًا على HTTPS
+// (2026-09-19)، وجُعل قابلاً للضبط من البيئة حتى لا نعيد هذه الدورة.
+const ENDPOINT = process.env.EDFALI_ENDPOINT || "https://edfali.bcd.ly/api/BCDUssd/NewEdfali.asmx";
 // SECURITY: the Edfali system password must never be hardcoded in source (it
 // was previously committed to git — rotate it with the provider). Read from env.
 const SYS_PW   = process.env.EDFALI_SYS_PW;

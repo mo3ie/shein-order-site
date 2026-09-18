@@ -2067,15 +2067,16 @@ export default function OrderPage() {
               <span style={s.payAmount}>{priceLYD.toFixed(0)} د.ل</span>
             </button>
 
-            {/* ادفع لي آخر القائمة وبتنبيه: خادمها ما زال متعذّرًا، فلا يُقدَّم
-                للزبون طريقٌ يرجّح أن يفشل به قبل الطرق العاملة. */}
-            <button onClick={() => setEdfaliStep("phone")} disabled={sending || repricing} style={{ ...s.payBtn, opacity: repricing ? 0.4 : 0.75 }}>
+            {/* ادفع لي عادت إلى الخدمة: أرسل المصرف نطاقًا جديدًا على HTTPS
+                (2026-09-19) وجرى التحقق منه، فرُفع التنبيه وعاد الزرّ كامل
+                الوضوح — تنبيهٌ باقٍ بعد زوال سببه يصرف الزبون عن طريق يعمل. */}
+            <button onClick={() => setEdfaliStep("phone")} disabled={sending || repricing} style={{ ...s.payBtn, opacity: repricing ? 0.4 : 1 }}>
               <div style={s.payIcon}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={MUTED} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></svg>
               </div>
               <div style={{ minWidth: 0 }}>
                 <div style={s.payName}>{t("ادفع لي")}</div>
-                <div style={s.payNote}>{t("محفظة EDFali — قد تكون غير متاحة مؤقتاً")}</div>
+                <div style={s.payNote}>{t("محفظة ادفع لي — مصرف التجارة والتنمية")}</div>
               </div>
               <span style={s.payAmount}>{priceLYD.toFixed(0)} د.ل</span>
             </button>
