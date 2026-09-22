@@ -77,6 +77,12 @@ export default function OrderPage() {
   const [mcCard,            setMcCard]            = useState("");
   const [mcOtp,             setMcOtp]             = useState("");
   const [mcOrderId,         setMcOrderId]         = useState(null);
+  // يسر باي / مصرفي باي (بطاقة+رمز، عبر الوسيط) — محرّك عام مشترك منفصل عن موبي كاش
+  const [cardGw,            setCardGw]            = useState(null);   // "yusor" | "masarafi"
+  const [cardStep,          setCardStep]          = useState(null);   // "card" | "sending" | "otp"
+  const [cardNum,           setCardNum]           = useState("");
+  const [cardOtp,           setCardOtp]           = useState("");
+  const [cardOrderId,       setCardOrderId]       = useState(null);
   const [isAdmin,           setIsAdmin]           = useState(false);
   const [authUser,          setAuthUser]          = useState(null);
   const [wallet,            setWallet]            = useState(null);   // {balance}
@@ -876,6 +882,60 @@ export default function OrderPage() {
       if (!data.success) throw new Error(data.error || "رمز التحقق خاطئ");
       localStorage.setItem("lastOrderId", mcOrderId);
       window.location.href = `/success?orderId=${mcOrderId}&via=mobicash`;
+    } catch (err) {
+      alert(err.message || "رمز خاطئ، حاول مجدداً");
+      setSending(false);
+    }
+  };
+
+  // ── يسر باي / مصرفي باي (بطاقة مصرفية + رمز تحقق، عبر الوسيط) ─────────────
+  // نفس تدفّق موبي كاش (بطاقة → رمز) لكن محرّك عام واحد للبوابتين.
+  const openCardGw = (gw) => { setCardGw(gw); setCardStep("card"); setCardNum(""); setCardOtp(""); };
+
+  const handleCardSend = async () => {
+    const card = cardNum.replace(/\D/g, "");
+    if (card.length < 9) { alert("رقم البطاقة يجب أن يكون 9 أرقام على الأقل"); return; }
+    if (!(await ensureFreshPrice())) { setCardStep("card"); return; }
+    try {
+      setCardStep("sending");
+      setSending(true);
+      const imageUrl = await uploadImage();
+      const oid = await createOrder(imageUrl);
+      linkPush({ orderId: oid });
+      setOrderId(oid);
+      setCardOrderId(oid);
+      await supabase.from("payments").insert({ order_id: oid, method: cardGw, status: "pending", amount: priceLYD });
+
+      const res = await fetch(`/api/${cardGw}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: oid, amountLYD: priceLYD, cardNumber: card }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "فشل إرسال رمز التحقق");
+
+      setCardStep("otp");
+      setSending(false);
+    } catch (err) {
+      alert(err.message || "خطأ في الدفع");
+      setCardStep("card");
+      setSending(false);
+    }
+  };
+
+  const handleCardVerify = async () => {
+    if (!cardOtp || cardOtp.length < 4) { alert("أدخل رمز التحقق"); return; }
+    try {
+      setSending(true);
+      const res = await fetch(`/api/${cardGw}/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: cardOrderId, otp: cardOtp }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "رمز التحقق خاطئ");
+      localStorage.setItem("lastOrderId", cardOrderId);
+      window.location.href = `/success?orderId=${cardOrderId}&via=${cardGw}`;
     } catch (err) {
       alert(err.message || "رمز خاطئ، حاول مجدداً");
       setSending(false);
@@ -1806,7 +1866,7 @@ export default function OrderPage() {
 
       {/* ── Payment Modal ── */}
       {showPayment && (
-        <div onClick={() => { if (!edfaliStep && !mcStep) setShowPayment(false); }} style={s.overlay}>
+        <div onClick={() => { if (!edfaliStep && !mcStep && !cardStep) setShowPayment(false); }} style={s.overlay}>
           <div onClick={e => e.stopPropagation()} className="pay-modal" style={{ ...s.modal, direction: dir }}>
 
             {/* ── MobiCash: card number ── */}
@@ -1870,6 +1930,52 @@ export default function OrderPage() {
                   onClick={() => { setMcStep("card"); setMcOtp(""); setSending(false); }}
                   style={s.ghostBtn}
                 >{t("رجوع")}</button>
+              </div>
+
+            ) : cardStep === "card" ? (
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 42, marginBottom: 8 }}>{cardGw === "masarafi" ? "🏛️" : "💳"}</div>
+                <h3 style={s.modalTitle}>{cardGw === "masarafi" ? "مصرفي باي" : "يسر باي"} — أدخل رقم بطاقتك</h3>
+                <p style={s.modalSub}>سيصلك رمز تحقق على هاتفك المرتبط بالبطاقة</p>
+                <input
+                  type="tel" inputMode="numeric" placeholder="رقم البطاقة" value={cardNum}
+                  onChange={e => setCardNum(e.target.value.replace(/[^0-9]/g, "").slice(0, 10))}
+                  style={{ ...s.input, fontSize: 22, textAlign: "center", letterSpacing: 4, fontWeight: 700, marginBottom: 16, direction: "ltr" }}
+                  autoFocus
+                />
+                <button
+                  onClick={handleCardSend}
+                  disabled={sending || cardNum.replace(/[^0-9]/g, "").length < 9}
+                  style={{ ...s.btn, background: cardNum.replace(/[^0-9]/g, "").length >= 9 ? "linear-gradient(135deg,#0284c7,#0ea5e9)" : CHIP, color: cardNum.replace(/[^0-9]/g, "").length >= 9 ? "#fff" : FAINT, cursor: cardNum.replace(/[^0-9]/g, "").length >= 9 ? "pointer" : "not-allowed" }}
+                >{t("إرسال رمز التحقق →")}</button>
+                <button onClick={() => { setCardStep(null); setCardGw(null); setCardNum(""); }} style={s.ghostBtn}>{t("رجوع")}</button>
+              </div>
+
+            ) : cardStep === "sending" ? (
+              <div style={{ textAlign: "center", padding: "40px 0" }}>
+                <div style={{ width: 56, height: 56, borderRadius: "50%", border: "4px solid #e0f2fe", borderTopColor: "#0284c7", animation: "spin 0.8s linear infinite", margin: "0 auto 20px" }} />
+                <p style={{ color: MUTED, fontSize: 15.5 }}>⏳ جاري إرسال رمز التحقق...</p>
+              </div>
+
+            ) : cardStep === "otp" ? (
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: 42, marginBottom: 8 }}>🔐</div>
+                <h3 style={s.modalTitle}>تحقق من الرمز — {cardGw === "masarafi" ? "مصرفي باي" : "يسر باي"}</h3>
+                <p style={s.modalSub}>أُرسل رمز التحقق إلى هاتفك المرتبط بالبطاقة المصرفية</p>
+                <input
+                  type="tel" inputMode="numeric" placeholder="أدخل الرمز" value={cardOtp}
+                  onChange={e => setCardOtp(e.target.value.replace(/[^0-9]/g, "").slice(0, 8))}
+                  style={{ ...s.input, fontSize: 30, textAlign: "center", letterSpacing: 12, fontWeight: 700, marginBottom: 16, direction: "ltr" }}
+                  autoFocus
+                />
+                <button
+                  onClick={handleCardVerify}
+                  disabled={sending || cardOtp.length < 4}
+                  style={{ ...s.btn, background: cardOtp.length >= 4 ? "linear-gradient(135deg,#0284c7,#0ea5e9)" : CHIP, color: cardOtp.length >= 4 ? "#fff" : FAINT, cursor: cardOtp.length >= 4 ? "pointer" : "not-allowed" }}
+                >
+                  {sending ? "⏳ جاري التحقق..." : "تأكيد الدفع ✓"}
+                </button>
+                <button onClick={() => { setCardStep("card"); setCardOtp(""); setSending(false); }} style={s.ghostBtn}>{t("رجوع")}</button>
               </div>
 
             ) : edfaliStep === "phone" ? (
@@ -2054,6 +2160,32 @@ export default function OrderPage() {
               </div>
               <span style={s.payAmount}>{priceLYD.toFixed(0)} د.ل</span>
             </button>
+
+            {/* يسر باي — بطاقة مصرفية + رمز تحقق (عبر الوسيط) */}
+            <button onClick={() => openCardGw("yusor")} disabled={sending || repricing} style={{ ...s.payBtn, opacity: repricing ? 0.5 : 1 }}>
+              <div style={s.payIcon}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M2 10h20" /></svg>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={s.payName}>{t("يسر باي")}</div>
+                <div style={s.payNote}>{t("بطاقة مصرفية — برمز تحقق")}</div>
+              </div>
+              <span style={s.payAmount}>{priceLYD.toFixed(0)} د.ل</span>
+            </button>
+
+            {/* مصرفي باي (مصرف الجمهورية) — مخفي حتى تفعيل بياناته لدى مسارات */}
+            {process.env.NEXT_PUBLIC_MASARAFI_ENABLED === "true" && (
+              <button onClick={() => openCardGw("masarafi")} disabled={sending || repricing} style={{ ...s.payBtn, opacity: repricing ? 0.5 : 1 }}>
+                <div style={s.payIcon}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={PRIMARY} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10l9-6 9 6" /><path d="M5 10v9" /><path d="M19 10v9" /><path d="M3 19h18" /></svg>
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={s.payName}>{t("مصرفي باي")}</div>
+                  <div style={s.payNote}>{t("بطاقة مصرف الجمهورية — برمز تحقق")}</div>
+                </div>
+                <span style={s.payAmount}>{priceLYD.toFixed(0)} د.ل</span>
+              </button>
+            )}
 
             {/* Moamalat — dedicated button */}
             <button onClick={handleMoamalat} disabled={sending || repricing} style={{ ...s.payBtn, opacity: repricing ? 0.5 : 1 }}>

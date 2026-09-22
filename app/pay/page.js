@@ -28,10 +28,11 @@ function PayContent() {
   const [busy, setBusy]     = useState(false);
   const [error, setError]   = useState("");
 
-  // موبي كاش: بطاقة ثم رمز
-  const [mcStep, setMcStep] = useState(null);
-  const [mcCard, setMcCard] = useState("");
-  const [mcOtp, setMcOtp]   = useState("");
+  // بوابات البطاقة+الرمز (موبي كاش/يسر/مصرفي) — محرّك عام واحد
+  const [cardGw, setCardGw]     = useState(null);   // "mobicash" | "yusor" | "masarafi"
+  const [cardStep, setCardStep] = useState(null);   // "card" | "otp"
+  const [cardNum, setCardNum]   = useState("");
+  const [cardOtp, setCardOtp]   = useState("");
 
   const due = Number(order?.final_total ?? order?.price_lyd ?? 0);
 
@@ -106,20 +107,23 @@ function PayContent() {
     }
   }
 
-  async function mobicashSend() {
-    const card = mcCard.replace(/\D/g, "");
-    if (card.length < 5) { setError(t("أدخل رقم بطاقة موبي كاش")); return; }
+  // بوابات البطاقة+الرمز: الحدّ الأدنى لطول البطاقة يختلف (موبي كاش 5، يسر/مصرفي 9)
+  const CARD_MIN = { mobicash: 5, yusor: 9, masarafi: 9 };
+
+  async function cardSend() {
+    const card = cardNum.replace(/\D/g, "");
+    if (card.length < (CARD_MIN[cardGw] || 5)) { setError(t("أدخل رقم البطاقة")); return; }
     setBusy(true); setError("");
     try {
-      await supabase.from("payments").insert({ order_id: orderId, method: "mobicash", status: "pending", amount: due });
-      const res = await fetch("/api/mobicash", {
+      await supabase.from("payments").insert({ order_id: orderId, method: cardGw, status: "pending", amount: due });
+      const res = await fetch(`/api/${cardGw}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId, amountLYD: due, cardNumber: card }),
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || t("فشل إرسال رمز التحقق"));
-      setMcStep("otp");
+      setCardStep("otp");
     } catch (e) {
       setError(e.message);
     } finally {
@@ -127,23 +131,25 @@ function PayContent() {
     }
   }
 
-  async function mobicashVerify() {
-    if (mcOtp.length < 4) { setError(t("أدخل رمز التحقق")); return; }
+  async function cardVerify() {
+    if (cardOtp.length < 4) { setError(t("أدخل رمز التحقق")); return; }
     setBusy(true); setError("");
     try {
-      const res = await fetch("/api/mobicash/verify", {
+      const res = await fetch(`/api/${cardGw}/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, otp: mcOtp }),
+        body: JSON.stringify({ orderId, otp: cardOtp }),
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || t("رمز التحقق خاطئ"));
-      router.push(`/success?orderId=${orderId}&via=mobicash`);
+      router.push(`/success?orderId=${orderId}&via=${cardGw}`);
     } catch (e) {
       setError(e.message);
       setBusy(false);
     }
   }
+
+  const openCard = (gw) => { setCardGw(gw); setCardStep("card"); setCardNum(""); setCardOtp(""); setError(""); };
 
   if (state === "loading") {
     return (
@@ -194,6 +200,14 @@ function PayContent() {
 
   const enough = wallet && wallet.balance + 0.001 >= due;
 
+  // بوابات البطاقة+الرمز المعروضة (بطاقة مصرفية ليبية + رمز تحقق)
+  const CARD_META = {
+    mobicash: { label: t("موبي كاش"), desc: t("بطاقة مصرف الوحدة — برمز تحقق"), max: 19, icon: I.phone },
+    yusor:    { label: t("يسر باي"), desc: t("بطاقة مصرفية — برمز تحقق"), max: 10, icon: I.bank },
+    masarafi: { label: t("مصرفي باي"), desc: t("بطاقة مصرف الجمهورية — برمز تحقق"), max: 10, icon: I.bank },
+  };
+  const cm = CARD_META[cardGw] || {};
+
   return (
     <Screen title={t("إتمام الدفع")} subtitle={t("أكمل دفع طلبك — الطلب غير المدفوع يُحذف بعد ساعة.")} nav={false} width={440}>
       {/* المبلغ أولاً */}
@@ -215,33 +229,33 @@ function PayContent() {
         </div>
       )}
 
-      {mcStep === "otp" ? (
+      {cardStep === "otp" ? (
         <Card pad={18}>
-          <SectionTitle icon={I.lock}>{t("تحقق من رمز موبي كاش")}</SectionTitle>
+          <SectionTitle icon={I.lock}>{t("تحقق من الرمز")} — {cm.label}</SectionTitle>
           <input
-            inputMode="numeric" placeholder="······" value={mcOtp}
-            onChange={(e) => setMcOtp(e.target.value.replace(/\D/g, "").slice(0, 8))}
+            inputMode="numeric" placeholder="······" value={cardOtp}
+            onChange={(e) => setCardOtp(e.target.value.replace(/\D/g, "").slice(0, 8))}
             style={{ ...inputStyle, textAlign: "center", fontSize: 26, fontWeight: 800, letterSpacing: 10, direction: "ltr", marginBottom: 14 }}
           />
-          <Button onClick={mobicashVerify} disabled={busy} icon={I.check} style={{ opacity: busy ? 0.65 : 1 }}>
+          <Button onClick={cardVerify} disabled={busy} icon={I.check} style={{ opacity: busy ? 0.65 : 1 }}>
             {busy ? t("جاري التحقق...") : t("تأكيد الدفع")}
           </Button>
-          <Button kind="ghost" onClick={() => { setMcStep(null); setMcOtp(""); }} style={{ marginTop: 10 }}>
+          <Button kind="ghost" onClick={() => { setCardStep("card"); setCardOtp(""); }} style={{ marginTop: 10 }}>
             {t("رجوع")}
           </Button>
         </Card>
-      ) : mcStep === "card" ? (
+      ) : cardStep === "card" ? (
         <Card pad={18}>
-          <SectionTitle icon={I.phone}>{t("موبي كاش")}</SectionTitle>
+          <SectionTitle icon={cm.icon}>{cm.label}</SectionTitle>
           <input
-            inputMode="numeric" placeholder={t("رقم البطاقة")} value={mcCard}
-            onChange={(e) => setMcCard(e.target.value.replace(/\D/g, "").slice(0, 19))}
+            inputMode="numeric" placeholder={t("رقم البطاقة")} value={cardNum}
+            onChange={(e) => setCardNum(e.target.value.replace(/\D/g, "").slice(0, cm.max || 19))}
             style={{ ...inputStyle, textAlign: "center", fontSize: 20, fontWeight: 800, letterSpacing: 4, direction: "ltr", marginBottom: 14 }}
           />
-          <Button onClick={mobicashSend} disabled={busy} icon={I.phone} style={{ opacity: busy ? 0.65 : 1 }}>
+          <Button onClick={cardSend} disabled={busy} icon={cm.icon} style={{ opacity: busy ? 0.65 : 1 }}>
             {busy ? t("جاري إرسال رمز التحقق...") : t("إرسال رمز التحقق")}
           </Button>
-          <Button kind="ghost" onClick={() => setMcStep(null)} style={{ marginTop: 10 }}>{t("رجوع")}</Button>
+          <Button kind="ghost" onClick={() => { setCardGw(null); setCardStep(null); }} style={{ marginTop: 10 }}>{t("رجوع")}</Button>
         </Card>
       ) : (<>
         {/* المحفظة أولاً: أسرع طريق وبلا رمز تحقق */}
@@ -272,14 +286,16 @@ function PayContent() {
         <Card pad={16}>
           <SectionTitle icon={I.bank} size={14.5}>{t("اختر طريقة الدفع")}</SectionTitle>
 
-          <button onClick={() => setMcStep("card")} disabled={busy} style={payRow}>
-            <span style={payIcon}><Icon path={I.phone} size={18} color={PRIMARY} /></span>
-            <span style={{ flex: 1, minWidth: 0, textAlign: "start" }}>
-              <span style={{ display: "block", fontSize: 14, fontWeight: 800 }}>{t("موبي كاش")}</span>
-              <span style={{ display: "block", fontSize: 12.5, color: MUTED, marginTop: 2 }}>{t("بطاقة مصرف الوحدة — برمز تحقق")}</span>
-            </span>
-            <span style={{ fontWeight: 900, fontSize: 13.5, whiteSpace: "nowrap" }}>{due.toFixed(0)} {t("د.ل")}</span>
-          </button>
+          {["mobicash", "yusor", ...(process.env.NEXT_PUBLIC_MASARAFI_ENABLED === "true" ? ["masarafi"] : [])].map((gw) => (
+            <button key={gw} onClick={() => openCard(gw)} disabled={busy} style={payRow}>
+              <span style={payIcon}><Icon path={CARD_META[gw].icon} size={18} color={PRIMARY} /></span>
+              <span style={{ flex: 1, minWidth: 0, textAlign: "start" }}>
+                <span style={{ display: "block", fontSize: 14, fontWeight: 800 }}>{CARD_META[gw].label}</span>
+                <span style={{ display: "block", fontSize: 12.5, color: MUTED, marginTop: 2 }}>{CARD_META[gw].desc}</span>
+              </span>
+              <span style={{ fontWeight: 900, fontSize: 13.5, whiteSpace: "nowrap" }}>{due.toFixed(0)} {t("د.ل")}</span>
+            </button>
+          ))}
 
           <button onClick={payMoamalat} disabled={busy} style={payRow}>
             <span style={payIcon}><Icon path={I.bank} size={18} color={PRIMARY} /></span>
