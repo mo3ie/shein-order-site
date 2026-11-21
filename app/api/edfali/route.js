@@ -1,3 +1,5 @@
+import { orderAmountLYD } from "@/lib/orderAmount";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 // Edfali (ادفع لي) — مصرف التجارة والتنمية
 // SOAP 1.1 — Step 1: DoPTrans sends OTP to customer, returns sessionID
 // العنوان من المصرف، وقابل للتغيير بلا نشر.
@@ -80,10 +82,20 @@ function normalizePhone(phone) {
 // Body: { phone, amountLYD, orderId }
 export async function POST(req) {
   try {
-    const { phone, amountLYD, orderId } = await req.json();
+    const { phone, orderId } = await req.json();
 
-    if (!phone || !amountLYD)
-      return Response.json({ error: "رقم الهاتف والمبلغ مطلوبان" }, { status: 400 });
+    if (!phone || !orderId)
+      return Response.json({ error: "رقم الهاتف والطلب مطلوبان" }, { status: 400 });
+
+    // Charge the server-computed total, and keep the bank session on the
+    // pending payment row so /verify confirms only the session opened here.
+    const amountLYD = await orderAmountLYD(orderId);
+    if (!amountLYD) return Response.json({ error: "الطلب غير موجود أو مدفوع مسبقًا أو بلا مبلغ" }, { status: 400 });
+    const { data: payment } = await supabaseAdmin
+      .from("payments").select("id")
+      .eq("order_id", orderId).eq("method", "edfali").eq("status", "pending")
+      .order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (!payment) return Response.json({ error: "الطلب غير موجود أو مدفوع مسبقًا" }, { status: 404 });
 
     if (!process.env.EDFALI_MOBILE || !process.env.EDFALI_PIN)
       return Response.json({ error: "متغيرات البيئة EDFALI_MOBILE / EDFALI_PIN غير موجودة" }, { status: 500 });
@@ -105,6 +117,7 @@ export async function POST(req) {
     const errMsg = ERRORS[upper];
     if (errMsg) return Response.json({ error: `[${upper}] ${errMsg}` }, { status: 400 });
 
+    await supabaseAdmin.from("payments").update({ payment_session: value }).eq("id", payment.id);
     console.log("[edfali] DoPTrans OK — sessionId:", value, "order:", orderId);
     return Response.json({ success: true, session_id: value });
 

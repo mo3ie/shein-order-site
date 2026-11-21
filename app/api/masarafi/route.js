@@ -1,3 +1,4 @@
+import { orderAmountLYD } from "@/lib/orderAmount";
 // Masarafi Pay (مصرفي باي) — Step 1: signin + OpenSession (bank sends the customer an OTP)
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { masarafiInitiate } from "@/lib/masarafi";
@@ -27,7 +28,7 @@ export async function POST(req) {
     if (!order)                  return Response.json({ error: "الطلب غير موجود" }, { status: 404 });
     if (order.status === "paid") return Response.json({ error: "هذا الطلب مدفوع مسبقًا" }, { status: 400 });
 
-    const amount = Number(payment.amount);
+    const amount = await orderAmountLYD(orderId);
     if (!amount || amount <= 0) return Response.json({ error: "المبلغ غير صحيح" }, { status: 400 });
 
     const sessionToken = await masarafiInitiate({ identityCard: cardNumber, amount, orderId });

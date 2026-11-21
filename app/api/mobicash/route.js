@@ -1,3 +1,4 @@
+import { orderAmountLYD } from "@/lib/orderAmount";
 // MobiCash (موبي كاش) — Step 1: charge the card, bank sends the customer an OTP
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { initiateCardPayment } from "@/lib/mobicash";
@@ -30,7 +31,7 @@ export async function POST(req) {
     if (!order)                return Response.json({ error: "الطلب غير موجود" }, { status: 404 });
     if (order.status === "paid") return Response.json({ error: "هذا الطلب مدفوع مسبقًا" }, { status: 400 });
 
-    const amount = Number(payment.amount) || Number(amountLYD);
+    const amount = await orderAmountLYD(orderId);
     if (!amount || amount <= 0)
       return Response.json({ error: "المبلغ غير صحيح" }, { status: 400 });
 

@@ -1,3 +1,4 @@
+import { orderAmountLYD } from "@/lib/orderAmount";
 // Yusor Pay (يسر باي) — Step 1: signin + OpenSession (bank sends the customer an OTP)
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { yusorInitiate } from "@/lib/yusor";
@@ -29,8 +30,8 @@ export async function POST(req) {
     if (!order)                  return Response.json({ error: "الطلب غير موجود" }, { status: 404 });
     if (order.status === "paid") return Response.json({ error: "هذا الطلب مدفوع مسبقًا" }, { status: 400 });
 
-    const amount = Number(payment.amount);
-    if (!amount || amount <= 0) return Response.json({ error: "المبلغ غير صحيح" }, { status: 400 });
+    const amount = await orderAmountLYD(orderId);
+    if (!amount) return Response.json({ error: "الطلب غير موجود أو مدفوع مسبقًا أو بلا مبلغ" }, { status: 400 });
 
     const sessionToken = await yusorInitiate({ identityCard: cardNumber, amount, orderId });
 

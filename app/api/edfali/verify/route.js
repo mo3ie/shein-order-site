@@ -25,10 +25,20 @@ xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">\
 // Body: { sessionId, otp, orderId }
 export async function POST(req) {
   try {
-    const { sessionId, otp, orderId } = await req.json();
+    const { otp, orderId } = await req.json();
 
-    if (!sessionId || !otp)
-      return Response.json({ error: "sessionId و otp مطلوبان" }, { status: 400 });
+    if (!orderId || !otp)
+      return Response.json({ error: "orderId و otp مطلوبان" }, { status: 400 });
+
+    // The session comes from the row written at initiate, never the browser:
+    // a session opened for a small amount must not mark a large order paid.
+    const { data: payment } = await supabaseAdmin
+      .from("payments").select("id, payment_session")
+      .eq("order_id", orderId).eq("method", "edfali").eq("status", "pending")
+      .order("created_at", { ascending: false }).limit(1).maybeSingle();
+    if (!payment?.payment_session)
+      return Response.json({ error: "لم تبدأ عملية الدفع لهذا الطلب" }, { status: 400 });
+    const sessionId = payment.payment_session;
 
     if (!process.env.EDFALI_MOBILE)
       return Response.json({ error: "متغير EDFALI_MOBILE غير موجود" }, { status: 500 });
@@ -63,10 +73,10 @@ export async function POST(req) {
       return Response.json({ error: `[${value}] رمز التحقق غير صحيح أو انتهت صلاحيته` }, { status: 400 });
     }
 
-    if (orderId) {
+    {
       await Promise.all([
         supabaseAdmin.from("orders").update({ status: "paid" }).eq("id", orderId),
-        supabaseAdmin.from("payments").update({ status: "paid" }).eq("order_id", orderId).eq("method", "edfali"),
+        supabaseAdmin.from("payments").update({ status: "paid" }).eq("id", payment.id),
       ]);
       console.log("[edfali/verify] order marked paid:", orderId);
     }

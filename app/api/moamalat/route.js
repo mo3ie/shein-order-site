@@ -1,3 +1,4 @@
+import { orderAmountLYD } from "@/lib/orderAmount";
 import { createHmac } from "crypto";
 
 const MID  = process.env.MOAMALAT_MERCHANT_ID;
@@ -7,11 +8,10 @@ const MODE = process.env.MOAMALAT_MODE; // "Production" | "Test"
 
 export async function POST(req) {
   try {
-    const { orderId, amountLYD } = await req.json();
-
-    if (!orderId || !amountLYD) {
-      return Response.json({ error: "orderId و amountLYD مطلوبان" }, { status: 400 });
-    }
+    const { orderId } = await req.json();
+    if (!orderId) return Response.json({ error: "orderId مطلوب" }, { status: 400 });
+    const amountLYD = await orderAmountLYD(orderId);
+    if (!amountLYD) return Response.json({ error: "الطلب غير موجود أو مدفوع مسبقًا أو بلا مبلغ" }, { status: 400 });
 
     // LYD → smallest unit (dirham: 1 LYD = 1000)
     const amountUnit = Math.round(Number(amountLYD) * 1000).toString();

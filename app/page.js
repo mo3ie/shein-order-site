@@ -802,7 +802,7 @@ export default function OrderPage() {
       const res = await fetch("/api/edfali", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId: oid, amountLYD: priceLYD, phone: ePhone }),
+        body: JSON.stringify({ orderId: oid, phone: ePhone }),
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "فشل إرسال طلب الدفع");
@@ -824,7 +824,7 @@ export default function OrderPage() {
       const res = await fetch("/api/edfali/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: edfaliSession, otp: edfaliOtp, orderId: edfaliOrderId }),
+        body: JSON.stringify({ otp: edfaliOtp, orderId: edfaliOrderId }),
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "رمز التحقق خاطئ");
