@@ -47,11 +47,17 @@ function SuccessContent() {
     }
 
     const check = async () => {
-      const { data } = await supabase
-        .from("orders")
-        .select("status, user_id, name, phone, price")
-        .eq("id", orderId)
-        .maybeSingle();
+      // Through the server (by the order's UUID), not the table: the table is no
+      // longer world-readable (2026-11-25 RLS fix), and guests have no session.
+      let data = null;
+      try {
+        const r = await fetch(`/api/order?id=${encodeURIComponent(orderId)}`, { cache: "no-store" });
+        const j = await r.json();
+        if (j?.success && j.order) {
+          const o = j.order;
+          data = { status: o.status, user_id: o.user_id, name: o.name, phone: o.phone, price: o.price };
+        }
+      } catch { /* keep polling */ }
 
       if (data) setOrderData(data);
 

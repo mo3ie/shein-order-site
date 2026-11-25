@@ -1,42 +1,15 @@
-import Stripe from "stripe";
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-const BASE = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-
-export async function POST(req) {
-  try {
-    const { amount, orderId } = await req.json();
-
-    if (!orderId) {
-      return Response.json({ error: "orderId مطلوب" }, { status: 400 });
-    }
-
-    if (!amount || amount <= 0) {
-      return Response.json({ error: "المبلغ غير صالح" }, { status: 400 });
-    }
-
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      mode: "payment",
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: { name: "طلب شي إن — TREND" },
-            unit_amount: Math.round(amount * 100),
-          },
-          quantity: 1,
-        },
-      ],
-      metadata: { order_id: orderId },
-      success_url: `${BASE}/success?orderId=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:  `${BASE}/?cancelled=1`,
-    });
-
-    return Response.json({ url: session.url });
-  } catch (err) {
-    console.error("STRIPE ERROR:", err);
-    return Response.json({ error: err.message }, { status: 500 });
-  }
+/**
+ * DISABLED (2026-11-25 security audit).
+ *
+ * Legacy Stripe / DPay endpoints. No page of the site uses them any more (SHEIN
+ * orders are paid by wallet, Edfali, MobiCash, Moamalat, Yusor or Masarafi), but
+ * they were still reachable and unsafe: /api/checkout charged an amount chosen by
+ * the browser, and /api/verify + /api/verify-stripe marked ANY order paid from ANY
+ * paid session — a 1-dinar session could "pay" a large cart. If Stripe/DPay are
+ * ever brought back, they must load the amount from the order on the server and
+ * bind the session to that order before marking anything paid.
+ * The previous code is in git history (before this commit).
+ */
+export async function POST() {
+  return Response.json({ success: false, error: "طريقة الدفع هذه غير متاحة" }, { status: 410 });
 }

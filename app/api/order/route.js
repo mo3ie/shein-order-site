@@ -98,6 +98,12 @@ export async function GET(req) {
         });
       }
 
+      // The tracking link is public (anyone holding the UUID). Internal buying data —
+      // which of Trend's SHEIN accounts/devices priced the cart — is staff-only.
+      if (data.price_breakdown?.details && !(await requireStaff(req))) {
+        const { account, accountLabel, ...pub } = data.price_breakdown.details;   // eslint-disable-line no-unused-vars
+        data.price_breakdown = { ...data.price_breakdown, details: pub };
+      }
       return Response.json({ success: true, order: data });
     }
 
