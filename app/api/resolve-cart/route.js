@@ -14,6 +14,25 @@ export const maxDuration = 60;
  * enough to hold one.
  */
 const recent = new Map(); // shareUrl -> { at, result }
+
+// Flood guard (2026-11-25 audit). Two phones price every cart, so one client
+// posting hundreds of different links would make every real customer wait for
+// hours. Per IP: at most 6 DIFFERENT carts per 10 minutes — re-checking the same
+// cart (or changing its quantities) never counts. In-memory per server instance:
+// a speed bump, not a wall, and it never touches how a cart is priced.
+const FLOOD_WINDOW_MS = 10 * 60 * 1000, FLOOD_MAX = 6;
+const floodSeen = new Map(); // ip -> Map(linkKey -> at)
+function flooded(req, shareUrl) {
+  const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "unknown";
+  const key = (shareUrl.match(/shc=([\w-]+)/) || shareUrl.match(/\/([\w-]{8,})(?:\?|$)/) || [shareUrl])[1] || shareUrl;
+  const now = Date.now();
+  const links = floodSeen.get(ip) || new Map();
+  for (const [k, at] of links) if (now - at > FLOOD_WINDOW_MS) links.delete(k);
+  if (!links.has(key) && links.size >= FLOOD_MAX) { floodSeen.set(ip, links); return true; }
+  links.set(key, now); floodSeen.set(ip, links);
+  if (floodSeen.size > 5000) floodSeen.clear();
+  return false;
+}
 // عشر دقائق لا ثلاثون: هذا المخبّأ يُري الزبون سعرًا دون أن يقيس، وسعرٌ عمره
 // نصف ساعة قد لا يكون سعر شي إن الآن — فيبني الزبون قراره على رقم ماضٍ.
 const RECENT_TTL_MS = 10 * 60 * 1000;
@@ -80,6 +99,14 @@ export async function POST(req) {
       { status: 400 }
     );
   }
+  if (flooded(req, shareUrl)) {
+    console.warn(`[resolve ${requestId}] flood guard: too many different carts from one client`);
+    return Response.json(
+      { success: false, code: "RATE_LIMITED", message: "أرسلت سلالاً كثيرة خلال وقت قصير. انتظر بضع دقائق ثم حاول مرة أخرى." },
+      { status: 429 }
+    );
+  }
+
 
   // A cart priced with quantities set is a different measurement from the same
   // link priced one-of-each, so it must never be answered from the plain cache.
