@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { sendPush, NOTICES } from "@/lib/sendPush";
+import { pollResolveJob } from "@/lib/resolver";
 
 /**
  * خدمة التسعير تخبرنا أن قياسًا انتهى، فنُشعر صاحبه.
@@ -23,9 +24,23 @@ export async function POST(req) {
   const jobId = String(body?.jobId || "").trim();
   if (!jobId) return Response.json({ ok: false, error: "no jobId" }, { status: 400 });
 
-  const ok = body.status === "done";
+  // The notice must say what the PAGE will say. The resolver reports "done" from its
+  // own point of view, but the site still checks the result (e.g. a total far below
+  // its own lines is refused as a misread) — announcing «سعر سلتك جاهز» for a price
+  // the page then rejects is exactly the contradiction a customer saw. So the result
+  // is read through the same shaping/validation the page uses before announcing it.
+  let ok = body.status === "done";
+  let usd = Number(body.priceUsd);
+  if (ok) {
+    try {
+      const shaped = await pollResolveJob(jobId);
+      if (shaped?.status === "done" && Number.isFinite(Number(shaped.estimatedPrice))) usd = Number(shaped.estimatedPrice);
+    } catch (e) {
+      console.warn(`[push/job-done] ${jobId} resolver said done but the site refuses it: ${e.code || ""} ${e.message || ""}`);
+      ok = false;
+    }
+  }
   const rate = await currentRate();
-  const usd = Number(body.priceUsd);
   const lyd = ok && Number.isFinite(usd) && rate ? usd * rate.multiplier : null;
 
   const result = await sendPush(
