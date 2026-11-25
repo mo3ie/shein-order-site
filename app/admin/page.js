@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { adminFetch } from "@/lib/adminFetch";
 import AdminShell, { useAdminGuard, StatCard } from "@/app/components/AdminShell";
+import CartDetails from "./CartDetails";
 import { Card, SectionTitle, Button, Icon, I, inputStyle, PRIMARY, INK, MUTED, FAINT, LINE, CARD, CHIP, SOLID, ON_SOLID } from "@/app/components/ui";
 
 /**
@@ -477,8 +478,11 @@ export default function Admin() {
                     </div>
                   )}
 
-                  {/* الكميات التي اختارها الزبون */}
-                  {qtys.length > 0 && (
+                  {/* محتويات السلة كاملة للموظف المشتري */}
+                  <CartDetails order={order} onImage={setImage} />
+
+                  {/* الكميات التي اختارها الزبون — للطلبات القديمة بلا تفاصيل */}
+                  {qtys.length > 0 && !order.price_breakdown?.details && (
                     <div style={{ display: "flex", gap: 9, alignItems: "flex-start", background: "var(--t-amber-bg)", color: "var(--t-amber-ink)", borderRadius: 13, padding: "11px 13px", fontSize: 12.5, lineHeight: 1.8 }}>
                       <Icon path={I.cart} size={16} style={{ flexShrink: 0, marginTop: 2 }} />
                       <span>{qtys.map((q) => `${String(q.name).slice(0, 26)} × ${q.wanted}`).join(" · ")}</span>

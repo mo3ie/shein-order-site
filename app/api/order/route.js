@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { resolveSharedCart, isSheinShareUrl } from "@/lib/resolver";
 import { sendPush, NOTICES } from "@/lib/sendPush";
-import { findQuote } from "@/lib/priceQuote";
+import { findQuote, buildDetails } from "@/lib/priceQuote";
 
 export const runtime = "nodejs";
 // Vercel caps function duration well below a full resolve (~75s). Order
@@ -152,6 +152,7 @@ export async function POST(req) {
     let cartShotBase64 = null;
     let extraUsd = 0;
     let cartShotUrl = null;
+    let details = null;
     if (!isSheinShareUrl(cart_link)) {
       return Response.json(
         { success: false, message: "رابط السلة غير صالح." },
@@ -169,6 +170,7 @@ export async function POST(req) {
       priceSource = quote.price_source || "quote";
       breakdown = quote.breakdown || null;
       cartShotUrl = quote.cart_shot_url || null;
+      details = quote.details || null;
       console.log(
         `[order] using stored quote ${quote.id} $${verifiedPrice}` +
         ` measured ${new Date(quote.created_at).toISOString()} clientSaid=${price}`
@@ -198,6 +200,7 @@ export async function POST(req) {
       priceSource = resolved.source;
       breakdown = resolved.breakdown || null;
       cartShotBase64 = resolved.screenshotBase64 || null;
+      details = await buildDetails(resolved).catch(() => null);
 
       // Quantities above the one SHEIN's share link reports are charged at that
       // line's own unit price. This is the second half of a deliberate two-step:
@@ -298,8 +301,8 @@ export async function POST(req) {
       // الإعدادات بعده. بلا ذلك يعيد الأدمن حساب طلبات الأمس بسعر اليوم.
       ...(usedCommission != null ? { profit_rate: usedCommission } : {}),
       ...(cartShotUrl ? { cart_shot_url: cartShotUrl } : {}),
-      ...(breakdown || address || extraUsd
-        ? { price_breakdown: { ...(breakdown || {}), quantities: quantities || [], note: note || null, images: images || [], source: priceSource } }
+      ...(breakdown || address || extraUsd || details
+        ? { price_breakdown: { ...(breakdown || {}), quantities: quantities || [], note: note || null, images: images || [], source: priceSource, ...(details ? { details } : {}) } }
         : {}),
       ...(address ? { delivery_address: [address.city, address.area, address.note].filter(Boolean).join(" — ") } : {}),
       ...(address?.geo ? { delivery_geo: address.geo } : {}),
