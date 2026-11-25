@@ -83,6 +83,9 @@ export default function About() {
           {t("لديك سؤال؟ تواصل معنا")}
         </a>
       </div>
+      <p style={{ textAlign: "center", fontSize: 12.5, margin: "4px 0 16px" }}>
+        <a href="/privacy" style={{ color: "var(--t-muted)" }}>سياسة الخصوصية</a>{"  ·  "}<a href="/terms" style={{ color: "var(--t-muted)" }}>الشروط والأحكام</a>
+      </p>
     </Screen>
   );
 }
