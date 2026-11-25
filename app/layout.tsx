@@ -5,6 +5,7 @@ import "./theme.css";
 import type { Metadata } from "next";
 import { Cairo } from "next/font/google";
 import Header from "./components/Header";
+import AdminQuick from "./components/AdminQuick";
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
@@ -29,6 +30,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col" style={{ background: "var(--t-page)", color: "var(--t-ink)", margin: 0 }}>
         <Header />
         {children}
+        <AdminQuick />
       </body>
     </html>
   );
